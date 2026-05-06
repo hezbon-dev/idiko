@@ -14,11 +14,25 @@ const { sendSMS } = require("./services/africasTalkingSMS");
 // 🔥 ✅ ADD FIREBASE ADMIN (NEW)
 const admin = require("firebase-admin");
 
-admin.initializeApp({
-  credential: admin.credential.cert(require("./serviceAccountKey.json"))
-});
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  console.log("🔥 Using Firebase from ENV");
 
-const db = admin.firestore();
+  admin.initializeApp({
+    credential: admin.credential.cert(
+      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+    ),
+  });
+} else {
+  console.warn("⚠️ Firebase not configured — skipping init");
+}
+
+let db = null;
+
+try {
+  db = admin.firestore();
+} catch (e) {
+  console.warn("⚠️ Firestore not available");
+}
 
 // 🔁 Pesapal integration
 const { pesapalInitiatePayment } = require("./pesapal/pesapalPayment");
@@ -149,6 +163,13 @@ app.post("/start-notification", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to start notification:", err);
     res.status(500).json({ success: false });
+
+    if (!db) {
+  return res.status(500).json({
+    success: false,
+    error: "Database not configured",
+  });
+}
   }
 });
 
