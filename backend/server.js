@@ -140,6 +140,14 @@ app.post("/notifySMS", async (req, res) => {
 app.post("/start-notification", async (req, res) => {
   console.log("🚀 START NOTIFICATION TRIGGERED");
 
+  // ✅ FIX: guard BEFORE using db
+  if (!db) {
+    return res.status(500).json({
+      success: false,
+      error: "Database not configured",
+    });
+  }
+
   const { idNumber, fullName, primaryPhone, secondaryPhone } = req.body;
 
   console.log("📌 DATA:", { idNumber, fullName, primaryPhone, secondaryPhone });
@@ -149,7 +157,7 @@ app.post("/start-notification", async (req, res) => {
 
     await docRef.set(
       {
-        matched: true, // ✅ FIX (CRITICAL)
+        matched: true,
         startedAt: new Date().toISOString(),
         primaryPhone,
         secondaryPhone,
@@ -163,13 +171,6 @@ app.post("/start-notification", async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to start notification:", err);
     res.status(500).json({ success: false });
-
-    if (!db) {
-  return res.status(500).json({
-    success: false,
-    error: "Database not configured",
-  });
-}
   }
 });
 
@@ -240,6 +241,12 @@ console.log("🧠 Starting Notification Scheduler...");
 
 setInterval(async () => {
   console.log("⏱ Scheduler running...");
+
+  // ✅ HARD STOP if db is not available
+  if (!db) {
+    console.warn("⚠️ Scheduler skipped — DB not available");
+    return;
+  }
 
   try {
     const snapshot = await db.collection("notify_requests").get();
