@@ -153,17 +153,28 @@ app.post("/start-notification", async (req, res) => {
   console.log("📌 DATA:", { idNumber, fullName, primaryPhone, secondaryPhone });
 
   try {
-    const docRef = db.collection("notify_requests").doc(idNumber);
+    // ✅ FIX: update EXISTING notify request instead of creating new document
+    const snapshot = await db
+      .collection("notify_requests")
+      .where("idNumber", "==", idNumber)
+      .limit(1)
+      .get();
 
-    await docRef.set(
-      {
-        matched: true,
-        startedAt: new Date().toISOString(),
-        primaryPhone,
-        secondaryPhone,
-      },
-      { merge: true }
-    );
+    if (snapshot.empty) {
+      return res.status(404).json({
+        success: false,
+        error: "Notify request not found",
+      });
+    }
+
+    const docRef = snapshot.docs[0].ref;
+
+    await docRef.update({
+      matched: true,
+      startedAt: new Date().toISOString(),
+      primaryPhone,
+      secondaryPhone,
+    });
 
     console.log("✅ Notification schedule started for:", idNumber);
 
@@ -257,7 +268,18 @@ setInterval(async () => {
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
       if (!req.matched) continue;
-      if (req.status === "Paid") continue;
+
+      // ✅ FIX: stop immediately if paid
+      if (
+        req.status === "Paid" ||
+        req.status === "paid"
+      ) continue;
+
+      // ✅ FIX: require fullName before SMS
+      if (!req.fullName) {
+        console.warn("⚠️ Missing fullName for:", docSnap.id);
+        continue;
+      }
 
       if (!req.startedAt) {
         await docRef.update({
@@ -269,17 +291,29 @@ setInterval(async () => {
       const startedAt = new Date(req.startedAt).getTime();
       const daysPassed = Math.floor((now - startedAt) / (1000 * 60 * 60 * 24));
 
+      // ✅ STOP after 30 days
       if (daysPassed >= 30) continue;
 
+      // ✅ prevent duplicate same-day SMS
       if (req.lastSentAt) {
         const last = new Date(req.lastSentAt).toDateString();
         const today = new Date().toDateString();
+
         if (last === today) continue;
       }
 
-      const phones = [...new Set([req.primaryPhone, req.secondaryPhone].filter(Boolean))];
+      const phones = [
+        ...new Set(
+          [req.primaryPhone, req.secondaryPhone].filter(Boolean)
+        ),
+      ];
 
-      const message = `Good news ${req.fullName.split(" ")[0]}, your ID is available. Visit idiko.co.ke to claim it.`;
+      // ✅ FIX: safe name extraction
+      const firstName = req.fullName
+        ? req.fullName.split(" ")[0]
+        : "Customer";
+
+      const message = `Good news ${firstName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID" to search and claim your ID,.Thank you.`;
 
       for (const phone of phones) {
         await sendSMS(phone, message);
