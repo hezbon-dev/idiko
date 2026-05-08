@@ -102,16 +102,31 @@ function mpesaCallback(req, res) {
     console.log("➡️ Phone:", paymentData.PhoneNumber);
     console.log("➡️ TransactionDate:", paymentData.TransactionDate);
 
-    // ✅ Save payment using ID number reference too
-    const accountReference =
-      paymentData.AccountReference ||
-      "unknown";
+    // ✅ Find existing payment and preserve accountReference
+const FILE_PATH = path.join(__dirname, "payments.json");
 
-    updatePaymentStatus(
-      CheckoutRequestID,
-      accountReference,
-      paymentData
-    );
+let payments = [];
+
+try {
+  if (fs.existsSync(FILE_PATH)) {
+    payments = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
+  }
+} catch (err) {
+  console.error("❌ Failed to read payments file", err);
+}
+
+const existingPayment = payments.find(
+  p => p.checkoutRequestID === CheckoutRequestID
+);
+
+const accountReference =
+  existingPayment?.accountReference || "unknown";
+
+updatePaymentStatus(
+  CheckoutRequestID,
+  accountReference,
+  paymentData
+);
 
     return res.status(200).json({
       ResultCode: 0,
