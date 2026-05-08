@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 
 interface PayToClaimProps {}
 
@@ -16,6 +16,8 @@ interface PayToClaimProps {}
  */
 export default function PayToClaim({}: PayToClaimProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+
   const state = location.state as {
     idNumber: string;
     fullName: string;
@@ -55,7 +57,7 @@ export default function PayToClaim({}: PayToClaimProps) {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/pesapal/pay",
+        "/mpesa/stkpush",
         {
           phone: formattedPhone,
           amount: state.amount,
@@ -64,17 +66,40 @@ export default function PayToClaim({}: PayToClaimProps) {
         }
       );
 
-      console.log("Pesapal payment response:", response.data);
+      console.log("MPESA payment response:", response.data);
 
       setMessage(
         "✅ Payment request sent! Check your phone for the M-Pesa prompt."
       );
+
+      // ✅ START PAYMENT STATUS POLLING
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResponse = await axios.get(
+            `/mpesa/status/${state.accountReference}`
+          );
+
+          console.log("📡 Payment status:", statusResponse.data.status);
+
+          if (statusResponse.data.status === "paid") {
+            clearInterval(pollInterval);
+
+            setMessage("✅ Payment successful! Redirecting...");
+
+            navigate(`/claimed/${state.idNumber}`);
+          }
+        } catch (err) {
+          console.error("❌ Status polling failed", err);
+        }
+      }, 3000);
+
     } catch (error: any) {
       console.error(error);
+
       setMessage(
         "❌ Payment failed. Make sure your phone number is correct and try again."
       );
-    } finally {
+
       setLoading(false);
     }
   };
