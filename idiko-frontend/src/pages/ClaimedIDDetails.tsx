@@ -87,7 +87,7 @@ export default function ClaimedIDDetails() {
   useEffect(() => {
     async function verifyPayment() {
       try {
-        const res = await axios.get(`/mpesa/payment-status/${idNumber}`);
+        const res = await axios.get(`/mpesa/status/${idNumber}`);
         setPaymentVerified(res.data.status === "paid");
       } catch {
         setPaymentVerified(false);

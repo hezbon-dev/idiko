@@ -53,7 +53,7 @@ function ProtectedClaimedRoute() {
   useEffect(() => {
     async function checkPayment() {
       try {
-        const res = await axios.get(`/mpesa/payment-status/${idNumber}`);
+        const res = await axios.get(`/mpesa/status/${idNumber}`);
         setAllowed(res.data.status === "paid");
       } catch {
         setAllowed(false);
