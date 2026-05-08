@@ -6,7 +6,11 @@ const fs = require("fs");
 const path = require("path");
 
 // Helper function to update payment status
-function updatePaymentStatus(checkoutRequestID) {
+function updatePaymentStatus(
+  checkoutRequestID,
+  accountReference,
+  paymentData
+) {
   const FILE_PATH = path.join(__dirname, "payments.json");
   let payments = [];
 
@@ -19,11 +23,28 @@ function updatePaymentStatus(checkoutRequestID) {
   }
 
   // Update or add the payment
-  const existingIndex = payments.findIndex(p => p.checkoutRequestID === checkoutRequestID);
+  const existingIndex = payments.findIndex(
+    p => p.checkoutRequestID === checkoutRequestID
+  );
+
+  const paymentRecord = {
+    checkoutRequestID,
+    accountReference,
+    status: "paid",
+    amount: paymentData.Amount,
+    mpesaReceipt: paymentData.MpesaReceiptNumber,
+    phone: paymentData.PhoneNumber,
+    transactionDate: paymentData.TransactionDate,
+    paidAt: new Date().toISOString(),
+  };
+
   if (existingIndex >= 0) {
-    payments[existingIndex].status = "paid";
+    payments[existingIndex] = {
+      ...payments[existingIndex],
+      ...paymentRecord,
+    };
   } else {
-    payments.push({ checkoutRequestID, status: "paid" });
+    payments.push(paymentRecord);
   }
 
   try {
@@ -68,6 +89,7 @@ function mpesaCallback(req, res) {
     console.log("✅ PAYMENT SUCCESSFUL");
 
     let paymentData = {};
+
     if (CallbackMetadata && CallbackMetadata.Item) {
       CallbackMetadata.Item.forEach(item => {
         paymentData[item.Name] = item.Value;
@@ -80,8 +102,16 @@ function mpesaCallback(req, res) {
     console.log("➡️ Phone:", paymentData.PhoneNumber);
     console.log("➡️ TransactionDate:", paymentData.TransactionDate);
 
-    // ✅ Real-time confirmation: save status
-    updatePaymentStatus(CheckoutRequestID);
+    // ✅ Save payment using ID number reference too
+    const accountReference =
+      paymentData.AccountReference ||
+      "unknown";
+
+    updatePaymentStatus(
+      CheckoutRequestID,
+      accountReference,
+      paymentData
+    );
 
     return res.status(200).json({
       ResultCode: 0,
@@ -97,7 +127,9 @@ function mpesaCallback(req, res) {
 // Extra route to allow frontend polling
 function getPaymentStatus(req, res) {
   const { checkoutRequestID } = req.params;
+
   const FILE_PATH = path.join(__dirname, "payments.json");
+
   let payments = [];
 
   try {
@@ -108,8 +140,14 @@ function getPaymentStatus(req, res) {
     console.error("❌ Failed to read payments file", err);
   }
 
-  const payment = payments.find(p => p.checkoutRequestID === checkoutRequestID);
-  res.json({ status: payment?.status || "pending" });
+  // ✅ Frontend sends ID number, so match using accountReference
+  const payment = payments.find(
+    p => p.accountReference === checkoutRequestID
+  );
+
+  res.json({
+    status: payment?.status || "pending",
+  });
 }
 
 module.exports = { mpesaCallback, getPaymentStatus };
