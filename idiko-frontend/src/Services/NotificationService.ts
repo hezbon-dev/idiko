@@ -89,7 +89,7 @@ export async function sendNotification(job: NotificationJob) {
   const message = getNotificationMessage(job.firstName);
 
   try {
-    const response = await fetch("http://localhost:5000/notifySMS", {
+    const response = await fetch("https://idiko.onrender.com/notifySMS", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

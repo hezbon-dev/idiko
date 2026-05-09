@@ -1,4 +1,4 @@
- // src/pages/StaffUpload.tsx
+// src/pages/StaffUpload.tsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useRecords } from "../context/RecordContext";
@@ -19,6 +19,10 @@ export default function StaffUpload() {
   const [frontPreview, setFrontPreview] = useState<string | null>(null);
   const [backPreview, setBackPreview] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  // ✅ NEW: store compressed images separately for saving
+  const [frontImageCompressed, setFrontImageCompressed] = useState<string | null>(null);
+  const [backImageCompressed, setBackImageCompressed] = useState<string | null>(null);
 
   // OCR loading state
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -46,7 +50,7 @@ export default function StaffUpload() {
     try {
       setOcrLoading(true);
 
-      const response = await fetch("http://localhost:5000/api/ocr", {
+      const response = await fetch("https://idiko.onrender.com/api/ocr", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -75,24 +79,62 @@ export default function StaffUpload() {
     }
   };
 
-  const handleImageChange = (
+  // ✅ NEW: compress image before saving to Firestore
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        const img = new Image();
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+
+          const maxWidth = 800;
+          const scaleSize = maxWidth / img.width;
+
+          canvas.width = maxWidth;
+          canvas.height = img.height * scaleSize;
+
+          const ctx = canvas.getContext("2d");
+
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.5);
+
+          resolve(compressedBase64);
+        };
+
+        img.src = event.target?.result as string;
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
     setPreview: React.Dispatch<React.SetStateAction<string | null>>,
     isFront: boolean
   ) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const imageBase64 = reader.result as string;
-        setPreview(imageBase64);
 
-        // ✅ If front image, call OCR
-        if (isFront) {
-          await callOCR(imageBase64);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (file) {
+      // ✅ Compress image first
+      const compressedImage = await compressImage(file);
+
+      // ✅ Use compressed image for preview
+      setPreview(compressedImage);
+
+      // ✅ Save compressed image separately
+      if (isFront) {
+        setFrontImageCompressed(compressedImage);
+
+        // ✅ OCR still works
+        await callOCR(compressedImage);
+      } else {
+        setBackImageCompressed(compressedImage);
+      }
     }
   };
 
@@ -137,8 +179,9 @@ export default function StaffUpload() {
     }
 
     addRecord({
-      frontImage: frontPreview,
-      backImage: backPreview,
+      // ✅ Save compressed images instead of huge originals
+      frontImage: frontImageCompressed!,
+      backImage: backImageCompressed!,
       fullName: normalizedFullName,
       idNumber: normalizedIdNumber,
       dob: formatDate(dob),
@@ -153,6 +196,11 @@ export default function StaffUpload() {
     // Reset except pickupStation
     setFrontPreview(null);
     setBackPreview(null);
+
+    // ✅ Reset compressed images too
+    setFrontImageCompressed(null);
+    setBackImageCompressed(null);
+
     setFullName("");
     setIdNumber("");
     setDob("");

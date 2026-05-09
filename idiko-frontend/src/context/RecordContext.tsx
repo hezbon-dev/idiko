@@ -129,6 +129,31 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   /* ================= HELPERS ================= */
   const normalizeText = (s?: string) => (s || "").trim().toLowerCase();
   const normalizeId = (s?: string) => (s || "").replace(/\s+/g, "");
+  
+  const normalizePhone = (phone?: string) => {
+    if (!phone) return "";
+
+    // Remove spaces and non-digits except +
+    let cleaned = phone.replace(/\s+/g, "").replace(/[^\d+]/g, "");
+
+    // Convert 07XXXXXXXX → +2547XXXXXXXX
+    if (cleaned.startsWith("0")) {
+      cleaned = "+254" + cleaned.substring(1);
+    }
+
+    // Convert 7XXXXXXXX → +2547XXXXXXXX
+    else if (cleaned.startsWith("7")) {
+      cleaned = "+254" + cleaned;
+    }
+
+    // Convert 2547XXXXXXXX → +2547XXXXXXXX
+    else if (cleaned.startsWith("254")) {
+      cleaned = "+" + cleaned;
+    }
+
+    return cleaned;
+  };
+
   const normalizeDOB = (dob?: string) => {
     if (!dob) return "";
     const parts = dob.includes("/") ? dob.split("/") : dob.split("-");
@@ -210,6 +235,9 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       dob: normalizeDOB(req.dob),
       sex: normalizeText(req.sex),
       district: normalizeText(req.district),
+
+      primaryPhone: normalizePhone(req.primaryPhone),
+      secondaryPhone: normalizePhone(req.secondaryPhone),
     };
 
     const exists = notifyRequests.some(r =>

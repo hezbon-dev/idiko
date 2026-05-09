@@ -20,6 +20,22 @@ const africasTalking = Africastalking({
 
 const sms = africasTalking.SMS;
 
+const normalizePhone = (phone) => {
+  if (!phone) return null;
+
+  let cleaned = phone.replace(/\s+/g, "").replace(/[^\d+]/g, "");
+
+  if (cleaned.startsWith("0")) {
+    cleaned = "+254" + cleaned.substring(1);
+  } else if (cleaned.startsWith("7")) {
+    cleaned = "+254" + cleaned;
+  } else if (cleaned.startsWith("254")) {
+    cleaned = "+" + cleaned;
+  }
+
+  return cleaned;
+};
+
 /**
  * Send SMS using Africa's Talking
  * @param {string} phoneNumber - recipient phone number in international format, e.g. +2547xxxxxxx
@@ -42,7 +58,7 @@ async function sendSMS(phoneNumber, message) {
 
   try {
     const options = {
-      to: [phoneNumber],
+      to: [normalizePhone(phoneNumber)],
       message,
       // ❗ Sender ID is NOT allowed in sandbox
       // Do NOT add "from" here
