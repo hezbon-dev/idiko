@@ -70,7 +70,49 @@ let isSendingSMS = false;
 // ✅ COOLDOWN TIMER (NEW)
 let lastSMSTime = 0;
 
-// ✅ REAL SMS ROUTE (used by frontend after match === true)
+// ✅ TRACK CURRENTLY PROCESSING IDS
+const processingMatches = new Set();
+
+// ✅ NORMALIZE ID NUMBERS
+function normalizeId(id) {
+  if (!id) return "";
+  return String(id).replace(/\s+/g, "").trim();
+}
+
+// ✅ SEND SMS SAFELY (NO DUPLICATES)
+async function sendSMSNotification(req) {
+  try {
+    const phones = [
+      ...new Set(
+        [req.primaryPhone, req.secondaryPhone].filter(Boolean)
+      ),
+    ];
+
+    if (!phones.length) {
+      console.warn("⚠️ No phones found");
+      return;
+    }
+
+    const firstName = req.fullName
+      ? req.fullName.split(" ")[0]
+      : "Customer";
+
+    const message = `Good news ${firstName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID" to search and claim your ID,.Thank you.`;
+
+    console.log("📤 Sending SMS to:", phones);
+
+    for (const phone of phones) {
+      await sendSMS(phone, message);
+    }
+
+    console.log("✅ SMS SENT SUCCESSFULLY:", req.idNumber);
+
+  } catch (err) {
+    console.error("❌ sendSMSNotification FAILED:", err);
+  }
+}
+
+// ✅ REAL SMS ROUTE (kept for compatibility)
 app.post("/notifySMS", async (req, res) => {
   console.log("🚨 /notifySMS ROUTE HIT");
 
@@ -106,6 +148,7 @@ app.post("/notifySMS", async (req, res) => {
   if (!phones.length || !message) {
     console.error("❌ Missing phone or message");
     isSendingSMS = false;
+
     return res.status(400).json({
       success: false,
       error: "phones and message are required",
@@ -122,7 +165,9 @@ app.post("/notifySMS", async (req, res) => {
     }
 
     console.log("✅ SMS FUNCTION RETURNED");
+
     res.json({ success: true });
+
   } catch (error) {
     console.error("❌ SMS FAILED IN /notifySMS ROUTE");
     console.error(error);
@@ -131,6 +176,7 @@ app.post("/notifySMS", async (req, res) => {
       success: false,
       error: error.message || "SMS sending failed",
     });
+
   } finally {
     isSendingSMS = false;
   }
@@ -179,6 +225,7 @@ app.post("/start-notification", async (req, res) => {
     console.log("✅ Notification schedule started for:", idNumber);
 
     res.json({ success: true });
+
   } catch (err) {
     console.error("❌ Failed to start notification:", err);
     res.status(500).json({ success: false });
@@ -216,6 +263,7 @@ let lastLoggedPaid = "";
 
 function handleStatusSync(req, res) {
   const FILE_PATH = path.join(__dirname, "mpesa", "payments.json");
+
   let payments = [];
 
   try {
@@ -236,6 +284,7 @@ function handleStatusSync(req, res) {
     .filter(Boolean);
 
   const current = JSON.stringify(paid);
+
   if (paid.length > 0 && current !== lastLoggedPaid) {
     console.log("📡 STATUS SYNC CALLED → Paid IDs:", paid);
     lastLoggedPaid = current;
@@ -247,8 +296,8 @@ function handleStatusSync(req, res) {
 app.get("/mpesa/status-sync", handleStatusSync);
 app.post("/mpesa/status-sync", handleStatusSync);
 
-// 🔥 BACKEND SCHEDULER (UNCHANGED)
-console.log("🧠 Starting Notification Scheduler...");
+// 🔥 MATCHING ENGINE + SMS ENGINE
+console.log("🧠 Starting Backend Matching & Notification Engine...");
 
 setInterval(async () => {
   console.log("⏱ Scheduler running...");
@@ -260,70 +309,141 @@ setInterval(async () => {
   }
 
   try {
-    const snapshot = await db.collection("notify_requests").get();
+    const notifySnapshot = await db.collection("notify_requests").get();
+    const recordsSnapshot = await db.collection("records").get();
+
+    const notifyRequests = notifySnapshot.docs;
+    const records = recordsSnapshot.docs.map(doc => doc.data());
+
     const now = Date.now();
 
-    for (const docSnap of snapshot.docs) {
+    for (const docSnap of notifyRequests) {
       const req = docSnap.data();
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
-      if (!req.matched) continue;
-
-      // ✅ FIX: stop immediately if paid
-      if (
-        req.status === "Paid" ||
-        req.status === "paid"
-      ) continue;
-
-      // ✅ FIX: require fullName before SMS
-      if (!req.fullName) {
-        console.warn("⚠️ Missing fullName for:", docSnap.id);
+      // ✅ prevent concurrent duplicate processing
+      if (processingMatches.has(docSnap.id)) {
         continue;
       }
 
-      if (!req.startedAt) {
+      processingMatches.add(docSnap.id);
+
+      try {
+
+        // =========================
+        // ✅ MATCHING ENGINE
+        // =========================
+
+        if (!req.matched) {
+          console.log(`🔎 Checking match for ${req.idNumber}`);
+
+          const found = records.find(r =>
+            normalizeId(r.idNumber) === normalizeId(req.idNumber)
+          );
+
+          if (found) {
+            console.log(`✅ MATCH FOUND → ${req.idNumber}`);
+
+            const matchedDate = new Date().toISOString();
+
+            await docRef.update({
+              matched: true,
+              matchedID: found.idNumber,
+              matchedDate,
+              startedAt: matchedDate,
+            });
+
+            // ✅ send FIRST SMS immediately ONLY ONCE
+            await sendSMSNotification({
+              ...req,
+              matched: true,
+            });
+
+            await docRef.update({
+              lastSentAt: matchedDate,
+              sentCount: admin.firestore.FieldValue.increment(1),
+            });
+
+            console.log("✅ FIRST SMS SENT:", req.idNumber);
+          }
+
+          continue;
+        }
+
+        // =========================
+        // ✅ STOP IF PAID
+        // =========================
+
+        if (
+          req.status === "Paid" ||
+          req.status === "paid"
+        ) {
+          console.log("🛑 Notifications stopped (PAID):", req.idNumber);
+          continue;
+        }
+
+        // =========================
+        // ✅ REQUIRE startedAt
+        // =========================
+
+        if (!req.startedAt) {
+          await docRef.update({
+            startedAt: new Date().toISOString()
+          });
+
+          continue;
+        }
+
+        // =========================
+        // ✅ STOP AFTER 30 DAYS
+        // =========================
+
+        const startedAt = new Date(req.startedAt).getTime();
+
+        const daysPassed = Math.floor(
+          (now - startedAt) / (1000 * 60 * 60 * 24)
+        );
+
+        if (daysPassed >= 30) {
+          console.log("🛑 30 DAY LIMIT REACHED:", req.idNumber);
+
+          await docRef.update({
+            expired: true
+          });
+
+          continue;
+        }
+
+        // =========================
+        // ✅ PREVENT DUPLICATE SAME-DAY SMS
+        // =========================
+
+        if (req.lastSentAt) {
+          const last = new Date(req.lastSentAt).toDateString();
+          const today = new Date().toDateString();
+
+          if (last === today) {
+            console.log("⏭ Already sent today:", req.idNumber);
+            continue;
+          }
+        }
+
+        // =========================
+        // ✅ SEND DAILY SMS
+        // =========================
+
+        await sendSMSNotification(req);
+
         await docRef.update({
-          startedAt: new Date().toISOString()
+          lastSentAt: new Date().toISOString(),
+          sentCount: admin.firestore.FieldValue.increment(1),
         });
-        continue;
+
+        console.log("✅ DAILY SMS SENT:", req.idNumber);
+
+      } finally {
+        processingMatches.delete(docSnap.id);
       }
-
-      const startedAt = new Date(req.startedAt).getTime();
-      const daysPassed = Math.floor((now - startedAt) / (1000 * 60 * 60 * 24));
-
-      // ✅ STOP after 30 days
-      if (daysPassed >= 30) continue;
-
-      // ✅ prevent duplicate same-day SMS
-      if (req.lastSentAt) {
-        const last = new Date(req.lastSentAt).toDateString();
-        const today = new Date().toDateString();
-
-        if (last === today) continue;
-      }
-
-      const phones = [
-        ...new Set(
-          [req.primaryPhone, req.secondaryPhone].filter(Boolean)
-        ),
-      ];
-
-      // ✅ FIX: safe name extraction
-      const firstName = req.fullName
-        ? req.fullName.split(" ")[0]
-        : "Customer";
-
-      const message = `Good news ${firstName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID" to search and claim your ID,.Thank you.`;
-
-      for (const phone of phones) {
-        await sendSMS(phone, message);
-      }
-
-      await docRef.update({
-        lastSentAt: new Date().toISOString()
-      });
-
-      console.log("✅ SMS SENT:", req.idNumber);
     }
 
   } catch (err) {

@@ -1,7 +1,6 @@
 // src/context/RecordContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { runNotificationScheduler, startNotificationSchedule } from "../Services/NotificationScheduler";
 import { db } from "../firebase";
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
@@ -249,38 +248,6 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     saveToCollection("notify_requests", normalizedReq);
     return true;
   };
-
-  /* ================= MATCHING ENGINE ================= */
-  useEffect(() => {
-    if (!notifyRequests.length || !allRecords.length) return;
-
-    notifyRequests.forEach(async req => {
-      if (req.matched) return;
-
-      console.log(`🔎 Checking match for NotifyRequest ID: ${req.id} (${req.idNumber})`);
-
-      const found = allRecords.find(r =>
-        normalizeId(r.idNumber) === normalizeId(req.idNumber)
-      );
-
-      if (found) {
-        console.log(`✅ MATCH FOUND → ${req.idNumber}`);
-
-        const updatedReq = {
-          ...req,
-          matched: true,
-          matchedID: found.idNumber,
-          matchedDate: new Date().toISOString(),
-        };
-        saveToCollection("notify_requests", updatedReq);
-        startNotificationSchedule(updatedReq);
-      }
-    });
-  }, [notifyRequests, allRecords]);
-
-  useEffect(() => {
-    runNotificationScheduler(notifyRequests);
-  }, [notifyRequests]);
 
   /* ================= RETURN PROVIDER ================= */
   return (
