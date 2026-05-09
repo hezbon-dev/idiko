@@ -20,17 +20,6 @@ export type RecordType = {
   pickupStation?: string;
 };
 
-export type NotificationType = {
-  fullName: string;
-  idNumber: string;
-  dob: string;
-  sex: string;
-  district: string;
-  primaryPhone: string;
-  secondaryPhone: string;
-  email?: string;
-};
-
 export type NotifyRequestType = {
   status: string;
   id: string;
@@ -54,16 +43,16 @@ type RecordContextType = {
   allHistoryRecords: RecordType[];
   allRecords: RecordType[];
   trash: RecordType[];
-  notifications: NotificationType[];
   notifyRequests: NotifyRequestType[];
   addRecord: (record: RecordType) => void;
   moveToTrash: (record: RecordType) => void;
   restoreRecord: (record: RecordType) => void;
   deleteRecord: (idNumber: string) => void;
-  addNotification: (notification: NotificationType) => void;
-  updateRecordStatus: (idNumber: string, status: "Paid" | "Pending") => void;
-  updateNotifyRequest: (id: string, data: Partial<NotifyRequestType>) => void;
-  addNotifyRequest: (req: NotifyRequestType) => boolean;
+  updateRecordStatus: (
+    idNumber: string,
+    status: "Paid" | "Pending"
+  ) => Promise<void>;
+  addNotifyRequest: (req: NotifyRequestType) => Promise<boolean>;
 };
 
 /* ================= CONTEXT ================= */
@@ -76,7 +65,6 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [records, setRecords] = useState<RecordType[]>([]);
   const [allHistoryRecords, setAllHistoryRecords] = useState<RecordType[]>([]);
   const [trash, setTrash] = useState<RecordType[]>([]);
-  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [notifyRequests, setNotifyRequests] = useState<NotifyRequestType[]>([]);
 
   const stationKey =
@@ -89,7 +77,9 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const recordsForStaff = !stationKey
     ? allRecords
-    : allRecords.filter(r => r.pickupStation?.trim().toLowerCase() === stationKey);
+    : allRecords.filter(
+        r => r.pickupStation?.trim().toLowerCase() === stationKey
+      );
 
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {
@@ -101,15 +91,19 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
 
     const unsubHistory = onSnapshot(collection(db, "allHistoryRecords"), snap =>
-      setAllHistoryRecords(snap.docs.map(d => d.data() as RecordType).filter(filterByStation))
+      setAllHistoryRecords(
+        snap.docs
+          .map(d => d.data() as RecordType)
+          .filter(filterByStation)
+      )
     );
 
     const unsubTrash = onSnapshot(collection(db, "trash"), snap =>
-      setTrash(snap.docs.map(d => d.data() as RecordType).filter(filterByStation))
-    );
-
-    const unsubNotifications = onSnapshot(collection(db, "notifications"), snap =>
-      setNotifications(snap.docs.map(d => d.data() as NotificationType))
+      setTrash(
+        snap.docs
+          .map(d => d.data() as RecordType)
+          .filter(filterByStation)
+      )
     );
 
     const unsubNotifyReq = onSnapshot(collection(db, "notify_requests"), snap =>
@@ -120,20 +114,22 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       unsubRecords();
       unsubHistory();
       unsubTrash();
-      unsubNotifications();
       unsubNotifyReq();
     };
   }, [stationKey]);
 
   /* ================= HELPERS ================= */
   const normalizeText = (s?: string) => (s || "").trim().toLowerCase();
+
   const normalizeId = (s?: string) => (s || "").replace(/\s+/g, "");
-  
+
   const normalizePhone = (phone?: string) => {
     if (!phone) return "";
 
     // Remove spaces and non-digits except +
-    let cleaned = phone.replace(/\s+/g, "").replace(/[^\d+]/g, "");
+    let cleaned = phone
+      .replace(/\s+/g, "")
+      .replace(/[^\d+]/g, "");
 
     // Convert 07XXXXXXXX → +2547XXXXXXXX
     if (cleaned.startsWith("0")) {
@@ -155,16 +151,26 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const normalizeDOB = (dob?: string) => {
     if (!dob) return "";
-    const parts = dob.includes("/") ? dob.split("/") : dob.split("-");
+
+    const parts = dob.includes("/")
+      ? dob.split("/")
+      : dob.split("-");
+
     if (parts.length !== 3) return dob;
 
     const [dd, mm, yyyy] = parts;
+
     return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
   };
 
-  const saveToCollection = async <T,>(name: string, data: T & { id?: string; idNumber?: string }) => {
+  const saveToCollection = async <T,>(
+    name: string,
+    data: T & { id?: string; idNumber?: string }
+  ) => {
     const docId = data.id || data.idNumber;
+
     if (!docId) throw new Error("No id provided");
+
     await setDoc(doc(db, name, docId.toString()), data);
   };
 
@@ -173,6 +179,7 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   /* ================= FUNCTIONS ================= */
+
   const addRecord = (record: RecordType) => {
     const normalizedRecord = {
       ...record,
@@ -189,28 +196,29 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     saveToCollection("allHistoryRecords", normalizedRecord);
   };
 
-  const addNotification = (notification: NotificationType) => {
-    saveToCollection("notifications", notification);
-  };
-
   const moveToTrash = async (record: RecordType) => {
     await saveToCollection("trash", record);
+
     await removeFromCollection("records", record.idNumber);
 
-    const match = notifyRequests.find(r =>
-      normalizeId(r.idNumber) === normalizeId(record.idNumber)
+    const match = notifyRequests.find(
+      r => normalizeId(r.idNumber) === normalizeId(record.idNumber)
     );
 
     if (match?.id) {
       await removeFromCollection("notify_requests", match.id);
     }
 
-    setRecords(prev => prev.filter(r => r.idNumber !== record.idNumber));
+    setRecords(prev =>
+      prev.filter(r => r.idNumber !== record.idNumber)
+    );
   };
 
   const restoreRecord = async (record: RecordType) => {
     await saveToCollection("records", record);
+
     await saveToCollection("allHistoryRecords", record);
+
     await removeFromCollection("trash", record.idNumber);
   };
 
@@ -218,64 +226,75 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     await removeFromCollection("trash", idNumber);
   };
 
-  const updateRecordStatus = (idNumber: string, status: "Paid" | "Pending") => {
-    saveToCollection("records", { idNumber, status });
+  const updateRecordStatus = async (
+    idNumber: string,
+    status: "Paid" | "Pending"
+  ) => {
+    await setDoc(
+      doc(db, "records", idNumber),
+      { status },
+      { merge: true }
+    );
   };
 
-  const updateNotifyRequest = (id: string, data: Partial<NotifyRequestType>) => {
-    saveToCollection("notify_requests", { id, ...data });
-  };
-
-  const addNotifyRequest = (req: NotifyRequestType) => {
+  const addNotifyRequest = async (req: NotifyRequestType) => {
     const normalizedReq = {
       ...req,
+      createdAt: new Date().toISOString(),
       fullName: normalizeText(req.fullName),
       idNumber: normalizeId(req.idNumber),
       dob: normalizeDOB(req.dob),
       sex: normalizeText(req.sex),
       district: normalizeText(req.district),
-
       primaryPhone: normalizePhone(req.primaryPhone),
       secondaryPhone: normalizePhone(req.secondaryPhone),
     };
 
-    const exists = notifyRequests.some(r =>
-      normalizeId(r.idNumber) === normalizedReq.idNumber
+    const existing = notifyRequests.find(
+      r => normalizeId(r.idNumber) === normalizedReq.idNumber
     );
 
-    if (exists) return false;
+    if (existing) {
+      return false;
+    }
 
-    saveToCollection("notify_requests", normalizedReq);
+    await saveToCollection("notify_requests", normalizedReq);
+
     return true;
   };
 
   /* ================= RETURN PROVIDER ================= */
+
   return (
-    <RecordContext.Provider value={{
-      records,
-      recordsForStaff,
-      allHistoryRecords,
-      allRecords,
-      trash,
-      notifications,
-      notifyRequests,
-      addRecord,
-      moveToTrash,
-      restoreRecord,
-      deleteRecord,
-      addNotification,
-      updateRecordStatus,
-      updateNotifyRequest,
-      addNotifyRequest,
-    }}>
+    <RecordContext.Provider
+      value={{
+        records,
+        recordsForStaff,
+        allHistoryRecords,
+        allRecords,
+        trash,
+        notifyRequests,
+        addRecord,
+        moveToTrash,
+        restoreRecord,
+        deleteRecord,
+        updateRecordStatus,
+        addNotifyRequest,
+      }}
+    >
       {children}
     </RecordContext.Provider>
   );
 };
 
 /* ================= HOOK ================= */
+
 export const useRecords = () => {
   const ctx = useContext(RecordContext);
-  if (!ctx) throw new Error("useRecords must be used inside RecordProvider");
+
+  if (!ctx) {
+    throw new Error("useRecords must be used inside RecordProvider");
+  }
+
   return ctx;
 };
