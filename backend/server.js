@@ -113,18 +113,6 @@ async function sendSMSNotification(req) {
 }
 
 // ✅ REAL SMS ROUTE (kept for compatibility)
-app.post("/notifySMS", async (req, res) => {
-  console.log("🚨 /notifySMS ROUTE HIT");
-
-  const now = Date.now();
-
-  if (now - lastSMSTime < 5000) {
-    console.warn("⚠️ Duplicate request blocked (cooldown)");
-    return res.status(429).json({
-      success: false,
-      message: "Please wait before sending again",
-    });
-  }
 
   lastSMSTime = now;
 
@@ -180,7 +168,6 @@ app.post("/notifySMS", async (req, res) => {
   } finally {
     isSendingSMS = false;
   }
-});
 
 // 🔥 ✅ NEW ROUTE (FIXED)
 app.post("/start-notification", async (req, res) => {
@@ -299,7 +286,16 @@ app.post("/mpesa/status-sync", handleStatusSync);
 // 🔥 MATCHING ENGINE + SMS ENGINE
 console.log("🧠 Starting Backend Matching & Notification Engine...");
 
+let schedulerRunning = false;
 setInterval(async () => {
+
+  if (schedulerRunning) {
+    console.log("⏭ Scheduler already running...");
+    return;
+  }
+
+  schedulerRunning = true;
+
   console.log("⏱ Scheduler running...");
 
   // ✅ HARD STOP if db is not available
@@ -450,7 +446,10 @@ setInterval(async () => {
     console.error("❌ Scheduler error:", err);
   }
 
-}, 60000);
+finally {
+  schedulerRunning = false;
+}  
+}, 300000);
 
 const PORT = process.env.PORT || 5000;
 
