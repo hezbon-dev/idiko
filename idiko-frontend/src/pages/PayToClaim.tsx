@@ -91,7 +91,7 @@ export default function PayToClaim({}: PayToClaimProps) {
         } catch (err) {
           console.error("❌ Status polling failed", err);
         }
-      }, 3000);
+      }, 1000);
 
     } catch (error: any) {
       console.error(error);
