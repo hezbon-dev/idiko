@@ -1,7 +1,5 @@
 // src/Services/NotificationScheduler.tsx
 import type { NotifyRequestType } from "../context/RecordContext";
-import type { NotificationJob } from "../Types/Notification.types";
-import { sendNotification } from "./NotificationService";
 import { db } from "../firebase";
 import {
   collection,
@@ -14,28 +12,6 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 
-/**
- * Convert NotifyRequestType → NotificationJob-compatible object
- */
-function toNotificationJob(req: NotifyRequestType): NotificationJob {
-  const firstName = req.fullName.split(" ")[0];
-  return {
-    jobId: `job_${req.id}`,
-    idNumber: req.idNumber,
-    firstName,
-    primaryPhone: req.primaryPhone,
-    secondaryPhone: req.secondaryPhone,
-    email: req.email,
-    channels: ["SMS", "EMAIL"],
-    status: "ACTIVE",
-    startDate: new Date().toISOString(),
-    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    lastSentAt: undefined,
-    sentCount: 0,
-    maxSends: 30,
-    stopOnPaid: true,
-  };
-}
 
 const SCHEDULE_COLLECTION = "notification_schedule";
 
@@ -55,7 +31,7 @@ export const subscribeSchedule = (callback: (entries: ScheduleEntry[]) => void):
     const entries = snapshot.docs.map(docSnap => docSnap.data() as ScheduleEntry);
     callback(entries);
   });
-};
+}
 
 /**
  * Get all schedule entries once
@@ -86,9 +62,6 @@ export async function startNotificationSchedule(req: NotifyRequestType) {
   };
 
   await saveScheduleEntry(entry);
-
-  // 🔔 Send immediately
-  sendNotification(toNotificationJob(req));
 }
 
 /**
@@ -134,13 +107,11 @@ export async function runNotificationScheduler(notifyRequests: NotifyRequestType
       if (lastSent === today) continue;
     }
 
-    // 🔔 Send notification
-    sendNotification(toNotificationJob(req));
-
     // Firestore-safe atomic update of lastSentAt
     const entryRef = doc(db, SCHEDULE_COLLECTION, entry.notifyRequestId);
     const entrySnap = await getDoc(entryRef);
     const currentData = entrySnap.exists() ? (entrySnap.data() as ScheduleEntry) : {};
+
     await updateDoc(entryRef, {
       ...currentData,
       lastSentAt: new Date().toISOString(),
