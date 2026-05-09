@@ -12,15 +12,33 @@ function updatePaymentStatus(
   paymentData
 ) {
   const FILE_PATH = path.join(__dirname, "payments.json");
+
+  // ✅ ENSURE FILE EXISTS
+  if (!fs.existsSync(FILE_PATH)) {
+    fs.writeFileSync(FILE_PATH, "[]");
+    console.log("📂 payments.json created");
+  }
+
   let payments = [];
 
   try {
-    if (fs.existsSync(FILE_PATH)) {
-      payments = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
+    const fileData = fs.readFileSync(FILE_PATH, "utf8");
+
+    payments =
+      fileData && fileData.trim() !== ""
+        ? JSON.parse(fileData)
+        : [];
+
+    if (!Array.isArray(payments)) {
+      payments = [];
     }
+
   } catch (err) {
     console.error("❌ Failed to read payments file", err);
+    payments = [];
   }
+
+  console.log("📦 PAYMENTS BEFORE UPDATE:", payments);
 
   // Update or add the payment
   const existingIndex = payments.findIndex(
@@ -43,12 +61,22 @@ function updatePaymentStatus(
       ...payments[existingIndex],
       ...paymentRecord,
     };
+
+    console.log("♻️ Existing payment updated to PAID");
+
   } else {
     payments.push(paymentRecord);
+
+    console.log("🆕 New PAID payment added");
   }
 
   try {
     fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
+
+    console.log("✅ PAYMENT STATUS UPDATED");
+    console.log("📦 UPDATED RECORD:", paymentRecord);
+    console.log("📦 PAYMENTS AFTER UPDATE:", payments);
+
   } catch (err) {
     console.error("❌ Failed to write payments file", err);
   }
@@ -103,38 +131,61 @@ function mpesaCallback(req, res) {
     console.log("➡️ TransactionDate:", paymentData.TransactionDate);
 
     // ✅ Find existing payment and preserve accountReference
-const FILE_PATH = path.join(__dirname, "payments.json");
+    const FILE_PATH = path.join(__dirname, "payments.json");
 
-let payments = [];
+    // ✅ ENSURE FILE EXISTS
+    if (!fs.existsSync(FILE_PATH)) {
+      fs.writeFileSync(FILE_PATH, "[]");
+      console.log("📂 payments.json created");
+    }
 
-try {
-  if (fs.existsSync(FILE_PATH)) {
-    payments = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
-  }
-} catch (err) {
-  console.error("❌ Failed to read payments file", err);
-}
+    let payments = [];
 
-const existingPayment = payments.find(
-  p => p.checkoutRequestID === CheckoutRequestID
-);
+    try {
+      const fileData = fs.readFileSync(FILE_PATH, "utf8");
 
-const accountReference =
-  existingPayment?.accountReference || "unknown";
+      payments =
+        fileData && fileData.trim() !== ""
+          ? JSON.parse(fileData)
+          : [];
 
-updatePaymentStatus(
-  CheckoutRequestID,
-  accountReference,
-  paymentData
-);
+      if (!Array.isArray(payments)) {
+        payments = [];
+      }
+
+    } catch (err) {
+      console.error("❌ Failed to read payments file", err);
+      payments = [];
+    }
+
+    console.log("📦 PAYMENTS FOUND:", payments);
+
+    const existingPayment = payments.find(
+      p => p.checkoutRequestID === CheckoutRequestID
+    );
+
+    console.log("🔍 MATCHED PAYMENT:", existingPayment);
+
+    const accountReference =
+      existingPayment?.accountReference || "unknown";
+
+    console.log("📌 ACCOUNT REFERENCE:", accountReference);
+
+    updatePaymentStatus(
+      CheckoutRequestID,
+      accountReference,
+      paymentData
+    );
 
     return res.status(200).json({
       ResultCode: 0,
       ResultDesc: "Success",
     });
+
   } catch (error) {
     console.error("❌ CALLBACK PROCESSING ERROR");
     console.error(error);
+
     return res.status(500).json({ ResultCode: 1 });
   }
 }
@@ -145,20 +196,40 @@ function getPaymentStatus(req, res) {
 
   const FILE_PATH = path.join(__dirname, "payments.json");
 
+  // ✅ ENSURE FILE EXISTS
+  if (!fs.existsSync(FILE_PATH)) {
+    fs.writeFileSync(FILE_PATH, "[]");
+    console.log("📂 payments.json created");
+  }
+
   let payments = [];
 
   try {
-    if (fs.existsSync(FILE_PATH)) {
-      payments = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
+    const fileData = fs.readFileSync(FILE_PATH, "utf8");
+
+    payments =
+      fileData && fileData.trim() !== ""
+        ? JSON.parse(fileData)
+        : [];
+
+    if (!Array.isArray(payments)) {
+      payments = [];
     }
+
   } catch (err) {
     console.error("❌ Failed to read payments file", err);
+    payments = [];
   }
+
+  console.log("📡 STATUS CHECK FOR:", checkoutRequestID);
+  console.log("📦 AVAILABLE PAYMENTS:", payments);
 
   // ✅ Frontend sends ID number, so match using accountReference
   const payment = payments.find(
     p => p.accountReference === checkoutRequestID
   );
+
+  console.log("🔍 MATCHED STATUS PAYMENT:", payment);
 
   res.json({
     status: payment?.status || "pending",

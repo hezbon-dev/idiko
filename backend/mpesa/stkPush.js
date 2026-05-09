@@ -63,15 +63,32 @@ async function stkPush(req, res) {
     // ✅ SAVE PAYMENT MAPPING LOCALLY
     const FILE_PATH = path.join(__dirname, "payments.json");
 
+    // ✅ ENSURE FILE EXISTS
+    if (!fs.existsSync(FILE_PATH)) {
+      fs.writeFileSync(FILE_PATH, "[]");
+      console.log("📂 payments.json created");
+    }
+
     let payments = [];
 
     try {
-      if (fs.existsSync(FILE_PATH)) {
-        payments = JSON.parse(fs.readFileSync(FILE_PATH, "utf8"));
+      const fileData = fs.readFileSync(FILE_PATH, "utf8");
+
+      payments =
+        fileData && fileData.trim() !== ""
+          ? JSON.parse(fileData)
+          : [];
+
+      if (!Array.isArray(payments)) {
+        payments = [];
       }
+
     } catch (err) {
       console.error("❌ Failed to read payments file", err);
+      payments = [];
     }
+
+    console.log("📦 Existing payments:", payments);
 
     const existingIndex = payments.findIndex(
       p => p.checkoutRequestID === response.data.CheckoutRequestID
@@ -88,12 +105,22 @@ async function stkPush(req, res) {
         ...payments[existingIndex],
         ...paymentRecord,
       };
+
+      console.log("♻️ Existing payment updated");
     } else {
       payments.push(paymentRecord);
+
+      console.log("🆕 New payment added");
     }
 
     try {
       fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
+
+      console.log("✅ PAYMENT SAVED");
+      console.log("📂 FILE PATH:", FILE_PATH);
+      console.log("📦 SAVED RECORD:", paymentRecord);
+      console.log("📦 ALL PAYMENTS:", payments);
+
     } catch (err) {
       console.error("❌ Failed to write payments file", err);
     }
@@ -103,11 +130,13 @@ async function stkPush(req, res) {
       message: "STK Push sent successfully",
       data: response.data,
     });
+
   } catch (error) {
     console.error("❌ STK PUSH FAILED");
 
     if (error.response) {
       console.error("🔴 Response error:", error.response.data);
+
       return res.status(500).json({
         success: false,
         error: error.response.data,
