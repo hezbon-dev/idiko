@@ -273,7 +273,7 @@ setInterval(async () => {
         // ✅ MATCHING ENGINE
         // =========================
 
-        if (!req.matched) {
+        if (!req.matched || !req.lastSentAt) {
           console.log(`🔎 Checking match for ${req.idNumber}`);
 
           const found = records.find(r =>
