@@ -102,7 +102,6 @@ export default function PayToClaim({}: PayToClaimProps) {
       );
 
       setLoading(false);
-     navigate(`/claimed/${state.idNumber}`); 
     }
   };
 

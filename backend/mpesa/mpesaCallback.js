@@ -81,18 +81,23 @@ async function updatePaymentStatus(
 
       const db = admin.firestore();
 
-      await db
-        .collection("records")
-        .where("idNumber", "==", accountReference)
-        .get()
-        .then((snapshot) => {
-          snapshot.forEach(async (doc) => {
-            await doc.ref.update({
-              paymentStatus: "paid",
-              paidAt: new Date().toISOString(),
-            });
-          });
-        });
+      const snapshot = await db
+  .collection("records")
+  .where("idNumber", "==", accountReference)
+  .get();
+
+if (snapshot.empty) {
+  console.log("❌ NO FIRESTORE RECORD FOUND");
+} else {
+  for (const doc of snapshot.docs) {
+    await doc.ref.update({
+      paymentStatus: "paid",
+      paidAt: new Date().toISOString(),
+    });
+  }
+
+  console.log("🔥 FIRESTORE PAYMENT UPDATED");
+}
 
       console.log("🔥 FIRESTORE PAYMENT UPDATED");
 
@@ -252,15 +257,13 @@ function getPaymentStatus(req, res) {
     payments = [];
   }
 
-  console.log("📡 STATUS CHECK FOR:", checkoutRequestID);
-  console.log("📦 AVAILABLE PAYMENTS:", payments);
-
-  // ✅ Frontend sends ID number, so match using accountReference
   const payment = payments.find(
-    p => p.accountReference === checkoutRequestID
-  );
+  p => p.accountReference === checkoutRequestID
+);
 
-  console.log("🔍 MATCHED STATUS PAYMENT:", payment);
+console.log(
+  `📡 STATUS CHECK: ${checkoutRequestID} -> ${payment?.status || "pending"}`
+);
 
   res.json({
     status: payment?.status || "pending",
