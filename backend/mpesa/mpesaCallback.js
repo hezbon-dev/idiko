@@ -81,25 +81,33 @@ async function updatePaymentStatus(
 
       const db = admin.firestore();
 
-      const snapshot = await db
+      const normalizedId = String(accountReference).trim();
+
+console.log("🔍 SEARCHING FIRESTORE FOR ID:", normalizedId);
+
+const snapshot = await db
   .collection("records")
-  .where("idNumber", "==", accountReference)
+  .where("idNumber", "==", normalizedId)
   .get();
 
+console.log("📦 FIRESTORE MATCHES:", snapshot.size);
+
 if (snapshot.empty) {
-  console.log("❌ NO FIRESTORE RECORD FOUND");
+  console.log("❌ NO FIRESTORE RECORD FOUND FOR:", normalizedId);
 } else {
-  for (const doc of snapshot.docs) {
-    await doc.ref.update({
+  for (const firestoreDoc of snapshot.docs) {
+
+    console.log("✅ MATCHED FIRESTORE DOC:", firestoreDoc.id);
+
+    await firestoreDoc.ref.update({
+      status: "Paid",
       paymentStatus: "paid",
       paidAt: new Date().toISOString(),
     });
+
+    console.log("🔥 FIRESTORE RECORD UPDATED:", firestoreDoc.id);
   }
-
-  console.log("🔥 FIRESTORE PAYMENT UPDATED");
 }
-
-      console.log("🔥 FIRESTORE PAYMENT UPDATED");
 
     } catch (err) {
       console.error("❌ FIRESTORE PAYMENT UPDATE FAILED", err);
