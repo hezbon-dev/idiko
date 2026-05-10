@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 
 // Helper function to update payment status
-function updatePaymentStatus(
+async function updatePaymentStatus(
   checkoutRequestID,
   accountReference,
   paymentData
@@ -74,6 +74,32 @@ function updatePaymentStatus(
     fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
 
     console.log("✅ PAYMENT STATUS UPDATED");
+
+    // 🔥 UPDATE FIRESTORE RECORD
+    try {
+      const admin = require("firebase-admin");
+
+      const db = admin.firestore();
+
+      await db
+        .collection("records")
+        .where("idNumber", "==", accountReference)
+        .get()
+        .then((snapshot) => {
+          snapshot.forEach(async (doc) => {
+            await doc.ref.update({
+              paymentStatus: "paid",
+              paidAt: new Date().toISOString(),
+            });
+          });
+        });
+
+      console.log("🔥 FIRESTORE PAYMENT UPDATED");
+
+    } catch (err) {
+      console.error("❌ FIRESTORE PAYMENT UPDATE FAILED", err);
+    }
+
     console.log("📦 UPDATED RECORD:", paymentRecord);
     console.log("📦 PAYMENTS AFTER UPDATE:", payments);
 
@@ -119,9 +145,14 @@ function mpesaCallback(req, res) {
     let paymentData = {};
 
     if (CallbackMetadata && CallbackMetadata.Item) {
-      CallbackMetadata.Item.forEach(item => {
-        paymentData[item.Name] = item.Value;
-      });
+
+      if (CallbackMetadata?.Item) {
+        CallbackMetadata.Item.forEach((item) => {
+          paymentData[item.Name] =
+            item.Value !== undefined ? item.Value : null;
+        });
+      }
+
     }
 
     console.log("💰 PAYMENT DETAILS:");

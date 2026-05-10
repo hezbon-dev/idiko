@@ -88,7 +88,7 @@ export default function Payment() {
         idNumber: record.idNumber,
         fullName: record.fullName,
         idImages: [record.frontImage, record.backImage].filter(Boolean),
-        amount: 100, // or your actual amount
+        amount: 1, // or your actual amount
         accountReference: record.idNumber,
       },
     });

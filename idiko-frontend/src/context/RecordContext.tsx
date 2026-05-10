@@ -53,6 +53,11 @@ type RecordContextType = {
     status: "Paid" | "Pending"
   ) => Promise<void>;
   addNotifyRequest: (req: NotifyRequestType) => Promise<boolean>;
+
+  updateNotifyRequest: (
+    id: string,
+    data: Partial<NotifyRequestType>
+  ) => Promise<void>;
 };
 
 /* ================= CONTEXT ================= */
@@ -237,6 +242,18 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
   };
 
+  // ✅ THIS BLOCK BELONGS HERE
+  const updateNotifyRequest = async (
+    id: string,
+    data: Partial<NotifyRequestType>
+  ) => {
+    await setDoc(
+      doc(db, "notify_requests", id),
+      data,
+      { merge: true }
+    );
+  };
+
   const addNotifyRequest = async (req: NotifyRequestType) => {
     const normalizedReq = {
       ...req,
@@ -280,6 +297,7 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         deleteRecord,
         updateRecordStatus,
         addNotifyRequest,
+        updateNotifyRequest,
       }}
     >
       {children}

@@ -57,7 +57,7 @@ export default function PayToClaim({}: PayToClaimProps) {
 
     try {
       const response = await axios.post(
-        "/mpesa/stkpush",
+        "https://idiko.onrender.com/mpesa/stkpush",
         {
           phone: formattedPhone,
           amount: state.amount,
@@ -70,14 +70,15 @@ export default function PayToClaim({}: PayToClaimProps) {
 
       setMessage(
         "✅ Payment request sent! Check your phone for the M-Pesa prompt."
+        
       );
 
       // ✅ START PAYMENT STATUS POLLING
       const pollInterval = setInterval(async () => {
         try {
           const statusResponse = await axios.get(
-            `/mpesa/status/${state.accountReference}`
-          );
+  `https://idiko.onrender.com/mpesa/status/${state.accountReference}`
+);
 
           console.log("📡 Payment status:", statusResponse.data.status);
 
@@ -91,7 +92,7 @@ export default function PayToClaim({}: PayToClaimProps) {
         } catch (err) {
           console.error("❌ Status polling failed", err);
         }
-      }, 1000);
+      }, 10000);
 
     } catch (error: any) {
       console.error(error);
@@ -101,6 +102,7 @@ export default function PayToClaim({}: PayToClaimProps) {
       );
 
       setLoading(false);
+     navigate(`/claimed/${state.idNumber}`); 
     }
   };
 
