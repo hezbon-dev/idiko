@@ -65,10 +65,10 @@ app.get("/", (req, res) => {
 });
 
 // ✅ GLOBAL LOCK (prevents duplicate SMS triggers)
-let isSendingSMS = false;
+
 
 // ✅ COOLDOWN TIMER (NEW)
-let lastSMSTime = 0;
+
 
 // ✅ TRACK CURRENTLY PROCESSING IDS
 const processingMatches = new Set();
@@ -111,63 +111,6 @@ async function sendSMSNotification(req) {
     console.error("❌ sendSMSNotification FAILED:", err);
   }
 }
-
-// ✅ REAL SMS ROUTE (kept for compatibility)
-
-  lastSMSTime = now;
-
-  if (isSendingSMS) {
-    console.warn("⚠️ Duplicate request blocked");
-    return res.status(429).json({
-      success: false,
-      message: "Already sending SMS",
-    });
-  }
-
-  isSendingSMS = true;
-
-  const requestId = Date.now();
-  console.log("🆔 Request ID:", requestId);
-
-  const { primaryPhone, secondaryPhone, message } = req.body;
-
-  const phones = [...new Set([primaryPhone, secondaryPhone].filter(Boolean))];
-
-  if (!phones.length || !message) {
-    console.error("❌ Missing phone or message");
-    isSendingSMS = false;
-
-    return res.status(400).json({
-      success: false,
-      error: "phones and message are required",
-    });
-  }
-
-  try {
-    console.log("📤 Attempting to send SMS...");
-    console.log("📞 Phones:", phones);
-    console.log("📨 Message:", message);
-
-    for (const phone of phones) {
-      await sendSMS(phone, message);
-    }
-
-    console.log("✅ SMS FUNCTION RETURNED");
-
-    res.json({ success: true });
-
-  } catch (error) {
-    console.error("❌ SMS FAILED IN /notifySMS ROUTE");
-    console.error(error);
-
-    res.status(500).json({
-      success: false,
-      error: error.message || "SMS sending failed",
-    });
-
-  } finally {
-    isSendingSMS = false;
-  }
 
 // 🔥 ✅ NEW ROUTE (FIXED)
 app.post("/start-notification", async (req, res) => {
