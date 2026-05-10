@@ -1,8 +1,7 @@
 // src/pages/ClaimedIDDetails.tsx
 
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useParams, Link } from "react-router-dom";
+import { useState } from "react";
 
 import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
@@ -53,7 +52,6 @@ function normalizeDate(dob?: string): string {
 
 export default function ClaimedIDDetails() {
   const { idNumber } = useParams<{ idNumber: string }>();
-  const navigate = useNavigate();
 
   const { records } = useRecords();
   const { stations } = usePickupStations();
@@ -61,95 +59,46 @@ export default function ClaimedIDDetails() {
   // 🔹 DEBUG: log all records normalized IDs
   console.log("Normalized input idNumber:", normalizeId(idNumber));
   records.forEach((r) => {
-    console.log("Record normalized id:", normalizeId(r.idNumber), "original id:", r.idNumber);
+    console.log(
+      "Record normalized id:",
+      normalizeId(r.idNumber),
+      "original id:",
+      r.idNumber
+    );
   });
 
   // ✅ Updated to use normalized idNumber for reliable search
-  const record = records.find((r) => normalizeId(r.idNumber) === normalizeId(idNumber));
+  const record = records.find(
+    (r) => normalizeId(r.idNumber) === normalizeId(idNumber)
+  );
 
   // 🔹 DEBUG: field-by-field mismatch logging
   if (record) {
     const mismatches = [];
-    if (normalizeDate(record.dob) !== normalizeDate(record.dob)) mismatches.push("dob"); // example, could compare to external input
-    if (record.sex && !["male","female"].includes(record.sex.toLowerCase())) mismatches.push("sex");
-    if (!record.district || record.district.trim() === "") mismatches.push("district");
+
+    if (normalizeDate(record.dob) !== normalizeDate(record.dob))
+      mismatches.push("dob");
+
+    if (
+      record.sex &&
+      !["male", "female"].includes(record.sex.toLowerCase())
+    )
+      mismatches.push("sex");
+
+    if (!record.district || record.district.trim() === "")
+      mismatches.push("district");
+
     if (mismatches.length) {
-      console.log(`Record ${record.idNumber} field mismatches:`, mismatches);
+      console.log(
+        `Record ${record.idNumber} field mismatches:`,
+        mismatches
+      );
     }
   } else {
     console.log("No matching record found for:", normalizeId(idNumber));
   }
 
   const [zoomImage, setZoomImage] = useState<string | null>(null);
-  const [paymentVerified, setPaymentVerified] = useState<boolean | null>(null);
-
-  // 🔒 VERIFY PAYMENT WITH BACKEND
-  useEffect(() => {
-    async function verifyPayment() {
-      try {
-        const res = await axios.get(`/mpesa/status/${idNumber}`);
-        setPaymentVerified(res.data.status === "paid");
-      } catch {
-        setPaymentVerified(false);
-      }
-    }
-    verifyPayment();
-  }, [idNumber]);
-
-  // ⏳ Loading state
-  if (paymentVerified === null) {
-    return (
-      <div
-        style={{
-          color: "white",
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <h2>Verifying payment...</h2>
-      </div>
-    );
-  }
-
-  // ❌ BLOCK ACCESS IF NOT PAID
-  if (!paymentVerified) {
-    return (
-      <div
-        style={{
-          backgroundColor: "black",
-          color: "white",
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          textAlign: "center",
-          padding: "20px",
-        }}
-      >
-        <h2>🔒 Payment Required</h2>
-        <p style={{ marginTop: "10px" }}>
-          You must complete payment to access this ID.
-        </p>
-        <button
-          onClick={() => navigate(`/payment/${idNumber}`)}
-          style={{
-            marginTop: "20px",
-            padding: "10px 20px",
-            background: "green",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          Go to Payment
-        </button>
-      </div>
-    );
-  }
 
   // safe station lookup
   const station = stations.find(
@@ -172,6 +121,7 @@ export default function ClaimedIDDetails() {
         }}
       >
         <h2>ID not found</h2>
+
         <Link to="/" style={{ color: "white", marginTop: "20px" }}>
           &lt; Back to Home
         </Link>
@@ -182,7 +132,6 @@ export default function ClaimedIDDetails() {
   return (
     <div
       style={{
-        backgroundColor: "black",
         color: "white",
         minHeight: "100vh",
         padding: "20px",
@@ -223,6 +172,7 @@ export default function ClaimedIDDetails() {
             onClick={() => setZoomImage(record.frontImage)}
           />
         </div>
+
         <div
           style={{
             border: "2px dashed gray",
@@ -256,24 +206,54 @@ export default function ClaimedIDDetails() {
       >
         <label>
           Full Names:
-          <input type="text" value={record.fullName} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={record.fullName}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           ID Number:
-          <input type="text" value={record.idNumber} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={record.idNumber}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           Date of Birth:
-          <input type="text" value={record.dob} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={record.dob}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           Sex:
-          <input type="text" value={record.sex} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={record.sex}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           District of Birth:
-          <input type="text" value={record.district} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={record.district}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           Pickup Station:
           <input
@@ -283,18 +263,37 @@ export default function ClaimedIDDetails() {
             style={inputStyle}
           />
         </label>
+
         <label>
           Location:
-          <input type="text" value={station?.location || ""} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={station?.location || ""}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           Pickup Station Cell:
-          <input type="text" value={station?.phone1 || ""} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={station?.phone1 || ""}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           Pickup Station Cell:
-          <input type="text" value={station?.phone2 || ""} readOnly style={inputStyle} />
+          <input
+            type="text"
+            value={station?.phone2 || ""}
+            readOnly
+            style={inputStyle}
+          />
         </label>
+
         <label>
           Station GPS:
           <a

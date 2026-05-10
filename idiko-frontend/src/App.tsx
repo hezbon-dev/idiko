@@ -53,7 +53,9 @@ function ProtectedClaimedRoute() {
   useEffect(() => {
     async function checkPayment() {
       try {
-        const res = await axios.get(`/mpesa/status/${idNumber}`);
+        const res = await axios.get(
+  `https://idiko.onrender.com/mpesa/status/${idNumber}`
+);
         setAllowed(res.data.status === "paid");
       } catch {
         setAllowed(false);
@@ -63,7 +65,7 @@ function ProtectedClaimedRoute() {
   }, [idNumber]);
 
   if (allowed === null) {
-    return <h2 style={{ color: "white", textAlign: "center" }}>Checking payment...</h2>;
+    return <h2 style={{ color: "white", textAlign: "center" }}></h2>;
   }
 
   return allowed ? <ClaimedIDDetails /> : <Navigate to={`/payment/${idNumber}`} replace />;

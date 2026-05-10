@@ -85,27 +85,51 @@ async function updatePaymentStatus(
 
 console.log("🔍 SEARCHING FIRESTORE FOR ID:", normalizedId);
 
-const snapshot = await db
+// 🔥 UPDATE records COLLECTION
+const recordsSnapshot = await db
   .collection("records")
   .where("idNumber", "==", normalizedId)
   .get();
 
-console.log("📦 FIRESTORE MATCHES:", snapshot.size);
+console.log("📦 RECORDS MATCHES:", recordsSnapshot.size);
 
-if (snapshot.empty) {
-  console.log("❌ NO FIRESTORE RECORD FOUND FOR:", normalizedId);
+if (recordsSnapshot.empty) {
+  console.log("❌ NO RECORDS FIRESTORE RECORD FOUND FOR:", normalizedId);
 } else {
-  for (const firestoreDoc of snapshot.docs) {
+  for (const firestoreDoc of recordsSnapshot.docs) {
 
-    console.log("✅ MATCHED FIRESTORE DOC:", firestoreDoc.id);
+    console.log("✅ MATCHED records DOC:", firestoreDoc.id);
 
     await firestoreDoc.ref.update({
       status: "Paid",
-      paymentStatus: "paid",
       paidAt: new Date().toISOString(),
     });
 
-    console.log("🔥 FIRESTORE RECORD UPDATED:", firestoreDoc.id);
+    console.log("🔥 records RECORD UPDATED:", firestoreDoc.id);
+  }
+}
+
+// 🔥 UPDATE allHistoryRecords COLLECTION
+const historySnapshot = await db
+  .collection("allHistoryRecords")
+  .where("idNumber", "==", normalizedId)
+  .get();
+
+console.log("📦 HISTORY MATCHES:", historySnapshot.size);
+
+if (historySnapshot.empty) {
+  console.log("❌ NO HISTORY FIRESTORE RECORD FOUND FOR:", normalizedId);
+} else {
+  for (const firestoreDoc of historySnapshot.docs) {
+
+    console.log("✅ MATCHED history DOC:", firestoreDoc.id);
+
+    await firestoreDoc.ref.update({
+      status: "Paid",
+      paidAt: new Date().toISOString(),
+    });
+
+    console.log("🔥 history RECORD UPDATED:", firestoreDoc.id);
   }
 }
 
