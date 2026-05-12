@@ -1,6 +1,11 @@
 // src/pages/StaffUpload.tsx
 import { Link, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import ReactCrop, {
+  type Crop,
+  type PixelCrop,
+} from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
 import { useAuth } from "../context/AuthContext";
@@ -26,6 +31,21 @@ export default function StaffUpload() {
 
   // OCR loading state
   const [ocrLoading, setOcrLoading] = useState(false);
+
+  // ✅ Cropper states
+  const [rotation, setRotation] = useState(0);
+
+  const [croppingImage, setCroppingImage] = useState<string | null>(null);
+
+  const [showCropper, setShowCropper] = useState(false);
+
+  const [crop, setCrop] = useState<Crop>();
+
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+
+  const [currentImageType, setCurrentImageType] = useState<"front" | "back" | null>(null);
+
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
   // Form fields
   const [fullName, setFullName] = useState("");
@@ -63,12 +83,12 @@ export default function StaffUpload() {
       if (data.success) {
         const { fullName, idNumber, dob, sex, district } = data.data;
 
-        // ✅ Auto-fill the form
-        setFullName(fullName || "");
-        setIdNumber(idNumber || "");
-        setDob(dob ? dob.split("/").reverse().join("-") : ""); // convert dd/mm/yyyy → yyyy-mm-dd
-        setSex(sex || "");
-        setDistrict(district || "");
+        // ✅ Auto-fill the form in lowercase
+          setFullName(fullName ? fullName.toLowerCase() : "");
+          setIdNumber(idNumber || "");
+          setDob(dob ? dob.split("/").reverse().join("-") : "");
+          setSex(sex ? sex.toLowerCase() : "");
+          setDistrict(district ? district.toLowerCase() : "");
       } else {
         console.error("OCR failed:", data.error);
       }
@@ -79,62 +99,98 @@ export default function StaffUpload() {
     }
   };
 
-  // ✅ NEW: compress image before saving to Firestore
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
+  // ✅ Create cropped image
+  const getCroppedImg = async (): Promise<string | null> => {
+    if (!imgRef.current || !completedCrop) return null;
 
-      reader.onload = (event) => {
-        const img = new Image();
+    const image = imgRef.current;
 
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
-          const maxWidth = 800;
-          const scaleSize = maxWidth / img.width;
+    if (!ctx) return null;
 
-          canvas.width = maxWidth;
-          canvas.height = img.height * scaleSize;
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
 
-          const ctx = canvas.getContext("2d");
+    canvas.width = completedCrop.width;
+    canvas.height = completedCrop.height;
 
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.save();
 
-          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.5);
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
 
-          resolve(compressedBase64);
-        };
+    ctx.drawImage(
+      image,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      -canvas.width / 2,
+      -canvas.height / 2,
+      canvas.width,
+      canvas.height
+    );
 
-        img.src = event.target?.result as string;
-      };
+    ctx.restore();
 
-      reader.readAsDataURL(file);
-    });
+    return canvas.toDataURL("image/jpeg", 0.8);
+  };
+
+  // ✅ Rotate image
+  const rotateImage = () => {
+    setRotation((prev) => (prev + 90) % 360);
+  };
+
+  // ✅ Save cropped image
+const handleCropSave = async () => {
+  if (!currentImageType) return;
+
+  const croppedImage = await getCroppedImg();
+
+  if (!croppedImage) return;
+
+  // ✅ Close cropper immediately
+  setShowCropper(false);
+  setCroppingImage(null);
+
+  if (currentImageType === "front") {
+    setFrontPreview(croppedImage);
+    setFrontImageCompressed(croppedImage);
+
+      // ✅ OCR still works
+      await callOCR(croppedImage);
+    } else {
+      setBackPreview(croppedImage);
+      setBackImageCompressed(croppedImage);
+    }
+
+    setShowCropper(false);
+    setCroppingImage(null);
+    setRotation(0);
   };
 
   const handleImageChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
-    setPreview: React.Dispatch<React.SetStateAction<string | null>>,
+    _setPreview: React.Dispatch<React.SetStateAction<string | null>>,
     isFront: boolean
   ) => {
     const file = event.target.files?.[0];
 
     if (file) {
-      // ✅ Compress image first
-      const compressedImage = await compressImage(file);
+      const reader = new FileReader();
 
-      // ✅ Use compressed image for preview
-      setPreview(compressedImage);
+      reader.onload = (e) => {
+        const image = e.target?.result as string;
 
-      // ✅ Save compressed image separately
-      if (isFront) {
-        setFrontImageCompressed(compressedImage);
+        setCroppingImage(image);
+        setShowCropper(true);
 
-        // ✅ OCR still works
-        await callOCR(compressedImage);
-      } else {
-        setBackImageCompressed(compressedImage);
-      }
+        setCurrentImageType(isFront ? "front" : "back");
+      };
+
+      reader.readAsDataURL(file);
     }
   };
 
@@ -419,6 +475,93 @@ export default function StaffUpload() {
           &lt; Dashboard
         </Link>
       </div>
+
+      {/* Cropper Modal */}
+      {showCropper && croppingImage && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0,0,0,0.95)",
+            zIndex: 2000,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "100%",
+              maxHeight: "70vh",
+            }}
+          >
+          <ReactCrop
+  crop={crop}
+  onChange={(_, percentCrop) => setCrop(percentCrop)}
+  onComplete={(c) => setCompletedCrop(c)}
+  keepSelection
+  ruleOfThirds
+>
+  <img
+    ref={imgRef}
+    src={croppingImage}
+    alt="Crop"
+    style={{
+      maxWidth: "100%",
+      maxHeight: "70vh",
+      transform: `rotate(${rotation}deg)`,
+    }}
+  />
+</ReactCrop>  
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              width: "100%",
+              maxWidth: "400px",
+              paddingTop: "20px",
+            }}
+          >
+            <button
+              onClick={rotateImage}
+              style={{
+                backgroundColor: "#444",
+                color: "white",
+                border: "none",
+                borderRadius: "50px",
+                padding: "12px 20px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Rotate ({rotation}°)
+            </button>
+
+            <button
+              onClick={handleCropSave}
+              style={{
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                padding: "12px 24px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              Upload
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Zoom */}
       {zoomImage && (

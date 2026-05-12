@@ -146,7 +146,7 @@ export default function PayToClaim({}: PayToClaimProps) {
             type="tel"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="2547XXXXXXXX"
+            placeholder="07"
             style={{
               width: "100%",
               padding: 10,

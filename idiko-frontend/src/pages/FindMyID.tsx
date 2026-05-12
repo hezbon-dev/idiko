@@ -75,9 +75,38 @@ export default function FindMyID() {
   const [error, setError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const { name, value } = e.target;
 
+  // ✅ Auto-format DOB as DD/MM/YYYY
+  if (name === "dob") {
+    // remove all non-digits
+    let cleaned = value.replace(/\D/g, "");
+
+    // limit to 8 digits
+    cleaned = cleaned.substring(0, 8);
+
+    let formatted = cleaned;
+
+    // add slashes automatically
+    if (cleaned.length > 2 && cleaned.length <= 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+    } else if (cleaned.length > 4) {
+      formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4)}`;
+    }
+
+    setFormData({
+      ...formData,
+      dob: formatted,
+    });
+
+    return;
+  }
+
+  setFormData({
+    ...formData,
+    [name]: value,
+  });
+};
   const handleSearch = () => {
     if (!formData.fullName || !formData.idNumber || !formData.dob || !formData.sex || !formData.district) {
       setError("⚠️ Please fill in all fields before searching.");
