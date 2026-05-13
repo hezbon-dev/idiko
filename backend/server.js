@@ -230,6 +230,8 @@ app.post("/mpesa/status-sync", handleStatusSync);
 console.log("🧠 Starting Backend Matching & Notification Engine...");
 
 let schedulerRunning = false;
+let lastSchedulerLog = 0;
+
 setInterval(async () => {
 
   if (schedulerRunning) {
@@ -252,7 +254,13 @@ if (kenyaHour < 9 || kenyaHour >= 16) {
   return;
 }
 
-console.log("⏱ Scheduler running...");
+const now = Date.now();
+
+// Log only once every 15 minutes
+if (now - lastSchedulerLog > 15 * 60 * 1000) {
+  console.log("🟢 Scheduler active");
+  lastSchedulerLog = now;
+}
 
   // ✅ HARD STOP if db is not available
   if (!db) {
@@ -409,7 +417,7 @@ console.log("⏱ Scheduler running...");
 finally {
   schedulerRunning = false;
 }  
-}, 300000);
+}, 5000);
 
 const PORT = process.env.PORT || 5000;
 
