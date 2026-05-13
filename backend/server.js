@@ -239,7 +239,20 @@ setInterval(async () => {
 
   schedulerRunning = true;
 
-  console.log("⏱ Scheduler running...");
+const kenyaHour = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Africa/Nairobi",
+  })
+).getHours();
+
+// Run only between 9AM and 4PM Kenya time
+if (kenyaHour < 9 || kenyaHour >= 16) {
+  console.log("🌙 Outside working hours — scheduler sleeping");
+  schedulerRunning = false;
+  return;
+}
+
+console.log("⏱ Scheduler running...");
 
   // ✅ HARD STOP if db is not available
   if (!db) {
