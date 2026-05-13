@@ -248,10 +248,42 @@ const kenyaHour = new Date(
 ).getHours();
 
 // Run only between 9AM and 4PM Kenya time
+schedulerRunning = true;
+
+const kenyaNow = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Africa/Nairobi",
+  })
+);
+
+const kenyaHour = kenyaNow.getHours();
+
+// ✅ LOG CONTROL
+const currentMinute = kenyaNow.getMinutes();
+const currentSecond = kenyaNow.getSeconds();
+
+// Run only between 9AM and 4PM Kenya time
 if (kenyaHour < 9 || kenyaHour >= 16) {
-  console.log("🌙 Outside working hours — scheduler sleeping");
+
+  // ✅ Print only once every 2 hours
+  if (
+    (kenyaHour % 2 === 0) &&
+    currentMinute === 0 &&
+    currentSecond < 5
+  ) {
+    console.log("🌙 Outside working hours — scheduler sleeping");
+  }
+
   schedulerRunning = false;
   return;
+}
+
+// ✅ Print scheduler active only every 15 minutes
+if (
+  currentMinute % 15 === 0 &&
+  currentSecond < 5
+) {
+  console.log("🟢 Scheduler active");
 }
 
 const now = Date.now();
@@ -417,7 +449,7 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
 finally {
   schedulerRunning = false;
 }  
-}, 300000);
+}, 5000);
 
 const PORT = process.env.PORT || 5000;
 
