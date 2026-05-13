@@ -248,7 +248,11 @@ setInterval(async () => {
   }
 
   try {
-    const notifySnapshot = await db.collection("notify_requests").get();
+    const notifySnapshot = await db
+  .collection("notify_requests")
+  .where("matched", "!=", true)
+  .get();
+  
     const recordsSnapshot = await db.collection("records").get();
 
     const notifyRequests = notifySnapshot.docs;
@@ -392,7 +396,7 @@ setInterval(async () => {
 finally {
   schedulerRunning = false;
 }  
-}, 300000);
+}, 5000);
 
 const PORT = process.env.PORT || 5000;
 
