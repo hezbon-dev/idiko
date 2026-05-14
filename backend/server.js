@@ -305,7 +305,6 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
         // =========================
 
         if (!req.matched || !req.lastSentAt) {
-          console.log(`🔎 Checking match for ${req.idNumber}`);
 
           const found = records.find(r =>
             normalizeId(r.idNumber) === normalizeId(req.idNumber)
