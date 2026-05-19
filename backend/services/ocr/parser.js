@@ -40,37 +40,59 @@ function parseKenyanID(text) {
     "SIGNATURE",
     "HOLDER",
     "REGISTRATION",
+    "FULL",
+    "NAMES",
+    "PLACE",
+    "ISSUE",
+    "SEX",
   ];
 
-  // ✅ Kenyan counties/districts (expandable later)
-  const kenyaLocations = [
-    "NAIROBI",
-    "MOMBASA",
-    "KISUMU",
-    "KISII",
-    "ELDORET",
-    "NAKURU",
-    "KIAMBU",
-    "MACHAKOS",
-    "MERU",
-    "EMBU",
-    "THIKA",
-    "NYERI",
-    "KAKAMEGA",
-    "KERICHO",
-    "BUNGOMA",
-    "BUSIA",
-    "SIAYA",
-    "HOMA BAY",
-    "MIGORI",
-    "UASIN GISHU",
-  ];
+  // =========================
+  // ✅ HELPERS
+  // =========================
+
+  function getNextValidLine(startIndex) {
+    for (let i = startIndex + 1; i < lines.length; i++) {
+      const nextLine = lines[i]
+        .trim()
+        .replace(/\s+/g, " ");
+
+      if (nextLine) {
+        return nextLine;
+      }
+    }
+
+    return "";
+  }
+
+  function formatDate(rawDate) {
+    const parts = rawDate.split(/[./-]/);
+
+    if (parts.length !== 3) return "";
+
+    const day = Number(parts[0]);
+    const month = Number(parts[1]);
+    const year = Number(parts[2]);
+
+    if (
+      day >= 1 &&
+      day <= 31 &&
+      month >= 1 &&
+      month <= 12 &&
+      year >= 1900 &&
+      year <= new Date().getFullYear()
+    ) {
+      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    }
+
+    return "";
+  }
 
   // 🔍 Loop through lines
   lines.forEach((line, index) => {
     const clean = line.toUpperCase();
 
-    // ✅ OCR-safe normalization
+    // ✅ OCR-safe normalization ONLY for numeric fields
     const ocrSafe = clean
       .replace(/O/g, "0")
       .replace(/I/g, "1")
@@ -84,10 +106,62 @@ function parseKenyanID(text) {
       .trim();
 
     // =========================
+    // ✅ FULL NAME EXTRACTION
+    // =========================
+
+    if (
+      !fullName &&
+      (
+        clean.includes("FULL NAMES") ||
+        clean.includes("FULL NAME") ||
+        clean === "NAMES"
+      )
+    ) {
+      console.log("🎯 Found FULL NAME label");
+
+      const nextLine = getNextValidLine(index);
+
+      const nextClean = nextLine
+        .toUpperCase()
+        .replace(/[^A-Z\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      const words = nextClean
+        .split(" ")
+        .filter((word) => word.length >= 2);
+
+      const invalidLine = invalidNameWords.some((word) =>
+        nextClean.includes(word)
+      );
+
+      if (
+        !invalidLine &&
+        words.length >= 2 &&
+        words.length <= 5
+      ) {
+        fullName = words.join(" ");
+
+        console.log(
+          "👤 Full Name Extracted From Label:",
+          fullName
+        );
+      }
+    }
+
+    // =========================
     // ✅ ID NUMBER EXTRACTION
     // =========================
 
-    if (!idNumber) {
+    if (
+      !idNumber &&
+      (
+        clean.includes("ID NUMBER") ||
+        clean.includes("ID NO")
+      )
+    ) {
+      console.log("🎯 Found ID NUMBER label");
+
       const idMatches = ocrSafe.match(/\b\d{7,8}\b/g);
 
       if (idMatches && idMatches.length > 0) {
@@ -104,7 +178,45 @@ function parseKenyanID(text) {
 
         if (validId) {
           idNumber = validId;
-          console.log("🪪 ID Number Extracted:", idNumber);
+
+          console.log(
+            "🪪 ID Number Extracted From Label:",
+            idNumber
+          );
+        }
+      }
+    }
+
+    // =========================
+    // ✅ DATE OF BIRTH EXTRACTION
+    // =========================
+
+    if (
+      !dob &&
+      (
+        clean.includes("DATE OF BIRTH") ||
+        clean.includes("DATEQF BIRTH") ||
+        clean.includes("BIRTH")
+      )
+    ) {
+      console.log("🎯 Found DATE OF BIRTH label");
+
+      const nextLine = getNextValidLine(index);
+
+      const dateMatch = nextLine.match(
+        /\b\d{2}[./-]\d{2}[./-]\d{4}\b/
+      );
+
+      if (dateMatch) {
+        const formattedDate = formatDate(dateMatch[0]);
+
+        if (formattedDate) {
+          dob = formattedDate;
+
+          console.log(
+            "📅 DOB Extracted From Label:",
+            dob
+          );
         }
       }
     }
@@ -113,16 +225,28 @@ function parseKenyanID(text) {
     // ✅ SEX EXTRACTION
     // =========================
 
-    if (!sex) {
-      const compact = clean.replace(/\s+/g, "");
+    if (
+      !sex &&
+      clean.includes("SEX")
+    ) {
+      console.log("🎯 Found SEX label");
+
+      const nextLine = getNextValidLine(index);
+
+      const compact = nextLine
+        .toUpperCase()
+        .replace(/\s+/g, "");
 
       if (
-        compact.includes("FEMALE") ||
         compact.includes("FEMALE") ||
         compact === "F"
       ) {
         sex = "FEMALE";
-        console.log("🚻 Sex Extracted:", sex);
+
+        console.log(
+          "🚻 Sex Extracted From Label:",
+          sex
+        );
       }
 
       else if (
@@ -130,12 +254,104 @@ function parseKenyanID(text) {
         compact === "M"
       ) {
         sex = "MALE";
-        console.log("🚻 Sex Extracted:", sex);
+
+        console.log(
+          "🚻 Sex Extracted From Label:",
+          sex
+        );
       }
     }
 
     // =========================
-    // ✅ DATE OF BIRTH EXTRACTION
+    // ✅ DISTRICT / COUNTY EXTRACTION
+    // =========================
+
+    if (
+      !district &&
+      (
+        clean.includes("DISTRICT OF BIRTH") ||
+        clean.includes("DISTRICT BIRTH")
+      )
+    ) {
+      console.log("🎯 Found DISTRICT label");
+
+      const nextLine = getNextValidLine(index);
+
+      district = nextLine
+        .toUpperCase()
+        .replace(/[^A-Z\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      console.log(
+        "📍 District Extracted From Label:",
+        district
+      );
+    }
+
+    // =========================
+    // ✅ FALLBACK ID EXTRACTION
+    // =========================
+
+    if (!idNumber) {
+      const idMatches = ocrSafe.match(/\b\d{7,8}\b/g);
+
+      if (idMatches && idMatches.length > 0) {
+        const validId = idMatches.find((id) => {
+          const num = Number(id);
+
+          if (num >= 19000000 && num <= 20999999) {
+            return false;
+          }
+
+          return true;
+        });
+
+        if (validId) {
+          idNumber = validId;
+
+          console.log(
+            "🪪 Fallback ID Number Extracted:",
+            idNumber
+          );
+        }
+      }
+    }
+
+    // =========================
+    // ✅ FALLBACK SEX EXTRACTION
+    // =========================
+
+    if (!sex) {
+      const compact = clean.replace(/\s+/g, "");
+
+      if (
+        compact.includes("FEMALE") ||
+        compact === "F"
+      ) {
+        sex = "FEMALE";
+
+        console.log(
+          "🚻 Fallback Sex Extracted:",
+          sex
+        );
+      }
+
+      else if (
+        compact.includes("MALE") ||
+        compact === "M"
+      ) {
+        sex = "MALE";
+
+        console.log(
+          "🚻 Fallback Sex Extracted:",
+          sex
+        );
+      }
+    }
+
+    // =========================
+    // ✅ FALLBACK DOB EXTRACTION
     // =========================
 
     if (!dob) {
@@ -144,49 +360,21 @@ function parseKenyanID(text) {
       );
 
       if (dateMatch) {
-        const rawDate = dateMatch[0];
+        const formattedDate = formatDate(dateMatch[0]);
 
-        const parts = rawDate.split(/[./-]/);
+        if (formattedDate) {
+          dob = formattedDate;
 
-        if (parts.length === 3) {
-          const day = Number(parts[0]);
-          const month = Number(parts[1]);
-          const year = Number(parts[2]);
-
-          // ✅ Basic validation
-          if (
-            day >= 1 &&
-            day <= 31 &&
-            month >= 1 &&
-            month <= 12 &&
-            year >= 1900 &&
-            year <= new Date().getFullYear()
-          ) {
-            dob = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-            console.log("📅 DOB Extracted:", dob);
-          }
+          console.log(
+            "📅 Fallback DOB Extracted:",
+            dob
+          );
         }
       }
     }
 
     // =========================
-    // ✅ DISTRICT / COUNTY EXTRACTION
-    // =========================
-
-    if (!district) {
-      const foundLocation = kenyaLocations.find((loc) =>
-        clean.includes(loc)
-      );
-
-      if (foundLocation) {
-        district = foundLocation;
-        console.log("📍 District Extracted:", district);
-      }
-    }
-
-    // =========================
-    // ✅ FULL NAME EXTRACTION
+    // ✅ FALLBACK FULL NAME EXTRACTION
     // =========================
 
     if (!fullName) {
@@ -212,7 +400,10 @@ function parseKenyanID(text) {
         if (looksLikeName) {
           fullName = words.join(" ");
 
-          console.log("👤 Full Name Extracted:", fullName);
+          console.log(
+            "👤 Fallback Full Name Extracted:",
+            fullName
+          );
         }
       }
     }
@@ -254,8 +445,19 @@ function parseKenyanID(text) {
 function calculateConfidence(data) {
   let score = 0;
 
-  if (data.fullName) score += 0.25;
+  // ✅ Full name confidence
+  if (
+    data.fullName &&
+    ![
+      "FULL NAMES",
+      "FULL NAME",
+      "NAMES",
+    ].includes(data.fullName)
+  ) {
+    score += 0.25;
+  }
 
+  // ✅ ID number confidence
   if (
     data.idNumber &&
     /^\d{7,8}$/.test(data.idNumber)
@@ -263,8 +465,15 @@ function calculateConfidence(data) {
     score += 0.30;
   }
 
-  if (data.dob) score += 0.20;
+  // ✅ DOB confidence
+  if (
+    data.dob &&
+    /^\d{4}-\d{2}-\d{2}$/.test(data.dob)
+  ) {
+    score += 0.20;
+  }
 
+  // ✅ Sex confidence
   if (
     data.sex === "MALE" ||
     data.sex === "FEMALE"
@@ -272,7 +481,13 @@ function calculateConfidence(data) {
     score += 0.10;
   }
 
-  if (data.district) score += 0.15;
+  // ✅ District confidence
+  if (
+    data.district &&
+    data.district.length >= 3
+  ) {
+    score += 0.15;
+  }
 
   return Number(score.toFixed(2));
 }
