@@ -1,26 +1,55 @@
- const vision = require("@google-cloud/vision");
+const vision = require("@google-cloud/vision");
 const parseKenyanID = require("./parser");
 
-// Create client (will only work after setup later)
-const client = new vision.ImageAnnotatorClient();
+// ✅ Load credentials safely from Render ENV
+const credentials = JSON.parse(
+  process.env.GOOGLE_SERVICE_ACCOUNT
+);
+
+// ✅ Create Google Vision client
+const client = new vision.ImageAnnotatorClient({
+  credentials,
+});
 
 async function googleOCR(imageBase64) {
   try {
+
+    // ✅ Remove base64 header safely
+    const base64Image = imageBase64.replace(
+      /^data:image\/\w+;base64,/,
+      ""
+    );
+
+    // ✅ Google Vision OCR request
     const [result] = await client.textDetection({
       image: {
-        content: imageBase64.split(",")[1],
+        content: base64Image,
       },
     });
 
-    const text = result.fullTextAnnotation?.text || "";
+    // ✅ Extract OCR text safely
+    const text =
+      result.fullTextAnnotation?.text || "";
 
-    console.log("🧾 GOOGLE OCR TEXT:\n", text);
+    console.log("🧾 GOOGLE OCR TEXT EXTRACTED");
 
+    // ✅ Parse structured Kenyan ID data
     const parsedData = parseKenyanID(text);
 
-    return parsedData;
+    // ✅ Return structured result
+    return {
+      rawText: text,
+      provider: "google-vision",
+      ...parsedData,
+    };
+
   } catch (error) {
-    console.error("❌ Google OCR Error:", error);
+
+    console.error(
+      "❌ Google OCR Error:",
+      error.message
+    );
+
     throw error;
   }
 }
