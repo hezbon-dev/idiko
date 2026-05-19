@@ -12,8 +12,8 @@ async function extractIDData(imageBase64) {
 
   // ✅ Read provider from ENV
   const provider =
-    (process.env.OCR_PROVIDER=google || "tesseract").toLowerCase();
-
+  (process.env.OCR_PROVIDER || "tesseract").toLowerCase();
+  
   // ✅ Fallback protection
   const selectedProvider = VALID_PROVIDERS.includes(provider)
     ? provider
