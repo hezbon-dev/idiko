@@ -66,7 +66,9 @@ function parseKenyanID(text) {
   }
 
   function formatDate(rawDate) {
-    const parts = rawDate.split(/[./-]/);
+   const parts = rawDate
+  .split(/[./-]/)
+  .map((part) => part.trim());
 
     if (parts.length !== 3) return "";
 
@@ -204,9 +206,8 @@ function parseKenyanID(text) {
       const nextLine = getNextValidLine(index);
 
       const dateMatch = nextLine.match(
-        /\b\d{2}[./-]\d{2}[./-]\d{4}\b/
-      );
-
+  /\b\d{2}\s*[./-]\s*\d{2}\s*[./-]\s*\d{4}\b/
+);
       if (dateMatch) {
         const formattedDate = formatDate(dateMatch[0]);
 
@@ -355,9 +356,9 @@ function parseKenyanID(text) {
     // =========================
 
     if (!dob) {
-      const dateMatch = clean.match(
-        /\b\d{2}[./-]\d{2}[./-]\d{4}\b/
-      );
+     const dateMatch = clean.match(
+  /\b\d{2}\s*[./-]\s*\d{2}\s*[./-]\s*\d{4}\b/
+);
 
       if (dateMatch) {
         const formattedDate = formatDate(dateMatch[0]);
