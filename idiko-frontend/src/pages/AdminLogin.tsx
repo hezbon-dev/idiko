@@ -2,9 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { auth, db } from "../firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import axios from "axios";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -45,46 +43,47 @@ export default function AdminLogin() {
   };
 
   const handleLogin = async () => {
-    setError("");
 
-    try {
-      // 🔹 Query Firestore by username field
-      const q = query(
-        collection(db, "users"),
-        where("username", "==", username)
-      );
+  setError("");
 
-      const querySnap = await getDocs(q);
+  try {
 
-      console.log("QUERY SIZE:", querySnap.size);
+    console.log("🔐 Starting admin login...");
 
-      if (querySnap.empty) {
-        setError("Invalid username or password");
-        return;
-      }
+    const res = await axios.post(
+  `${import.meta.env.VITE_API_URL}/admin/login`,
+  {
+    username,
+    password,
+  }
+);
 
-      const userDoc = querySnap.docs[0];
-      console.log("DOC FOUND:", userDoc.id);
-      console.log("DOC DATA:", userDoc.data());
+    console.log("✅ Backend Response:", res.data);
 
-      const email = userDoc.data().email;
-      const role = userDoc.data().role;
+    if (!res.data.success) {
 
-      if (!email || role !== "admin") {
-        setError("Invalid username or password");
-        return;
-      }
+      setError("Invalid username or password");
 
-      // 🔹 Firebase Auth login
-      await signInWithEmailAndPassword(auth, email, password);
-
-      login("admin");
-      navigate("/admin/dashboard");
-    } catch (err: any) {
-      console.error(err);
-      setError("Login failed: " + err.message);
+      return;
     }
-  };
+
+    // ✅ TEMPORARY DIRECT LOGIN
+    // OTP comes next phase
+
+    login("admin");
+
+    navigate("/admin/dashboard");
+
+  } catch (err: any) {
+
+    console.error("❌ Login Error:", err);
+
+    setError(
+      err?.response?.data?.error ||
+      "Login failed"
+    );
+  }
+};
 
   return (
     <div style={containerStyle}>
