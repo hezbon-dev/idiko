@@ -5,6 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 
 export default function AdminLogin() {
+  
+console.log("🔥 NEW ADMIN LOGIN FILE LOADED");
+
   const navigate = useNavigate();
   const { login } = useAuth();
 
