@@ -46,10 +46,11 @@ console.log("🔥 AfricaTalking service imported");
 
 // ✅ ADD OCR ROUTE IMPORT
 const ocrRoutes = require("./routes/ocr");
-
+const adminAuthRoutes = require("./routes/adminAuth");
 const app = express();
 
 app.use(cors());
+
 
 // Allow larger payloads (50MB should be more than enough for ID images)
 app.use(express.json({ limit: "50mb" }));
@@ -57,6 +58,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // ✅ REGISTER OCR ROUTE
 app.use("/api/ocr", ocrRoutes);
+
+// 🔐 ADMIN AUTH ROUTES
+app.use("/admin", adminAuthRoutes);
 
 // Root route
 app.get("/", (req, res) => {
