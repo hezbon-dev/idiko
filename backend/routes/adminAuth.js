@@ -61,10 +61,6 @@ router.post("/login", async (req, res) => {
 
     console.log("✅ User Found:", userData.username);
 
-
-
-console.log("✅ Password validated");
-
     // =========================
     // ✅ ROLE VALIDATION
     // =========================
@@ -96,12 +92,7 @@ console.log("✅ Password validated");
     // =========================
     // ✅ SUCCESS RESPONSE
     // =========================
-    // =========================
-    // ✅ TEMPORARY PASSWORD BYPASS
-    // (Firebase Auth migration phase)
-    // =========================
-
-    console.log("⚠️ Password validation temporarily bypassed");
+   
     console.log("✅ ADMIN LOGIN PASSED");
 
     return res.json({
