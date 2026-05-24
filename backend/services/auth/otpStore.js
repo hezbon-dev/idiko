@@ -4,6 +4,8 @@
 
 const otpStore = {};
 
+const MAX_OTP_ATTEMPTS = 5;
+
 // =========================
 // ✅ SAVE OTP
 // =========================
@@ -32,6 +34,26 @@ const getOTP = (username) => {
 };
 
 // =========================
+// ✅ INCREMENT OTP ATTEMPTS
+// =========================
+
+const incrementOTPAttempts = (username) => {
+
+  if (!otpStore[username]) {
+    return null;
+  }
+
+  otpStore[username].attempts += 1;
+
+  console.log(
+    "⚠️ OTP attempts:",
+    otpStore[username].attempts
+  );
+
+  return otpStore[username].attempts;
+};
+
+// =========================
 // ✅ DELETE OTP
 // =========================
 
@@ -49,4 +71,6 @@ module.exports = {
   saveOTP,
   getOTP,
   deleteOTP,
+  incrementOTPAttempts,
+  MAX_OTP_ATTEMPTS,
 };

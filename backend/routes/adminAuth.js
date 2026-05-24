@@ -10,6 +10,8 @@ const {
   saveOTP,
   getOTP,
   deleteOTP,
+  incrementOTPAttempts,
+  MAX_OTP_ATTEMPTS,
 } = require("../services/auth/otpStore");
 
 
@@ -297,20 +299,37 @@ if (Date.now() > storedOTP.expiresAt) {
 
 if (storedOTP.otp !== otp) {
 
+  console.log("❌ Invalid OTP");
+
   // =========================
-  // ❌ INVALID OTP ATTEMPT
+  // ✅ TRACK OTP ATTEMPTS
   // =========================
 
-  storedOTP.attempts += 1;
+  const attempts =
+    incrementOTPAttempts(username);
 
-  console.log(
-    "❌ Invalid OTP attempt:",
-    storedOTP.attempts
-  );
+  // =========================
+  // 🔒 MAX ATTEMPTS REACHED
+  // =========================
+
+  if (attempts >= MAX_OTP_ATTEMPTS) {
+
+    console.log(
+      "🚫 OTP max attempts reached"
+    );
+
+    deleteOTP(username);
+
+    return res.status(403).json({
+      success: false,
+      error:
+        "Too many invalid OTP attempts. Please login again.",
+    });
+  }
 
   return res.status(401).json({
     success: false,
-    error: "Invalid OTP",
+    error: `Invalid OTP (${attempts}/${MAX_OTP_ATTEMPTS})`,
   });
 }
 
