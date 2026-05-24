@@ -99,7 +99,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           // =========================
 
           localStorage.removeItem("idiko_admin_token");
-          localStorage.removeItem("idiko_admin_role");
 
           setUser(null);
 
@@ -115,7 +114,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         console.log("❌ Token verification failed");
 
         localStorage.removeItem("idiko_admin_token");
-        localStorage.removeItem("idiko_admin_role");
 
         setUser(null);
 
@@ -143,7 +141,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const logout = () => {
 
     localStorage.removeItem("idiko_admin_token");
-    localStorage.removeItem("idiko_admin_role");
 
     setUser(null);
   };
