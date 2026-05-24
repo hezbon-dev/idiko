@@ -1,12 +1,9 @@
 const express = require("express");
-
 const router = express.Router();
-
 const admin = require("firebase-admin");
-
 const bcrypt = require("bcryptjs");
-
 const jwt = require("jsonwebtoken");
+const verifyAdminToken = require("../middleware/verifyAdminToken");
 
 // 🔥 LOGIN ROUTE
 router.post("/login", async (req, res) => {
@@ -159,5 +156,20 @@ return res.json({
     });
   }
 });
+
+// 🔒 PROTECTED ADMIN TEST ROUTE
+router.get(
+  "/verify",
+  verifyAdminToken,
+  async (req, res) => {
+
+    console.log("✅ VERIFIED ADMIN ACCESS");
+
+    return res.json({
+      success: true,
+      admin: req.admin,
+    });
+  }
+);
 
 module.exports = router;
