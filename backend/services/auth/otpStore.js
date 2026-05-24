@@ -10,6 +10,9 @@ const otpStore = {};
 
 const saveOTP = (username, otp, email) => {
 
+const expiresAt =
+  Date.now() + 60 * 1000; 
+
   otpStore[username] = {
   otp,
   email,
