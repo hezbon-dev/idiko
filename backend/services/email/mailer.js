@@ -1,4 +1,11 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+// =========================
+// ✅ FORCE IPV4
+// =========================
+
+dns.setDefaultResultOrder("ipv4first");
 
 // =========================
 // ✅ GMAIL TRANSPORTER
@@ -17,6 +24,8 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false,
   },
+
+  family: 4,
 });
 
 // =========================
