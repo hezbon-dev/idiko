@@ -62,6 +62,37 @@ router.post("/login", async (req, res) => {
     console.log("✅ User Found:", userData.username);
 
     // =========================
+// ✅ PASSWORD VALIDATION
+// =========================
+
+if (!userData.passwordHash) {
+
+  console.log("❌ No password hash found");
+
+  return res.status(500).json({
+    success: false,
+    error: "Admin password not configured",
+  });
+}
+
+const passwordValid = await bcrypt.compare(
+  password,
+  userData.passwordHash
+);
+
+if (!passwordValid) {
+
+  console.log("❌ Invalid password");
+
+  return res.status(401).json({
+    success: false,
+    error: "Invalid username or password",
+  });
+}
+
+console.log("✅ Password validated");
+
+    // =========================
     // ✅ ROLE VALIDATION
     // =========================
 
