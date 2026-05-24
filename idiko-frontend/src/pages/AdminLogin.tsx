@@ -6,7 +6,7 @@ import axios from "axios";
 
 export default function AdminLogin() {
   
-console.log("🔥 NEW ADMIN LOGIN FILE LOADED");
+
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -53,10 +53,7 @@ console.log("🔥 NEW ADMIN LOGIN FILE LOADED");
 
     console.log("🔐 Starting admin login...");
 
-    console.log(
-  "🌍 API URL:",
-  import.meta.env.VITE_API_URL
-);
+    
     const res = await axios.post(
   `${import.meta.env.VITE_API_URL}/admin/login`,
   {
@@ -77,9 +74,16 @@ console.log("🔥 NEW ADMIN LOGIN FILE LOADED");
     // ✅ TEMPORARY DIRECT LOGIN
     // OTP comes next phase
 
-    login("admin");
+    // ✅ STORE JWT TOKEN
+localStorage.setItem("idiko_admin_token", res.data.token);
 
-    navigate("/admin/dashboard");
+// ✅ STORE ROLE
+localStorage.setItem("idiko_admin_role", "admin");
+
+// ✅ UPDATE CONTEXT
+login("admin");
+
+navigate("/admin/dashboard");
 
   } catch (err: any) {
 
