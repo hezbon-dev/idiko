@@ -13,7 +13,7 @@ const MAX_OTP_ATTEMPTS = 5;
 const saveOTP = (username, otp, email) => {
 
 const expiresAt =
-  Date.now() + 60 * 1000; 
+  Date.now() + 30 * 1000; 
 
   otpStore[username] = {
   otp,

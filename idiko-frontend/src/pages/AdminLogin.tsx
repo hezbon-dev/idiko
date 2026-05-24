@@ -26,7 +26,7 @@ const [pendingUsername, setPendingUsername] = useState("");
 // ⏳ OTP COUNTDOWN
 // =========================
 
-const [otpCountdown, setOtpCountdown] = useState(60);
+const [otpCountdown, setOtpCountdown] = useState(30);
 
   const containerStyle: React.CSSProperties = {
     color: "white",
@@ -141,7 +141,7 @@ setPendingUsername(res.data.username);
 // ⏳ RESET OTP TIMER
 // =========================
 
-setOtpCountdown(60);
+setOtpCountdown(30);
 
 return;
 

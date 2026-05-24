@@ -247,7 +247,7 @@ console.log("📦 Stored OTP Record:", storedOTP);
 
 if (
   storedOTP &&
-  storedOTP.attempts >= 5
+  storedOTP.attempts >= 3
 ) {
 
   deleteOTP(username);
