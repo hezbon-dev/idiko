@@ -128,13 +128,13 @@ console.log("✅ Password validated");
 // ✅ CREATE JWT TOKEN
 const token = jwt.sign(
   {
+    uid: userDoc.id,
     username: userData.username,
     role: userData.role,
-    email: userData.email,
   },
   process.env.JWT_SECRET,
   {
-    expiresIn: "24h",
+    expiresIn: "12h",
   }
 );
 
