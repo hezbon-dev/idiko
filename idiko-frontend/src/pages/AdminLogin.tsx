@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 
@@ -21,6 +21,12 @@ export default function AdminLogin() {
 const [otpRequired, setOtpRequired] = useState(false);
 const [otp, setOtp] = useState("");
 const [pendingUsername, setPendingUsername] = useState("");
+
+// =========================
+// ⏳ OTP COUNTDOWN
+// =========================
+
+const [otpCountdown, setOtpCountdown] = useState(60);
 
   const containerStyle: React.CSSProperties = {
     color: "white",
@@ -51,6 +57,47 @@ const [pendingUsername, setPendingUsername] = useState("");
     backgroundColor: "#111",
     color: "white",
   };
+
+// =========================
+// ⏳ OTP COUNTDOWN EFFECT
+// =========================
+
+useEffect(() => {
+
+  if (!otpRequired) return;
+
+  // =========================
+  // ⏰ OTP EXPIRED
+  // =========================
+
+  if (otpCountdown <= 0) {
+
+    console.log("⌛ OTP expired");
+
+    setOtpRequired(false);
+
+    setOtp("");
+
+    setPendingUsername("");
+
+    setPassword("");
+
+    setError(
+      "OTP expired. Please login again."
+    );
+
+    return;
+  }
+
+  const timer = setInterval(() => {
+
+    setOtpCountdown((prev) => prev - 1);
+
+  }, 1000);
+
+  return () => clearInterval(timer);
+
+}, [otpRequired, otpCountdown]);
 
   const handleLogin = async () => {
 
@@ -88,9 +135,16 @@ if (res.data.otpRequired) {
 
   setOtpRequired(true);
 
-  setPendingUsername(res.data.username);
+setPendingUsername(res.data.username);
 
-  return;
+// =========================
+// ⏳ RESET OTP TIMER
+// =========================
+
+setOtpCountdown(60);
+
+return;
+
 }
 
   } catch (err: any) {
@@ -151,10 +205,30 @@ navigate("/admin/dashboard");
 
     console.error("❌ OTP Verification Error:", err);
 
-    setError(
-      err?.response?.data?.error ||
-      "OTP verification failed"
-    );
+  const backendError =
+  err?.response?.data?.error ||
+  "OTP verification failed";
+
+setError(backendError);
+
+// =========================
+// 🚨 TOO MANY OTP ATTEMPTS
+// =========================
+
+if (
+  backendError.includes(
+    "Too many invalid OTP attempts"
+  )
+) {
+
+  setOtpRequired(false);
+
+  setOtp("");
+
+  setPendingUsername("");
+
+  setPassword("");
+}  
   }
 };
 
@@ -219,9 +293,25 @@ navigate("/admin/dashboard");
       color: "#00ff99",
       marginTop: "10px",
       fontSize: "14px",
+      textAlign: "center",
     }}
   >
     OTP sent to your admin email
+
+    <div
+      style={{
+        marginTop: "8px",
+        color: "#ffaa00",
+      }}
+    >
+      OTP expires in:
+      {" "}
+      00:
+      {otpCountdown < 10
+        ? `0${otpCountdown}`
+        : otpCountdown}
+    </div>
+
   </div>
 
 )}

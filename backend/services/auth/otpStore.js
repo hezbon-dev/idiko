@@ -11,10 +11,11 @@ const otpStore = {};
 const saveOTP = (username, otp, email) => {
 
   otpStore[username] = {
-    otp,
-    email,
-    expiresAt: Date.now() + 60 * 1000, // 1 minute
-  };
+  otp,
+  email,
+  expiresAt,
+  attempts: 0,
+};
 
   console.log("✅ OTP stored for:", username);
 };

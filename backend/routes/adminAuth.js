@@ -240,6 +240,28 @@ const storedOTP = getOTP(username);
 console.log("📦 Stored OTP Record:", storedOTP);
 
 // =========================
+// ❌ TOO MANY OTP ATTEMPTS
+// =========================
+
+if (
+  storedOTP &&
+  storedOTP.attempts >= 5
+) {
+
+  deleteOTP(username);
+
+  console.log(
+    "🚨 OTP blocked due to too many attempts"
+  );
+
+  return res.status(403).json({
+    success: false,
+    error:
+      "Too many invalid OTP attempts. Please login again.",
+  });
+}
+
+// =========================
 // ❌ OTP NOT FOUND
 // =========================
 
@@ -275,7 +297,16 @@ if (Date.now() > storedOTP.expiresAt) {
 
 if (storedOTP.otp !== otp) {
 
-  console.log("❌ Invalid OTP");
+  // =========================
+  // ❌ INVALID OTP ATTEMPT
+  // =========================
+
+  storedOTP.attempts += 1;
+
+  console.log(
+    "❌ Invalid OTP attempt:",
+    storedOTP.attempts
+  );
 
   return res.status(401).json({
     success: false,
