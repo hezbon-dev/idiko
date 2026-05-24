@@ -1,8 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { auth, db } from "../firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-
+import React, { createContext, useContext, useState, type ReactNode } from "react";
 type AuthType = "admin" | "staff" | null;
 
 type AuthContextType = {
@@ -15,43 +11,34 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthType>(null);
 
-  // ✅ Firebase Auth listener (PRODUCTION SAFE ADDITION)
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser) {
-        setUser(null);
-        return;
-      }
+ const [user, setUser] = useState<AuthType>(() => {
+  const savedUser = localStorage.getItem("idiko_admin_role");
 
-      try {
-        const docRef = doc(db, "users", firebaseUser.uid);
-        const snap = await getDoc(docRef);
+  if (savedUser === "admin" || savedUser === "staff") {
+    return savedUser as AuthType;
+  }
 
-        if (snap.exists()) {
-          const role = snap.data().role as AuthType;
-          setUser(role);
-        } else {
-          setUser(null);
-        }
-      } catch {
-        setUser(null);
-      }
-    });
+  return null;
+});
 
-    return () => unsubscribe();
-  }, []);
 
   // ✅ simply set role (no validation here)
   const login = (role: AuthType) => {
-    setUser(role);
-  };
 
-  const logout = async () => {
-    await signOut(auth);
-    setUser(null);
-  };
+  if (role) {
+    localStorage.setItem("idiko_admin_role", role);
+  }
+
+  setUser(role);
+};
+
+ const logout = () => {
+
+  localStorage.removeItem("idiko_admin_role");
+
+  setUser(null);
+}; 
 
   const isAuthenticated = user === "admin" || user === "staff";
 

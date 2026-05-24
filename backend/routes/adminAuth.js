@@ -6,6 +6,8 @@ const admin = require("firebase-admin");
 
 const bcrypt = require("bcryptjs");
 
+const jwt = require("jsonwebtoken");
+
 // 🔥 LOGIN ROUTE
 router.post("/login", async (req, res) => {
 
@@ -124,14 +126,28 @@ console.log("✅ Password validated");
     // ✅ SUCCESS RESPONSE
     // =========================
    
-    console.log("✅ ADMIN LOGIN PASSED");
+   console.log("✅ ADMIN LOGIN PASSED");
 
-    return res.json({
-      success: true,
-      role: userData.role,
-      email: userData.email,
-      message: "Login successful",
-    });
+// ✅ CREATE JWT TOKEN
+const token = jwt.sign(
+  {
+    username: userData.username,
+    role: userData.role,
+    email: userData.email,
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: "24h",
+  }
+);
+
+return res.json({
+  success: true,
+  token,
+  role: userData.role,
+  email: userData.email,
+  message: "Login successful",
+});
 
   } catch (err) {
 
