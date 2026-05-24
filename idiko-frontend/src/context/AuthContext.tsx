@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useState, type ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
+
+import axios from "axios";
 type AuthType = "admin" | "staff" | null;
 
 type AuthContextType = {
@@ -12,33 +20,71 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
- const [user, setUser] = useState<AuthType>(() => {
-  const savedUser = localStorage.getItem("idiko_admin_role");
+ const [user, setUser] = useState<AuthType>(null);
 
-  if (savedUser === "admin" || savedUser === "staff") {
-    return savedUser as AuthType;
-  }
+ useEffect(() => {
 
-  return null;
-});
+  const verifyToken = async () => {
+
+    try {
+
+      const token = localStorage.getItem("idiko_admin_token");
+
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/admin/verify`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (res.data.success) {
+
+        setUser(res.data.admin.role);
+
+      } else {
+
+        localStorage.removeItem("idiko_admin_token");
+        localStorage.removeItem("idiko_admin_role");
+
+        setUser(null);
+      }
+
+    } catch (err) {
+
+      console.log("❌ Token verification failed");
+
+      localStorage.removeItem("idiko_admin_token");
+      localStorage.removeItem("idiko_admin_role");
+
+      setUser(null);
+    }
+  };
+
+  verifyToken();
+
+}, []);
 
 
   // ✅ simply set role (no validation here)
   const login = (role: AuthType) => {
-
-  if (role) {
-    localStorage.setItem("idiko_admin_role", role);
-  }
 
   setUser(role);
 };
 
  const logout = () => {
 
+  localStorage.removeItem("idiko_admin_token");
   localStorage.removeItem("idiko_admin_role");
 
   setUser(null);
-}; 
+};
 
   const isAuthenticated = user === "admin" || user === "staff";
 
