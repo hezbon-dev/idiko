@@ -7,6 +7,11 @@ import React, {
 } from "react";
 
 import axios from "axios";
+
+// =========================
+// ✅ AUTH TYPES
+// =========================
+
 type AuthType = "admin" | "staff" | null;
 
 type AuthContextType = {
@@ -14,89 +19,174 @@ type AuthContextType = {
   login: (role: AuthType) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  loading: boolean;
 };
+
+// =========================
+// ✅ CONTEXT CREATION
+// =========================
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+// =========================
+// ✅ AUTH PROVIDER
+// =========================
 
- const [user, setUser] = useState<AuthType>(null);
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
 
- useEffect(() => {
+  // =========================
+  // ✅ STATE
+  // =========================
 
-  const verifyToken = async () => {
+  const [user, setUser] = useState<AuthType>(null);
 
-    try {
+  const [loading, setLoading] = useState(true);
 
-      const token = localStorage.getItem("idiko_admin_token");
+  // =========================
+  // ✅ TOKEN VERIFICATION
+  // =========================
 
-      if (!token) {
-        setUser(null);
-        return;
-      }
+  useEffect(() => {
 
-      const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/admin/verify`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+    const verifyToken = async () => {
+
+      try {
+
+        const token = localStorage.getItem("idiko_admin_token");
+
+        // =========================
+        // ❌ NO TOKEN FOUND
+        // =========================
+
+        if (!token) {
+
+          setUser(null);
+
+          setLoading(false);
+
+          return;
         }
-      );
 
-      if (res.data.success) {
+        // =========================
+        // ✅ VERIFY TOKEN WITH BACKEND
+        // =========================
 
-        setUser(res.data.admin.role);
+        const res = await axios.get(
+          `${import.meta.env.VITE_API_URL}/admin/verify`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-      } else {
+        // =========================
+        // ✅ TOKEN VERIFIED
+        // =========================
+
+        if (res.data.success) {
+
+          setUser(res.data.admin.role);
+
+          setLoading(false);
+
+        } else {
+
+          // =========================
+          // ❌ INVALID TOKEN
+          // =========================
+
+          localStorage.removeItem("idiko_admin_token");
+          localStorage.removeItem("idiko_admin_role");
+
+          setUser(null);
+
+          setLoading(false);
+        }
+
+      } catch (err) {
+
+        // =========================
+        // ❌ TOKEN VERIFICATION FAILED
+        // =========================
+
+        console.log("❌ Token verification failed");
 
         localStorage.removeItem("idiko_admin_token");
         localStorage.removeItem("idiko_admin_role");
 
         setUser(null);
+
+        setLoading(false);
       }
+    };
 
-    } catch (err) {
+    verifyToken();
 
-      console.log("❌ Token verification failed");
+  }, []);
 
-      localStorage.removeItem("idiko_admin_token");
-      localStorage.removeItem("idiko_admin_role");
+  // =========================
+  // ✅ LOGIN
+  // =========================
 
-      setUser(null);
-    }
-  };
-
-  verifyToken();
-
-}, []);
-
-
-  // ✅ simply set role (no validation here)
   const login = (role: AuthType) => {
 
-  setUser(role);
-};
+    setUser(role);
+  };
 
- const logout = () => {
+  // =========================
+  // ✅ LOGOUT
+  // =========================
 
-  localStorage.removeItem("idiko_admin_token");
-  localStorage.removeItem("idiko_admin_role");
+  const logout = () => {
 
-  setUser(null);
-};
+    localStorage.removeItem("idiko_admin_token");
+    localStorage.removeItem("idiko_admin_role");
 
-  const isAuthenticated = user === "admin" || user === "staff";
+    setUser(null);
+  };
+
+  // =========================
+  // ✅ AUTH STATUS
+  // =========================
+
+  const isAuthenticated =
+    user === "admin" || user === "staff";
+
+  // =========================
+  // ✅ PROVIDER
+  // =========================
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isAuthenticated,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
+// =========================
+// ✅ CUSTOM HOOK
+// =========================
+
 export const useAuth = () => {
+
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+
+  if (!ctx) {
+    throw new Error(
+      "useAuth must be used inside AuthProvider"
+    );
+  }
+
   return ctx;
 };
