@@ -14,6 +14,12 @@ const {
   MAX_OTP_ATTEMPTS,
 } = require("../services/auth/otpStore");
 
+const {
+  getLoginRecord,
+  incrementAttempts,
+  resetAttempts,
+  lockAccount,
+} = require("../services/auth/loginAttemptStore");
 
 // 🔥 LOGIN ROUTE
 router.post("/login", async (req, res) => {
@@ -70,6 +76,28 @@ router.post("/login", async (req, res) => {
 
     console.log("✅ User Found:", userData.username);
 
+// =========================
+// ✅ LOGIN LOCK CHECK
+// =========================
+
+const loginRecord = getLoginRecord(
+  userData.username
+);
+
+if (
+  loginRecord.lockUntil &&
+  Date.now() < loginRecord.lockUntil
+) {
+
+  console.log("🚫 Admin temporarily locked");
+
+  return res.status(403).json({
+    success: false,
+    error:
+      "Too many failed attempts. Try again later.",
+  });
+}
+
     // =========================
 // ✅ PASSWORD VALIDATION
 // =========================
@@ -93,13 +121,50 @@ if (!passwordValid) {
 
   console.log("❌ Invalid password");
 
+  // =========================
+  // ✅ TRACK FAILED LOGIN
+  // =========================
+
+  const record = incrementAttempts(
+    userData.username
+  );
+
+  console.log(
+    "⚠️ Failed login attempts:",
+    record.attempts
+  );
+
+  // =========================
+  // 🚫 TEMP LOCK ACCOUNT
+  // =========================
+
+  if (record.attempts >= 3) {
+
+    lockAccount(
+      userData.username,
+      5 * 60 * 1000
+    );
+
+    return res.status(403).json({
+      success: false,
+      error:
+        "Too many failed login attempts. Try again in 5 minutes.",
+    });
+  }
+
   return res.status(401).json({
     success: false,
-    error: "Invalid username or password",
+    error: `Invalid username or password (${record.attempts}/3)`,
   });
 }
 
 console.log("✅ Password validated");
+
+// =========================
+// ✅ RESET FAILED LOGINS
+// =========================
+
+resetAttempts(userData.username);
 
 // =========================
 // ✅ GENERATE OTP
