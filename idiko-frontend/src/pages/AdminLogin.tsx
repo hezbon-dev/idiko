@@ -15,6 +15,13 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+// =========================
+// ✅ OTP STATE
+// =========================
+const [otpRequired, setOtpRequired] = useState(false);
+const [otp, setOtp] = useState("");
+const [pendingUsername, setPendingUsername] = useState("");
+
   const containerStyle: React.CSSProperties = {
     color: "white",
     minHeight: "100vh",
@@ -71,19 +78,20 @@ export default function AdminLogin() {
       return;
     }
 
-    // ✅ TEMPORARY DIRECT LOGIN
-    // OTP comes next phase
+//=========================
+// ✅ OTP REQUIRED
+// =========================
 
-    // ✅ STORE JWT TOKEN
-localStorage.setItem("idiko_admin_token", res.data.token);
+if (res.data.otpRequired) {
 
-// ✅ STORE ROLE
-localStorage.setItem("idiko_admin_role", "admin");
+  console.log("🔐 OTP required");
 
-// ✅ UPDATE CONTEXT
-login("admin");
+  setOtpRequired(true);
 
-navigate("/admin/dashboard");
+  setPendingUsername(res.data.username);
+
+  return;
+}
 
   } catch (err: any) {
 
@@ -96,25 +104,103 @@ navigate("/admin/dashboard");
   }
 };
 
+// =========================
+// ✅ VERIFY OTP
+// =========================
+
+const handleVerifyOTP = async () => {
+
+  setError("");
+
+  try {
+
+    console.log("🔐 Verifying OTP...");
+
+    const res = await axios.post(
+  `${import.meta.env.VITE_API_URL}/admin/verify-otp`,
+  {
+    username: pendingUsername,
+    otp,
+  }
+);
+
+console.log("✅ OTP Verify Response:", res.data);
+
+// =========================
+// ✅ STORE JWT TOKEN
+// =========================
+
+localStorage.setItem(
+  "idiko_admin_token",
+  res.data.token
+);
+
+// =========================
+// ✅ UPDATE AUTH CONTEXT
+// =========================
+
+login("admin");
+
+// =========================
+// ✅ NAVIGATE TO DASHBOARD
+// =========================
+
+navigate("/admin/dashboard");
+
+  } catch (err: any) {
+
+    console.error("❌ OTP Verification Error:", err);
+
+    setError(
+      err?.response?.data?.error ||
+      "OTP verification failed"
+    );
+  }
+};
+
   return (
     <div style={containerStyle}>
       <h1></h1>
 
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        style={inputStyle}
-      />
+     {!otpRequired && (
 
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={inputStyle}
-      />
+  <input
+    type="text"
+    placeholder="Username"
+    value={username}
+    onChange={(e) => setUsername(e.target.value)}
+    style={inputStyle}
+  />
+
+)}
+
+  {!otpRequired && (
+
+  <input
+    type="password"
+    placeholder="Password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    style={inputStyle}
+  />
+
+)}   
+
+{/*=========================
+✅ OTP INPUT
+=========================*/}
+
+{otpRequired && (
+
+  <input
+    type="text"
+    placeholder="Enter OTP"
+    value={otp}
+    onChange={(e) => setOtp(e.target.value)}
+    style={inputStyle}
+  />
+
+)}
 
       {error && (
         <div style={{ color: "red", marginTop: "10px", fontSize: "14px" }}>
@@ -122,9 +208,53 @@ navigate("/admin/dashboard");
         </div>
       )}
 
-      <button style={buttonStyle} onClick={handleLogin}>
-        Login
-      </button>
+{/*=========================
+✅ OTP MESSAGE
+=========================*/}
+
+{otpRequired && (
+
+  <div
+    style={{
+      color: "#00ff99",
+      marginTop: "10px",
+      fontSize: "14px",
+    }}
+  >
+    OTP sent to your admin email
+  </div>
+
+)}
+
+{/*=========================
+✅ LOGIN BUTTON
+=========================*/}
+
+{!otpRequired && (
+
+  <button
+    style={buttonStyle}
+    onClick={handleLogin}
+  >
+    Login
+  </button>
+
+)}
+
+{/*=========================
+✅ VERIFY OTP BUTTON
+=========================*/}
+
+{otpRequired && (
+
+  <button
+  style={buttonStyle}
+  onClick={handleVerifyOTP}
+>
+  Verify OTP
+</button>
+
+)}
 
       <div style={{ marginTop: "20px" }}>
         <Link
