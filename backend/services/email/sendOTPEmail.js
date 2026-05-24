@@ -1,45 +1,68 @@
-const transporter = require("./mailer");
+const { Resend } = require("resend");
+
+// =========================
+// ✅ RESEND CLIENT
+// =========================
+
+const resend = new Resend(
+  process.env.RESEND_API_KEY
+);
 
 // =========================
 // ✅ SEND OTP EMAIL
 // =========================
 
-const sendOTPEmail = async (email, otp) => {
+const sendOTPEmail = async (
+  email,
+  otp
+) => {
 
-  const mailOptions = {
+  try {
 
-    from: process.env.EMAIL_USER,
+    const response = await resend.emails.send({
 
-    to: email,
+      from: "onboarding@resend.dev",
 
-    subject: "Your IDIKO Admin OTP Code",
+      to: email,
 
-    html: `
-      <div style="font-family: Arial; padding: 20px;">
+      subject: "IDIKO Admin Login Verification",
 
-        <h2>IDIKO Admin Login Verification</h2>
+      html: `
+        <div style="font-family: Arial;">
 
-        <p>Your OTP code is:</p>
+          <h2>IDIKO Admin Login Verification</h2>
 
-        <h1 style="letter-spacing: 5px;">
-          ${otp}
-        </h1>
+          <p>Your OTP code is:</p>
 
-        <p>
-          This code expires in 1 minute.
-        </p>
+          <h1>${otp}</h1>
 
-        <p>
-          If this was not you, secure your account immediately.
-        </p>
+          <p>
+            This code expires in 1 minute.
+          </p>
 
-      </div>
-    `,
-  };
+          <p>
+            If this was not you,
+            secure your account immediately.
+          </p>
 
-  await transporter.sendMail(mailOptions);
+        </div>
+      `,
+    });
 
-  console.log("✅ OTP email sent to:", email);
+    console.log(
+      "✅ OTP email sent:",
+      response
+    );
+
+  } catch (err) {
+
+    console.error(
+      "❌ RESEND EMAIL ERROR:",
+      err
+    );
+
+    throw err;
+  }
 };
 
 module.exports = sendOTPEmail;
