@@ -85,8 +85,9 @@ const loginRecord = getLoginRecord(
 );
 
 if (
-  loginRecord.lockUntil &&
-  Date.now() < loginRecord.lockUntil
+  loginRecord &&
+  loginRecord.lockedUntil &&
+  Date.now() < loginRecord.lockedUntil
 ) {
 
   console.log("🚫 Admin temporarily locked");
