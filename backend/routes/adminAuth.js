@@ -26,6 +26,11 @@ const {
   otpVerifyLimiter,
 } = require("../middleware/rateLimiter");
 
+const {
+  generateWebAuthnRegistration,
+  verifyWebAuthnRegistration,
+} = require("../services/webauthn/webauthnService");
+
 // 🔥 LOGIN ROUTE
 router.post(
   "/login",
@@ -484,5 +489,160 @@ return res.json({
     });
   }
 });
+
+// =========================
+// 🔐 START BIOMETRIC REGISTRATION
+// =========================
+
+router.post(
+  "/start-biometric-registration",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const username =
+        req.admin.username;
+
+      console.log(
+        "🟢 Starting biometric registration:",
+        username
+      );
+
+      const options =
+        generateWebAuthnRegistration(
+          username
+        );
+
+      return res.json(options);
+
+    } catch (err) {
+
+      console.error(
+        "❌ Biometric Registration Start Error:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "Failed to start biometric registration",
+      });
+    }
+  }
+);
+
+// =========================
+// 🔐 FINISH BIOMETRIC REGISTRATION
+// =========================
+
+router.post(
+  "/finish-biometric-registration",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const username =
+        req.admin.username;
+
+      const credential =
+        req.body;
+
+      console.log(
+        "🟢 Finishing biometric registration:",
+        username
+      );
+
+      // =========================
+      // ✅ VERIFY REGISTRATION
+      // =========================
+
+      const verification =
+        verifyWebAuthnRegistration(
+          credential
+        );
+
+      if (!verification.verified) {
+
+        console.log(
+          "❌ Biometric verification failed"
+        );
+
+        return res.status(400).json({
+          success: false,
+          error:
+            "Biometric registration failed",
+        });
+      }
+
+      // =========================
+      // ✅ SAVE CREDENTIAL
+      // =========================
+
+      const db = admin.firestore();
+
+      const snapshot = await db
+        .collection("users")
+        .where(
+          "username",
+          "==",
+          username.trim().toLowerCase()
+        )
+        .limit(1)
+        .get();
+
+      if (snapshot.empty) {
+
+        return res.status(404).json({
+          success: false,
+          error: "Admin not found",
+        });
+      }
+
+      const userDoc =
+        snapshot.docs[0];
+
+      await userDoc.ref.update({
+
+        biometricEnabled: true,
+
+        webAuthnCredential: {
+          credentialID:
+            verification.credentialID,
+
+          publicKey:
+            verification.publicKey,
+
+          counter:
+            verification.counter,
+        },
+      });
+
+      console.log(
+        "✅ Biometric registration saved"
+      );
+
+      return res.json({
+        success: true,
+        message:
+          "Fingerprint registered successfully",
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ Finish Biometric Registration Error:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error:
+          "Failed to finish biometric registration",
+      });
+    }
+  }
+);
 
 module.exports = router;
