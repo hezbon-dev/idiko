@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
+import registerBiometric from "../utils/registerBiometric";
+import verifyBiometric from "../utils/verifyBiometric";
 
 export default function AdminLogin() {
   
@@ -196,10 +198,99 @@ localStorage.setItem(
 login("admin");
 
 // =========================
-// ✅ NAVIGATE TO DASHBOARD
+// ✅ BIOMETRIC REGISTRATION
 // =========================
 
-navigate("/admin/dashboard");
+const alreadyEnabled =
+  localStorage.getItem(
+    "biometricEnabled"
+  );
+
+if (!alreadyEnabled) {
+
+  console.log(
+    "🟢 Registering trusted biometric device..."
+  );
+
+  const biometricResult =
+    await registerBiometric(
+      pendingUsername
+    );
+
+  if (
+    biometricResult.success
+  ) {
+
+    console.log(
+      "✅ Biometric registration completed"
+    );
+
+  } else {
+
+    console.log(
+      "⚠️ Biometric skipped:",
+      biometricResult.error
+    );
+  }
+}
+
+// =========================
+// ✅ VERIFY BIOMETRIC
+// =========================
+
+const biometricCheck =
+  await verifyBiometric();
+
+// =========================
+// ✅ BIOMETRIC SUCCESS
+// =========================
+
+if (
+  biometricCheck.success
+) {
+
+  console.log(
+    "✅ Fingerprint verified"
+  );
+
+  navigate(
+    "/admin/dashboard"
+  );
+
+  return;
+}
+
+// =========================
+// ✅ SKIP FOR NON-TRUSTED DEVICES
+// =========================
+
+if (
+  biometricCheck.skipped
+) {
+
+  console.log(
+    "🟡 Non-trusted device — skipping biometric"
+  );
+
+  navigate(
+    "/admin/dashboard"
+  );
+
+  return;
+}
+
+// =========================
+// ❌ BIOMETRIC FAILED
+// =========================
+
+setError(
+  biometricCheck.error ||
+  "Fingerprint verification failed"
+);
+
+console.log(
+  "❌ Biometric verification failed"
+);
 
   } catch (err: any) {
 
