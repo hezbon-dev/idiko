@@ -21,8 +21,16 @@ const {
   lockAccount,
 } = require("../services/auth/loginAttemptStore");
 
+const {
+  adminLoginLimiter,
+  otpVerifyLimiter,
+} = require("../middleware/rateLimiter");
+
 // 🔥 LOGIN ROUTE
-router.post("/login", async (req, res) => {
+router.post(
+  "/login",
+  adminLoginLimiter,
+  async (req, res) => {
 
   console.log("🔐 ADMIN LOGIN ATTEMPT");
 
@@ -273,7 +281,10 @@ router.get(
 // 🔐 VERIFY OTP ROUTE
 // =========================
 
-router.post("/verify-otp", async (req, res) => {
+router.post(
+  "/verify-otp",
+  otpVerifyLimiter,
+  async (req, res) => {
 
   try {
 
@@ -462,11 +473,6 @@ return res.json({
   email: userData.email,
   message: "OTP verified successfully",
 });
-
-    return res.json({
-      success: true,
-      message: "OTP route initialized",
-    });
 
   } catch (err) {
 
