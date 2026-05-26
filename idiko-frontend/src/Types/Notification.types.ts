@@ -42,7 +42,7 @@ export type NotificationJob = {
   /** When the match was first found */
   startDate: string;
 
-  /** When notifications should stop (30 days later) */
+  /** When notifications should stop (15 days later) */
   endDate: string;
 
   /** Last time a message was sent */
@@ -51,7 +51,7 @@ export type NotificationJob = {
   /** How many times messages have been sent */
   sentCount: number;
 
-  /** Maximum sends allowed (e.g. 30 days = 30 sends) */
+  /** Maximum sends allowed (e.g. 15 days = 15 sends) */
   maxSends: number;
 
   /** Stop sending when ID status becomes Paid */

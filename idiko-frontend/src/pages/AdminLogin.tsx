@@ -387,7 +387,6 @@ if (
       textAlign: "center",
     }}
   >
-    OTP sent to your admin email
 
     <div
       style={{

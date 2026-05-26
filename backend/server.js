@@ -368,7 +368,7 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
         }
 
         // =========================
-        // ✅ STOP AFTER 30 DAYS
+        // ✅ STOP AFTER 15 DAYS
         // =========================
 
         const startedAt = new Date(req.startedAt).getTime();
@@ -377,8 +377,8 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
           (now - startedAt) / (1000 * 60 * 60 * 24)
         );
 
-        if (daysPassed >= 30) {
-          console.log("🛑 30 DAY LIMIT REACHED:", req.idNumber);
+        if (daysPassed >= 15) {
+          console.log("🛑 15 DAY LIMIT REACHED:", req.idNumber);
 
           await docRef.update({
             expired: true
