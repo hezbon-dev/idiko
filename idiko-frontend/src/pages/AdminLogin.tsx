@@ -1,14 +1,12 @@
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import axios from "axios";
 import registerBiometric from "../utils/registerBiometric";
 import verifyBiometric from "../utils/verifyBiometric";
 
 export default function AdminLogin() {
-  
-
 
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -17,18 +15,36 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-// =========================
-// ✅ OTP STATE
-// =========================
-const [otpRequired, setOtpRequired] = useState(false);
-const [otp, setOtp] = useState("");
-const [pendingUsername, setPendingUsername] = useState("");
+  // =========================
+  // ✅ OTP STATE
+  // =========================
 
-// =========================
-// ⏳ OTP COUNTDOWN
-// =========================
+  const [otpRequired, setOtpRequired] = useState(false);
 
-const [otpCountdown, setOtpCountdown] = useState(30);
+  const [otpArray, setOtpArray] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+
+  const otp =
+    otpArray.join("");
+
+  const otpInputs =
+    useRef<(HTMLInputElement | null)[]>([]);
+
+  const [pendingUsername, setPendingUsername] =
+    useState("");
+
+  // =========================
+  // ⏳ OTP COUNTDOWN
+  // =========================
+
+  const [otpCountdown, setOtpCountdown] =
+    useState(30);
 
   const containerStyle: React.CSSProperties = {
     color: "white",
@@ -60,388 +76,538 @@ const [otpCountdown, setOtpCountdown] = useState(30);
     color: "white",
   };
 
-// =========================
-// ⏳ OTP COUNTDOWN EFFECT
-// =========================
-
-useEffect(() => {
-
-  if (!otpRequired) return;
-
   // =========================
-  // ⏰ OTP EXPIRED
+  // ✅ OTP BOX STYLE
   // =========================
 
-  if (otpCountdown <= 0) {
+  const otpBoxStyle: React.CSSProperties = {
+    width: "45px",
+    height: "55px",
+    margin: "5px",
+    textAlign: "center",
+    fontSize: "24px",
+    borderRadius: "10px",
+    border: "2px solid #444",
+    backgroundColor: "#111",
+    color: "white",
+    outline: "none",
+  };
 
-    console.log("⌛ OTP expired");
+  // =========================
+  // ⏳ OTP COUNTDOWN EFFECT
+  // =========================
 
-    setOtpRequired(false);
+  useEffect(() => {
 
-    setOtp("");
+    if (!otpRequired) return;
 
-    setPendingUsername("");
+    if (otpCountdown <= 0) {
 
-    setPassword("");
+      console.log("⌛ OTP expired");
 
-    setError(
-      "OTP expired. Please login again."
-    );
+      setOtpRequired(false);
 
-    return;
-  }
+      setOtpArray([
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+      ]);
 
-  const timer = setInterval(() => {
+      setPendingUsername("");
 
-    setOtpCountdown((prev) => prev - 1);
+      setPassword("");
 
-  }, 1000);
-
-  return () => clearInterval(timer);
-
-}, [otpRequired, otpCountdown]);
-
-  const handleLogin = async () => {
-
-  setError("");
-
-  try {
-
-    console.log("🔐 Starting admin login...");
-
-    
-    const res = await axios.post(
-  `${import.meta.env.VITE_API_URL}/admin/login`,
-  {
-    username,
-    password,
-  }
-);
-
-    console.log("✅ Backend Response:", res.data);
-
-    if (!res.data.success) {
-
-      setError("Invalid username or password");
+      setError(
+        "OTP expired. Please login again."
+      );
 
       return;
     }
 
-//=========================
-// ✅ OTP REQUIRED
-// =========================
+    const timer = setInterval(() => {
 
-if (res.data.otpRequired) {
+      setOtpCountdown((prev) => prev - 1);
 
-  console.log("🔐 OTP required");
+    }, 1000);
 
-  setOtpRequired(true);
+    return () => clearInterval(timer);
 
-setPendingUsername(res.data.username);
+  }, [otpRequired, otpCountdown]);
 
-// =========================
-// ⏳ RESET OTP TIMER
-// =========================
+  // =========================
+  // ✅ AUTO VERIFY OTP
+  // =========================
 
-setOtpCountdown(30);
+  useEffect(() => {
 
-return;
+    if (otp.length === 6) {
 
-}
+      handleVerifyOTP();
 
-  } catch (err: any) {
+    }
 
-    console.error("❌ Login Error:", err);
+  }, [otp]);
 
-    setError(
-      err?.response?.data?.error ||
-      "Login failed"
-    );
-  }
-};
+  // =========================
+  // ✅ HANDLE OTP INPUT
+  // =========================
 
-// =========================
-// ✅ VERIFY OTP
-// =========================
+  const handleOtpChange = (
+    value: string,
+    index: number
+  ) => {
 
-const handleVerifyOTP = async () => {
+    if (!/^\d*$/.test(value)) return;
 
-  setError("");
+    const updatedOtp =
+      [...otpArray];
 
-  try {
+    // =========================
+    // ✅ HANDLE PASTE
+    // =========================
 
-    console.log("🔐 Verifying OTP...");
+    if (value.length > 1) {
 
-    const res = await axios.post(
-  `${import.meta.env.VITE_API_URL}/admin/verify-otp`,
-  {
-    username: pendingUsername,
-    otp,
-  }
-);
+      const pastedOtp =
+        value.slice(0, 6).split("");
 
-console.log("✅ OTP Verify Response:", res.data);
+      for (
+        let i = 0;
+        i < 6;
+        i++
+      ) {
 
-// =========================
-// ✅ STORE JWT TOKEN
-// =========================
+        updatedOtp[i] =
+          pastedOtp[i] || "";
 
-localStorage.setItem(
-  "idiko_admin_token",
-  res.data.token
-);
+      }
 
-// =========================
-// ✅ UPDATE AUTH CONTEXT
-// =========================
+      setOtpArray(updatedOtp);
 
-login("admin");
+      return;
+    }
 
-// =========================
-// ✅ BIOMETRIC REGISTRATION
-// =========================
+    updatedOtp[index] = value;
 
-const alreadyEnabled =
-  localStorage.getItem(
-    "biometricEnabled"
-  );
+    setOtpArray(updatedOtp);
 
-if (!alreadyEnabled) {
+    // =========================
+    // ✅ AUTO MOVE
+    // =========================
 
-  console.log(
-    "🟢 Registering trusted biometric device..."
-  );
+    if (
+      value &&
+      index < 5
+    ) {
 
-  const biometricResult =
-    await registerBiometric(
-      pendingUsername
-    );
+      otpInputs.current[
+        index + 1
+      ]?.focus();
+    }
+  };
 
-  if (
-    biometricResult.success
-  ) {
+  // =========================
+  // ✅ BACKSPACE SUPPORT
+  // =========================
 
-    console.log(
-      "✅ Biometric registration completed"
-    );
+  const handleOtpKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number
+  ) => {
 
-  } else {
+    if (
+      e.key === "Backspace" &&
+      !otpArray[index] &&
+      index > 0
+    ) {
 
-    console.log(
-      "⚠️ Biometric skipped:",
-      biometricResult.error
-    );
-  }
-}
+      otpInputs.current[
+        index - 1
+      ]?.focus();
+    }
+  };
 
-// =========================
-// ✅ VERIFY BIOMETRIC
-// =========================
+  const handleLogin = async () => {
 
-const biometricCheck =
-  await verifyBiometric();
+    setError("");
 
-// =========================
-// ✅ BIOMETRIC SUCCESS
-// =========================
+    try {
 
-if (
-  biometricCheck.success
-) {
+      console.log("🔐 Starting admin login...");
 
-  console.log(
-    "✅ Fingerprint verified"
-  );
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/admin/login`,
+        {
+          username,
+          password,
+        }
+      );
 
-  navigate(
-    "/admin/dashboard"
-  );
+      console.log(
+        "✅ Backend Response:",
+        res.data
+      );
 
-  return;
-}
+      if (!res.data.success) {
 
-// =========================
-// ✅ SKIP FOR NON-TRUSTED DEVICES
-// =========================
+        setError(
+          "Invalid username or password"
+        );
 
-if (
-  biometricCheck.skipped
-) {
+        return;
+      }
 
-  console.log(
-    "🟡 Non-trusted device — skipping biometric"
-  );
+      // =========================
+      // ✅ OTP REQUIRED
+      // =========================
 
-  navigate(
-    "/admin/dashboard"
-  );
+      if (res.data.otpRequired) {
 
-  return;
-}
+        console.log(
+          "🔐 OTP required"
+        );
 
-// =========================
-// ❌ BIOMETRIC FAILED
-// =========================
+        setOtpRequired(true);
 
-setError(
-  biometricCheck.error ||
-  "Fingerprint verification failed"
-);
+        setPendingUsername(
+          res.data.username
+        );
 
-console.log(
-  "❌ Biometric verification failed"
-);
+        setOtpCountdown(30);
 
-  } catch (err: any) {
+        return;
+      }
 
-    console.error("❌ OTP Verification Error:", err);
+    } catch (err: any) {
 
-  const backendError =
-  err?.response?.data?.error ||
-  "OTP verification failed";
+      console.error(
+        "❌ Login Error:",
+        err
+      );
 
-setError(backendError);
+      setError(
+        err?.response?.data?.error ||
+        "Login failed"
+      );
+    }
+  };
 
-// =========================
-// 🚨 TOO MANY OTP ATTEMPTS
-// =========================
+  // =========================
+  // ✅ VERIFY OTP
+  // =========================
 
-if (
-  backendError.includes(
-    "Too many invalid OTP attempts"
-  )
-) {
+  const handleVerifyOTP = async () => {
 
-  setOtpRequired(false);
+    setError("");
 
-  setOtp("");
+    try {
 
-  setPendingUsername("");
+      console.log(
+        "🔐 Verifying OTP..."
+      );
 
-  setPassword("");
-}  
-  }
-};
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/admin/verify-otp`,
+        {
+          username: pendingUsername,
+          otp,
+        }
+      );
+
+      console.log(
+        "✅ OTP Verify Response:",
+        res.data
+      );
+
+      localStorage.setItem(
+        "idiko_admin_token",
+        res.data.token
+      );
+
+      login("admin");
+
+      // =========================
+      // ✅ BIOMETRIC REGISTRATION
+      // =========================
+
+      const alreadyEnabled =
+        localStorage.getItem(
+          "biometricEnabled"
+        );
+
+      if (!alreadyEnabled) {
+
+        console.log(
+          "🟢 Registering trusted biometric device..."
+        );
+
+        const biometricResult =
+          await registerBiometric(
+            pendingUsername
+          );
+
+        if (
+          biometricResult.success
+        ) {
+
+          console.log(
+            "✅ Biometric registration completed"
+          );
+
+        } else {
+
+          console.log(
+            "⚠️ Biometric skipped:",
+            biometricResult.error
+          );
+        }
+      }
+
+      // =========================
+      // ✅ VERIFY BIOMETRIC
+      // =========================
+
+      const biometricCheck =
+        await verifyBiometric();
+
+      if (
+        biometricCheck.success
+      ) {
+
+        console.log(
+          "✅ Fingerprint verified"
+        );
+
+        navigate(
+          "/admin/dashboard"
+        );
+
+        return;
+      }
+
+      if (
+        biometricCheck.skipped
+      ) {
+
+        console.log(
+          "🟡 Non-trusted device — skipping biometric"
+        );
+
+        navigate(
+          "/admin/dashboard"
+        );
+
+        return;
+      }
+
+      setError(
+        biometricCheck.error ||
+        "Fingerprint verification failed"
+      );
+
+      console.log(
+        "❌ Biometric verification failed"
+      );
+
+    } catch (err: any) {
+
+      console.error(
+        "❌ OTP Verification Error:",
+        err
+      );
+
+      const backendError =
+        err?.response?.data?.error ||
+        "OTP verification failed";
+
+      setError(
+        backendError
+      );
+
+      if (
+        backendError.includes(
+          "Too many invalid OTP attempts"
+        )
+      ) {
+
+        setOtpRequired(false);
+
+        setOtpArray([
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+        ]);
+
+        setPendingUsername("");
+
+        setPassword("");
+      }
+    }
+  };
 
   return (
     <div style={containerStyle}>
       <h1></h1>
 
-     {!otpRequired && (
+      {!otpRequired && (
 
-  <input
-    type="text"
-    placeholder="Username"
-    value={username}
-    onChange={(e) => setUsername(e.target.value)}
-    style={inputStyle}
-  />
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) =>
+            setUsername(
+              e.target.value
+            )
+          }
+          style={inputStyle}
+        />
 
-)}
+      )}
 
-  {!otpRequired && (
+      {!otpRequired && (
 
-  <input
-    type="password"
-    placeholder="Password"
-    value={password}
-    onChange={(e) => setPassword(e.target.value)}
-    style={inputStyle}
-  />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) =>
+            setPassword(
+              e.target.value
+            )
+          }
+          style={inputStyle}
+        />
 
-)}   
+      )}
 
-{/*=========================
-✅ OTP INPUT
-=========================*/}
+      {/*=========================
+      ✅ OTP BOXES
+      =========================*/}
 
-{otpRequired && (
+      {otpRequired && (
 
-  <input
-    type="text"
-    placeholder="Enter OTP"
-    value={otp}
-    onChange={(e) => setOtp(e.target.value)}
-    style={inputStyle}
-  />
+        <div
+          style={{
+            display: "flex",
+            marginTop: "20px",
+          }}
+        >
 
-)}
+          {otpArray.map(
+            (
+              digit,
+              index
+            ) => (
+
+              <input
+                key={index}
+              ref={(el) => {
+                otpInputs.current[index] = el;
+            }}
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={digit}
+                onChange={(e) =>
+                  handleOtpChange(
+                    e.target.value,
+                    index
+                  )
+                }
+                onKeyDown={(e) =>
+                  handleOtpKeyDown(
+                    e,
+                    index
+                  )
+                }
+                style={otpBoxStyle}
+              />
+
+            )
+          )}
+
+        </div>
+
+      )}
 
       {error && (
-        <div style={{ color: "red", marginTop: "10px", fontSize: "14px" }}>
+        <div
+          style={{
+            color: "red",
+            marginTop: "10px",
+            fontSize: "14px",
+          }}
+        >
           {error}
         </div>
       )}
 
-{/*=========================
-✅ OTP MESSAGE
-=========================*/}
+      {/*=========================
+      ✅ OTP MESSAGE
+      =========================*/}
 
-{otpRequired && (
+      {otpRequired && (
 
-  <div
-    style={{
-      color: "#00ff99",
-      marginTop: "10px",
-      fontSize: "14px",
-      textAlign: "center",
-    }}
-  >
+        <div
+          style={{
+            color: "#00ff99",
+            marginTop: "10px",
+            fontSize: "14px",
+            textAlign: "center",
+          }}
+        >
 
-    <div
-      style={{
-        marginTop: "8px",
-        color: "#ffaa00",
-      }}
-    >
-      OTP expires in:
-      {" "}
-      00:
-      {otpCountdown < 10
-        ? `0${otpCountdown}`
-        : otpCountdown}
-    </div>
+          <div
+            style={{
+              marginTop: "8px",
+              color: "#ffaa00",
+            }}
+          >
+            OTP expires in:
+            {" "}
+            00:
+            {otpCountdown < 10
+              ? `0${otpCountdown}`
+              : otpCountdown}
+          </div>
 
-  </div>
+        </div>
 
-)}
+      )}
 
-{/*=========================
-✅ LOGIN BUTTON
-=========================*/}
+      {/*=========================
+      ✅ LOGIN BUTTON
+      =========================*/}
 
-{!otpRequired && (
+      {!otpRequired && (
 
-  <button
-    style={buttonStyle}
-    onClick={handleLogin}
-  >
-    Login
-  </button>
+        <button
+          style={buttonStyle}
+          onClick={handleLogin}
+        >
+          Login
+        </button>
 
-)}
+      )}
 
-{/*=========================
-✅ VERIFY OTP BUTTON
-=========================*/}
-
-{otpRequired && (
-
-  <button
-  style={buttonStyle}
-  onClick={handleVerifyOTP}
->
-  Verify OTP
-</button>
-
-)}
-
-      <div style={{ marginTop: "20px" }}>
+      <div
+        style={{
+          marginTop: "20px",
+        }}
+      >
         <Link
           to="/"
           style={{
             color: "white",
-            textDecoration: "none",
+            textDecoration:
+              "none",
             fontSize: "14px",
           }}
         >

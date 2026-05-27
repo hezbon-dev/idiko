@@ -402,9 +402,9 @@ const handleCropSave = async () => {
             onChange={(e) => setDob(e.target.value)}
             style={{ width: "100%", padding: "8px" }}
           />
-
-          
         </label>
+
+        <label>
           Sex:
           <input
             type="sex"
@@ -412,7 +412,8 @@ const handleCropSave = async () => {
             onChange={(e) => setSex(e.target.value)}
             style={{ width: "100%", padding: "8px" }}
           />
-            
+        </label>
+
         <label>
           District of Birth:
           <input
