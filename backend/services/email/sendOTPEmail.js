@@ -37,7 +37,7 @@ const sendOTPEmail = async (
           <h1>${otp}</h1>
 
           <p>
-            This code expires in 1 minute.
+            This code expires in 30 seconds.
           </p>
 
           <p>
