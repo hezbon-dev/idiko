@@ -1,10 +1,11 @@
 // src/pages/AdminManageIDs.tsx
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase"; // your Firestore instance
 
 export default function AdminManageIDs() {
+  const navigate = useNavigate();
   const [records, setRecords] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
@@ -128,6 +129,7 @@ export default function AdminManageIDs() {
               <th style={{ padding: "10px" }}>District</th>
               <th style={{ padding: "10px" }}>Pickup Station</th>
               <th style={{ padding: "10px" }}>Status</th>
+              <th style={{ padding: "10px" }}>Pay</th>
               <th style={{ padding: "10px" }}>Trash</th>
             </tr>
           </thead>
@@ -200,6 +202,38 @@ export default function AdminManageIDs() {
                     {record.status}
                   </span>
                 </td>
+
+              <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
+               {String(record.status).toLowerCase() === "pending" && (
+    <button
+      onClick={() =>
+        navigate("/pay-to-claim", {
+          state: {
+            idNumber: record.idNumber,
+            fullName: record.fullName,
+            idImages: [
+              record.frontImage,
+              record.backImage,
+            ].filter(Boolean),
+            amount: 1,
+            accountReference: record.idNumber,
+          },
+        })
+      }
+      style={{
+        backgroundColor: "green",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 12px",
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      Pay
+    </button>
+  )}
+</td>  
 
                 <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
                   <button

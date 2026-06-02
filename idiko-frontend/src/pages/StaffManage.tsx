@@ -8,25 +8,25 @@ import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/fire
 import { db } from "../firebase";
 
 export default function StaffManage() {
-  const { recordsForStaff, moveToTrash } = useRecords();
-  const { isAuthenticated, user } = useAuth();
-  const navigate = useNavigate();
+const { recordsForStaff, moveToTrash } = useRecords();
+const { isAuthenticated, user } = useAuth();
+const navigate = useNavigate();
 
-  // 🔒 Prevent login bypass
-  useEffect(() => {
-    const effectiveAuth = isAuthenticated;
+// 🔒 Prevent login bypass
+useEffect(() => {
+const effectiveAuth = isAuthenticated;
 
-    if (!effectiveAuth || user !== "staff") {
-      navigate("/staff/login", { replace: true });
-    }
-  }, [isAuthenticated, user, navigate]);
+if (!effectiveAuth || user !== "staff") {
+navigate("/staff/login", { replace: true });
+}
+}, [isAuthenticated, user, navigate]);
 
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
+const [search, setSearch] = useState("");
+const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
+const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  // ✅ station tracking (UNCHANGED)
-  const [stationKey, setStationKey] = useState<string | null>(null);
+// ✅ station tracking (UNCHANGED)
+const [stationKey, setStationKey] = useState<string | null>(null);
 
   useEffect(() => {
     const loadStation = async () => {
@@ -131,6 +131,7 @@ export default function StaffManage() {
               <th style={{ padding: "10px" }}>District</th>
               <th style={{ padding: "10px" }}>Pickup Station</th>
               <th style={{ padding: "10px" }}>Status</th>
+              <th style={{ padding: "10px" }}>Pay</th>
               <th style={{ padding: "10px" }}>Trash</th>
             </tr>
           </thead>
@@ -175,40 +176,76 @@ export default function StaffManage() {
                 </td>
 
                 <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: "5px",
-                      fontWeight: "bold",
-                      backgroundColor:
-                        record.status === "Paid" ? "green" : "red",
-                    }}
-                  >
-                    {record.status}
-                  </span>
-                </td>
+  <span
+    style={{
+      display: "inline-block",
+      padding: "4px 8px",
+      borderRadius: "5px",
+      fontWeight: "bold",
+      backgroundColor:
+        record.status === "Paid" ? "green" : "red",
+    }}
+  >
+    {record.status}
+  </span>
+</td>
 
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  <button
-                    onClick={async () => {
-                      moveToTrash(record);
+{/* PAY BUTTON CELL */}
 
-                      const q = query(
-                        collection(db, "notifyRequests"),
-                        where("idNumber", "==", record.idNumber)
-                      );
+<td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
+  {record.status === "Pending" && (
+    <button
+      onClick={() =>
+        navigate("/pay-to-claim", {
+          state: {
+            idNumber: record.idNumber,
+            fullName: record.fullName,
+            idImages: [
+              record.frontImage,
+              record.backImage,
+            ].filter(Boolean),
+            amount: 1,
+            accountReference: record.idNumber,
+          },
+        })
+      }
+      style={{
+        backgroundColor: "green",
+        color: "white",
+        border: "none",
+        borderRadius: "5px",
+        padding: "5px 12px",
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      Pay
+    </button>
+  )}
+</td>
 
-                      const snap = await getDocs(q);
-                      snap.forEach(async (d) => {
-                        await deleteDoc(doc(db, "notifyRequests", d.id));
-                      });
+{/* TRASH CELL */}
 
-                      setHiddenIds((prev) => [
-                        ...prev,
-                        record.idNumber,
-                      ]);
-                    }}
+<td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
+  <button
+    onClick={async () => {
+      moveToTrash(record);
+
+      const q = query(
+        collection(db, "notifyRequests"),
+        where("idNumber", "==", record.idNumber)
+      );
+
+      const snap = await getDocs(q);
+      snap.forEach(async (d) => {
+        await deleteDoc(doc(db, "notifyRequests", d.id));
+      });
+
+      setHiddenIds((prev) => [
+        ...prev,
+        record.idNumber,
+      ]);
+    }}
                     style={{
                       backgroundColor: "lightgreen",
                       color: "black",

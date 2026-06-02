@@ -101,7 +101,7 @@ async function sendSMSNotification(req) {
       ? req.fullName.split(" ")[0]
       : "Customer";
 
-    const message = `Good news ${firstName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID" to search and claim your ID,.Thank you.`;
+    const message = `Good news ${safeName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID"  to search and claim it,or visit your nearest Huduma Centre for assistance.Thank you.`;
 
     console.log("📤 Sending SMS to:", phones);
 
