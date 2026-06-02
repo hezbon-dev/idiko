@@ -34,10 +34,9 @@ export default function AdminManageIDs() {
       // Step 2: Remove record from "records" collection
       await deleteDoc(doc(db, "records", record.id));
 
-      // Step 3: Remove record from "allHistoryRecords" collection
-      await deleteDoc(doc(db, "allHistoryRecords", record.id));
-
-      console.log(`Record ${record.idNumber} moved to Trash and cleaned from allHistoryRecords successfully.`);
+      console.log(
+  `Record ${record.idNumber} moved to Trash successfully.`
+);
 
       // Step 4: Update local state
       setRecords(prev => prev.filter(r => r.id !== record.id));
