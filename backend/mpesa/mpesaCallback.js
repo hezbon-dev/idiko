@@ -133,6 +133,39 @@ if (historySnapshot.empty) {
   }
 }
 
+// 🔥 UPDATE notify_requests COLLECTION
+const notifySnapshot = await db
+  .collection("notify_requests")
+  .where("idNumber", "==", normalizedId)
+  .get();
+
+console.log("📦 NOTIFY REQUEST MATCHES:", notifySnapshot.size);
+
+if (notifySnapshot.empty) {
+  console.log(
+    "❌ NO notify_requests RECORD FOUND FOR:",
+    normalizedId
+  );
+} else {
+  for (const firestoreDoc of notifySnapshot.docs) {
+
+    console.log(
+      "✅ MATCHED notify_requests DOC:",
+      firestoreDoc.id
+    );
+
+    await firestoreDoc.ref.update({
+      status: "Paid",
+      paidAt: new Date().toISOString(),
+    });
+
+    console.log(
+      "🔥 notify_requests RECORD UPDATED:",
+      firestoreDoc.id
+    );
+  }
+}
+
     } catch (err) {
       console.error("❌ FIRESTORE PAYMENT UPDATE FAILED", err);
     }
