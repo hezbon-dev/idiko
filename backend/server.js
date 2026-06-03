@@ -1,7 +1,7 @@
 require("dotenv").config();
 
 console.log("🔥 SERVER.JS FILE LOADED");
-
+console.log("🔥 BUILD VERSION TEST-001");
 const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
