@@ -47,7 +47,11 @@ console.log("🔥 AfricaTalking service imported");
 // ✅ ADD OCR ROUTE IMPORT
 const ocrRoutes = require("./routes/ocr");
 const adminAuthRoutes = require("./routes/adminAuth");
+
 const app = express();
+
+// ✅ REQUIRED FOR RENDER + EXPRESS-RATE-LIMIT
+app.set("trust proxy", 1);
 
 app.use(cors());
 
@@ -98,10 +102,15 @@ async function sendSMSNotification(req) {
     }
 
     const firstName = req.fullName
-      ? req.fullName.split(" ")[0]
-      : "Customer";
+  ? req.fullName.split(" ")[0]
+  : "Customer";
 
-    const message = `Good news ${safeName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID"  to search and claim it,or visit your nearest Huduma Centre for assistance.Thank you.`;
+const safeName =
+  firstName && firstName.trim().length > 0
+    ? firstName.trim()
+    : "there";
+
+const message = `Good news ${safeName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID" to search and claim it, or visit your nearest Huduma Centre for assistance. Thank you.`;
 
     console.log("📤 Sending SMS to:", phones);
 
