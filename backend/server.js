@@ -288,9 +288,9 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
   }
 
   try {
-    const notifySnapshot = await db
+   const notifySnapshot = await db
   .collection("notify_requests")
-  .where("matched", "!=", true)
+  .where("expired", "!=", true)
   .get();
 
     const recordsSnapshot = await db.collection("records").get();
@@ -356,13 +356,19 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
         // ✅ STOP IF PAID
         // =========================
 
-        if (
+       if (
           req.status === "Paid" ||
           req.status === "paid"
-        ) {
+) {
           console.log("🛑 Notifications stopped (PAID):", req.idNumber);
-          continue;
-        }
+
+          await docRef.update({
+          expired: true,
+          paidAt: new Date().toISOString(),
+  });
+
+  continue;
+}
 
         // =========================
         // ✅ REQUIRE startedAt
