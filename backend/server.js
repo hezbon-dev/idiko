@@ -290,7 +290,7 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
   try {
    const notifySnapshot = await db
   .collection("notify_requests")
-  .where("expired", "!=", true)
+  .where("matched", "!=", true)
   .get();
 
     const recordsSnapshot = await db.collection("records").get();
@@ -393,7 +393,7 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
         );
 
         if (daysPassed >= 15) {
-          console.log("🛑 15 DAY LIMIT REACHED:", req.idNumber);
+          console.log("🛑 Notifications stopped (15 DAY LIMIT REACHED):", req.idNumber);
 
           await docRef.update({
             expired: true
