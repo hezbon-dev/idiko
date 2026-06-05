@@ -290,12 +290,15 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
   try {
    const notifySnapshot = await db
   .collection("notify_requests")
-  .where("matched", "!=", true)
   .get();
 
     const recordsSnapshot = await db.collection("records").get();
 
     const notifyRequests = notifySnapshot.docs;
+
+    console.log(
+  `📊 Scheduler loaded ${notifyRequests.length} notification requests`
+  );
     const records = recordsSnapshot.docs.map(doc => doc.data());
 
     const now = Date.now();
