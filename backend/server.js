@@ -309,6 +309,11 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
       const req = docSnap.data();
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
+      // Skip already completed notification requests
+        if (req.expired === true) {
+        continue;
+}
+
       // ✅ prevent concurrent duplicate processing
       if (processingMatches.has(docSnap.id)) {
         continue;
@@ -361,19 +366,22 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
         // ✅ STOP IF PAID
         // =========================
 
-       if (
-          req.status === "Paid" ||
-          req.status === "paid"
-) {
-          console.log("🛑 Notifications stopped (PAID):", req.idNumber);
+           if (
+           req.status === "Paid" ||
+           req.status === "paid"
+          ) {
 
-          await docRef.update({
-          expired: true,
-          paidAt: new Date().toISOString(),
-  });
+        if (!req.expired) {
+        console.log("🛑 Notifications stopped (PAID):", req.idNumber);
 
-  continue;
-}
+         await docRef.update({
+      expired: true,
+      paidAt: new Date().toISOString(),
+      });
+      }
+
+       continue;
+      }
 
         // =========================
         // ✅ REQUIRE startedAt
@@ -385,7 +393,7 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
           });
 
           continue;
-        }
+      }
 
         // =========================
         // ✅ STOP AFTER 15 DAYS
@@ -395,17 +403,24 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
 
         const daysPassed = Math.floor(
           (now - startedAt) / (1000 * 60 * 60 * 24)
-        );
+      );
 
         if (daysPassed >= 15) {
-          console.log("🛑 Notifications stopped (15 DAY LIMIT REACHED):", req.idNumber);
 
-          await docRef.update({
-            expired: true
-          });
+        if (!req.expired) {
+        console.log(
+        "🛑 Notifications stopped (15 DAY LIMIT REACHED):",
+        req.idNumber
+      );
 
-          continue;
-        }
+       await docRef.update({
+       expired: true,
+       expiredAt: new Date().toISOString(),
+      });
+      }
+
+  continue;
+     }
 
         // =========================
         // ✅ PREVENT DUPLICATE SAME-DAY SMS
