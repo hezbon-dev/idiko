@@ -81,6 +81,8 @@ app.get("/", (req, res) => {
 // ✅ TRACK CURRENTLY PROCESSING IDS
 const processingMatches = new Set();
 
+const alreadySentTodayLog = new Map();
+
 // ✅ NORMALIZE ID NUMBERS
 function normalizeId(id) {
   if (!id) return "";
@@ -244,11 +246,14 @@ console.log("🧠 Starting Backend Matching & Notification Engine...");
 
 let schedulerRunning = false;
 let lastSchedulerLog = 0;
-
+let lastRunningLog = 0;
 setInterval(async () => {
 
   if (schedulerRunning) {
-    console.log("⏭ Scheduler already running...");
+   if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
+  console.log("⏭ Scheduler already running...");
+  lastRunningLog = Date.now();
+}
     return;
   }
 
@@ -411,7 +416,12 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
           const today = new Date().toDateString();
 
           if (last === today) {
-            console.log("⏭ Already sent today:", req.idNumber);
+           const lastLog = alreadySentTodayLog.get(req.idNumber) || 0;
+
+          if (Date.now() - lastLog > 60 * 60 * 1000) {
+          console.log("⏭ Already sent today:", req.idNumber);
+          alreadySentTodayLog.set(req.idNumber, Date.now());
+          } 
             continue;
           }
         }
