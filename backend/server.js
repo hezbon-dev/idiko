@@ -81,7 +81,7 @@ app.get("/", (req, res) => {
 // ✅ TRACK CURRENTLY PROCESSING IDS
 const processingMatches = new Set();
 
-const alreadySentTodayLog = new Map();
+
 
 // ✅ NORMALIZE ID NUMBERS
 function normalizeId(id) {
@@ -431,14 +431,8 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
           const today = new Date().toDateString();
 
           if (last === today) {
-           const lastLog = alreadySentTodayLog.get(req.idNumber) || 0;
-
-          if (Date.now() - lastLog > 60 * 60 * 1000) {
-          console.log("⏭ Already sent today:", req.idNumber);
-          alreadySentTodayLog.set(req.idNumber, Date.now());
-          } 
-            continue;
-          }
+         continue;
+     }
         }
 
         // =========================
