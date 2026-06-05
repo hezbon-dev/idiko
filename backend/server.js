@@ -296,9 +296,6 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
 
     const notifyRequests = notifySnapshot.docs;
 
-    console.log(
-  `📊 Scheduler loaded ${notifyRequests.length} notification requests`
-  );
     const records = recordsSnapshot.docs.map(doc => doc.data());
 
     const now = Date.now();
