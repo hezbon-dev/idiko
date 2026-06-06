@@ -201,10 +201,10 @@ if (
     }
 
     // =========================
-    // ✅ ID NUMBER EXTRACTION
-    // =========================
+// ✅ ID NUMBER EXTRACTION
+// =========================
 
-   if (
+if (
   !idNumber &&
   (
     clean.includes("ID NUMBER") ||
@@ -213,17 +213,32 @@ if (
 ) {
   console.log("🎯 Found ID NUMBER label");
 
-  const nextLine = getNextValidLine(index);
+  // FIRST: check same line
+  const sameLineMatch = clean.match(/\b\d{7,9}\b/);
 
-  const idMatch = nextLine.match(/\b\d{7,9}\b/);
-
-  if (idMatch) {
-    idNumber = idMatch[0];
+  if (sameLineMatch) {
+    idNumber = sameLineMatch[0];
 
     console.log(
-      "🪪 ID Number Extracted From Label:",
+      "🪪 ID Number Extracted From Same Line:",
       idNumber
     );
+  }
+
+  // SECOND: check next line
+  else {
+    const nextLine = getNextValidLine(index);
+
+    const idMatch = nextLine.match(/\b\d{7,9}\b/);
+
+    if (idMatch) {
+      idNumber = idMatch[0];
+
+      console.log(
+        "🪪 ID Number Extracted From Next Line:",
+        idNumber
+      );
+    }
   }
 }
   
