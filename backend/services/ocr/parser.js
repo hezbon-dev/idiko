@@ -213,7 +213,7 @@ if (
     ) {
       console.log("🎯 Found ID NUMBER label");
 
-      const idMatches = ocrSafe.match(/\b\d{7,8}\b/g);
+      const idMatches = ocrSafe.match(/\b\d{7,9}\b/g);
 
       if (idMatches && idMatches.length > 0) {
         const validId = idMatches.find((id) => {
@@ -345,7 +345,7 @@ if (
     // =========================
 
     if (!idNumber) {
-      const idMatches = ocrSafe.match(/\b\d{7,8}\b/g);
+      const idMatches = ocrSafe.match(/\b\d{7,9}\b/g);
 
       if (idMatches && idMatches.length > 0) {
         const validId = idMatches.find((id) => {
@@ -511,7 +511,7 @@ function calculateConfidence(data) {
   // ✅ ID number confidence
   if (
     data.idNumber &&
-    /^\d{7,8}$/.test(data.idNumber)
+    /^\d{7,9}$/.test(data.idNumber)
   ) {
     score += 0.30;
   }
