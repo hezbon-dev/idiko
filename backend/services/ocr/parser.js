@@ -317,10 +317,10 @@ if (
     }
 
     // =========================
-    // ✅ DISTRICT / COUNTY EXTRACTION
-    // =========================
+// ✅ DISTRICT / COUNTY EXTRACTION
+// =========================
 
-    if (
+if (
   !district &&
   (
     clean.includes("DISTRICT OF BIRTH") ||
@@ -330,21 +330,39 @@ if (
 ) {
   console.log("🎯 Found BIRTH LOCATION label");
 
-  const nextLine = getNextValidLine(index);
+  for (let i = index + 1; i < lines.length; i++) {
 
-  district = nextLine
-    .toUpperCase()
-    .replace(/[^A-Z\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    const candidate = lines[i]
+      .toUpperCase()
+      .replace(/[^A-Z\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
-  console.log(
-    "📍 Birth Location Extracted:",
-    district
-  );
+    // Skip common non-location lines
+    if (
+      !candidate ||
+      candidate === "NATIONALITY" ||
+      candidate === "KEN" ||
+      candidate === "MALE" ||
+      candidate === "FEMALE" ||
+      candidate.includes("ID NUMBER") ||
+      candidate.includes("DATE OF") ||
+      candidate.includes("DATE OF EXPIRY") ||
+      candidate.includes("PLACE OF ISSUE")
+    ) {
+      continue;
+    }
+
+    district = candidate;
+
+    console.log(
+      "📍 Birth Location Extracted:",
+      district
+    );
+
+    break;
+  }
 }
-
- 
 
     // =========================
     // ✅ FALLBACK SEX EXTRACTION
