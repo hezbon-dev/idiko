@@ -268,27 +268,28 @@ function parseKenyanID(text) {
     // =========================
 
     if (
-      !district &&
-      (
-        clean.includes("DISTRICT OF BIRTH") ||
-        clean.includes("DISTRICT BIRTH")
-      )
-    ) {
-      console.log("🎯 Found DISTRICT label");
+  !district &&
+  (
+    clean.includes("DISTRICT OF BIRTH") ||
+    clean.includes("DISTRICT BIRTH") ||
+    clean.includes("PLACE OF BIRTH")
+  )
+) {
+  console.log("🎯 Found BIRTH LOCATION label");
 
-      const nextLine = getNextValidLine(index);
+  const nextLine = getNextValidLine(index);
 
-      district = nextLine
-        .toUpperCase()
-        .replace(/[^A-Z\s]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+  district = nextLine
+    .toUpperCase()
+    .replace(/[^A-Z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-      console.log(
-        "📍 District Extracted From Label:",
-        district
-      );
-    }
+  console.log(
+    "📍 Birth Location Extracted:",
+    district
+  );
+}
 
     // =========================
     // ✅ FALLBACK ID EXTRACTION
