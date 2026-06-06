@@ -109,11 +109,18 @@ const surnameIndex = lines.findIndex(
   line => line.toUpperCase().includes("SURNAME")
 );
 
-const givenNameIndex = lines.findIndex(
-  line =>
-    line.toUpperCase().includes("GIVEN NAME") ||
-    line.toUpperCase().includes("GIVEN NAMES")
-);
+const givenNameIndex = lines.findIndex(line => {
+
+  const upper = line.toUpperCase();
+
+  return (
+    upper.includes("GIVEN NAME") ||
+    upper.includes("GIVEN NAMES") ||
+    upper.includes("GNEN NAME") ||
+    upper.includes("GNEN NAMES")
+  );
+
+});
 
 if (
   !fullName &&
@@ -208,7 +215,8 @@ if (
   !idNumber &&
   (
     clean.includes("ID NUMBER") ||
-    clean.includes("ID NO")
+    clean.includes("ID NO") ||
+    clean === "NUMBER"
   )
 ) {
   console.log("🎯 Found ID NUMBER label");
@@ -460,9 +468,18 @@ if (
   // =========================
 
   if (!idNumber) {
-    const idLabelIndex = lines.findIndex(line =>
-      line.toUpperCase().includes("ID NUMBER")
+
+  const idLabelIndex = lines.findIndex(line => {
+
+    const upper = line.toUpperCase().trim();
+
+    return (
+      upper.includes("ID NUMBER") ||
+      upper.includes("ID NO") ||
+      upper === "NUMBER"
     );
+
+  });
 
     if (idLabelIndex !== -1) {
       const nextLine = getNextValidLine(idLabelIndex);
