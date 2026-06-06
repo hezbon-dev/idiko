@@ -205,39 +205,29 @@ if (
     // =========================
 
     if (
-      !idNumber &&
-      (
-        clean.includes("ID NUMBER") ||
-        clean.includes("ID NO")
-      )
-    ) {
-      console.log("🎯 Found ID NUMBER label");
+  !idNumber &&
+  (
+    clean.includes("ID NUMBER") ||
+    clean.includes("ID NO") ||
+    clean === "NUMBER"
+  )
+) {
+  console.log("🎯 Found ID NUMBER label");
 
-      const idMatches = ocrSafe.match(/\b\d{7,9}\b/g);
+  const nextLine = getNextValidLine(index);
 
-      if (idMatches && idMatches.length > 0) {
-        const validId = idMatches.find((id) => {
-          const num = Number(id);
+  const idMatch = nextLine.match(/\b\d{7,9}\b/);
 
-          // Reject likely years
-          if (num >= 19000000 && num <= 20999999) {
-            return false;
-          }
+  if (idMatch) {
+    idNumber = idMatch[0];
 
-          return true;
-        });
-
-        if (validId) {
-          idNumber = validId;
-
-          console.log(
-            "🪪 ID Number Extracted From Label:",
-            idNumber
-          );
-        }
-      }
-    }
-
+    console.log(
+      "🪪 ID Number Extracted From Label:",
+      idNumber
+    );
+  }
+}
+  
     // =========================
     // ✅ DATE OF BIRTH EXTRACTION
     // =========================
