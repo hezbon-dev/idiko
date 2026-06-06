@@ -28,24 +28,35 @@ function parseKenyanID(text) {
 
   // ✅ Common invalid/header words
   const invalidNameWords = [
-    "REPUBLIC",
-    "KENYA",
-    "IDENTITY",
-    "CARD",
-    "SERIAL",
-    "NUMBER",
-    "DISTRICT",
-    "DATE",
-    "BIRTH",
-    "SIGNATURE",
-    "HOLDER",
-    "REGISTRATION",
-    "FULL",
-    "NAMES",
-    "PLACE",
-    "ISSUE",
-    "SEX",
-  ];
+  "REPUBLIC",
+  "KENYA",
+  "IDENTITY",
+  "CARD",
+  "SERIAL",
+  "NUMBER",
+  "DISTRICT",
+  "DATE",
+  "BIRTH",
+  "SIGNATURE",
+  "HOLDER",
+  "REGISTRATION",
+  "FULL",
+  "NAMES",
+  "PLACE",
+  "ISSUE",
+  "SEX",
+
+  // Maisha Card words
+  "KITAMBULISHO",
+  "TAIFA",
+  "NATIONAL",
+  "MAISHA",
+  "NAMBA",
+  "SURNAME",
+  "GIVEN",
+  "NAME",
+  "NATIONALITY",
+];
 
   // =========================
   // ✅ HELPERS
@@ -89,6 +100,44 @@ function parseKenyanID(text) {
 
     return "";
   }
+
+  // =========================
+// ✅ MAISHA CARD NAME EXTRACTION
+// =========================
+
+const surnameIndex = lines.findIndex(
+  line => line.toUpperCase().includes("SURNAME")
+);
+
+const givenNameIndex = lines.findIndex(
+  line =>
+    line.toUpperCase().includes("GIVEN NAME") ||
+    line.toUpperCase().includes("GIVEN NAMES")
+);
+
+if (
+  !fullName &&
+  surnameIndex !== -1 &&
+  givenNameIndex !== -1
+) {
+  const surname = getNextValidLine(surnameIndex)
+    .toUpperCase()
+    .trim();
+
+  const givenNames = getNextValidLine(givenNameIndex)
+    .toUpperCase()
+    .trim();
+
+  if (surname && givenNames) {
+    fullName =
+      `${givenNames} ${surname}`.trim();
+
+    console.log(
+      "👤 Maisha Card Name Extracted:",
+      fullName
+    );
+  }
+}
 
   // 🔍 Loop through lines
   lines.forEach((line, index) => {
