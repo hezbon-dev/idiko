@@ -204,12 +204,11 @@ if (
     // ✅ ID NUMBER EXTRACTION
     // =========================
 
-    if (
+   if (
   !idNumber &&
   (
     clean.includes("ID NUMBER") ||
-    clean.includes("ID NO") ||
-    clean === "NUMBER"
+    clean.includes("ID NO")
   )
 ) {
   console.log("🎯 Found ID NUMBER label");
@@ -330,39 +329,7 @@ if (
   );
 }
 
- // =========================
-// ✅ FALLBACK ID EXTRACTION
-// =========================
-
-if (
-  !idNumber &&
-  !clean.includes("SERIAL") &&
-  !clean.includes("SERIAL NUMBER")
-) {
-  const idMatches = ocrSafe.match(/\b\d{7,9}\b/g);
-
-  if (idMatches && idMatches.length > 0) {
-    const validId = idMatches.find((id) => {
-      const num = Number(id);
-
-      // Ignore obvious years
-      if (num >= 19000000 && num <= 20999999) {
-        return false;
-      }
-
-      return true;
-    });
-
-    if (validId) {
-      idNumber = validId;
-
-      console.log(
-        "🪪 Fallback ID Number Extracted:",
-        idNumber
-      );
-    }
-  }
-}   
+ 
 
     // =========================
     // ✅ FALLBACK SEX EXTRACTION
@@ -454,6 +421,32 @@ if (
       }
     }
   });
+
+// =========================
+  // ✅ FINAL FALLBACK ID EXTRACTION
+  // =========================
+
+  if (!idNumber) {
+    const idLabelIndex = lines.findIndex(line =>
+      line.toUpperCase().includes("ID NUMBER")
+    );
+
+    if (idLabelIndex !== -1) {
+      const nextLine = getNextValidLine(idLabelIndex);
+
+      const idMatch = nextLine.match(/\b\d{7,9}\b/);
+
+      if (idMatch) {
+        idNumber = idMatch[0];
+
+        console.log(
+          "🪪 Final Fallback ID Number Extracted:",
+          idNumber
+        );
+      }
+    }
+  }
+
 
   // =========================
   // ✅ CONFIDENCE SCORING
