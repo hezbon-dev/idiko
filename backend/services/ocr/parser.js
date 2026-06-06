@@ -330,34 +330,39 @@ if (
   );
 }
 
-    // =========================
-    // ✅ FALLBACK ID EXTRACTION
-    // =========================
+ // =========================
+// ✅ FALLBACK ID EXTRACTION
+// =========================
 
-    if (!idNumber) {
-      const idMatches = ocrSafe.match(/\b\d{7,9}\b/g);
+if (
+  !idNumber &&
+  !clean.includes("SERIAL") &&
+  !clean.includes("SERIAL NUMBER")
+) {
+  const idMatches = ocrSafe.match(/\b\d{7,9}\b/g);
 
-      if (idMatches && idMatches.length > 0) {
-        const validId = idMatches.find((id) => {
-          const num = Number(id);
+  if (idMatches && idMatches.length > 0) {
+    const validId = idMatches.find((id) => {
+      const num = Number(id);
 
-          if (num >= 19000000 && num <= 20999999) {
-            return false;
-          }
-
-          return true;
-        });
-
-        if (validId) {
-          idNumber = validId;
-
-          console.log(
-            "🪪 Fallback ID Number Extracted:",
-            idNumber
-          );
-        }
+      // Ignore obvious years
+      if (num >= 19000000 && num <= 20999999) {
+        return false;
       }
+
+      return true;
+    });
+
+    if (validId) {
+      idNumber = validId;
+
+      console.log(
+        "🪪 Fallback ID Number Extracted:",
+        idNumber
+      );
     }
+  }
+}   
 
     // =========================
     // ✅ FALLBACK SEX EXTRACTION
