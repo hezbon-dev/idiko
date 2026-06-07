@@ -90,6 +90,22 @@ async function stkPush(req, res) {
 
     console.log("📦 Existing payments:", payments);
 
+    // 🔥 CLOSE ANY OLD PENDING PAYMENTS FOR SAME ID
+
+payments.forEach((payment) => {
+  if (
+    payment.accountReference === accountReference &&
+    payment.status === "pending"
+  ) {
+    payment.status = "failed";
+
+    console.log(
+      "♻️ Old pending payment marked as FAILED:",
+      payment.checkoutRequestID
+    );
+  }
+});
+
     const existingIndex = payments.findIndex(
       p => p.checkoutRequestID === response.data.CheckoutRequestID
     );

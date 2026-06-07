@@ -204,10 +204,57 @@ function mpesaCallback(req, res) {
     console.log("📌 CheckoutRequestID:", CheckoutRequestID);
 
     // ❌ Payment cancelled or failed
-    if (ResultCode !== 0) {
-      console.warn("❌ PAYMENT FAILED OR CANCELLED");
-      return res.status(200).json({ ResultCode: 0 });
+if (ResultCode !== 0) {
+
+  console.warn("❌ PAYMENT FAILED OR CANCELLED");
+
+  const FILE_PATH = path.join(__dirname, "payments.json");
+
+  try {
+
+    let payments = [];
+
+    if (fs.existsSync(FILE_PATH)) {
+      payments = JSON.parse(
+        fs.readFileSync(FILE_PATH, "utf8") || "[]"
+      );
     }
+
+    const paymentIndex = payments.findIndex(
+      p => p.checkoutRequestID === CheckoutRequestID
+    );
+
+    if (paymentIndex >= 0) {
+
+      payments[paymentIndex].status = "failed";
+
+      payments[paymentIndex].failedAt =
+        new Date().toISOString();
+
+      payments[paymentIndex].failureCode = ResultCode;
+
+      payments[paymentIndex].failureReason = ResultDesc;
+
+      fs.writeFileSync(
+        FILE_PATH,
+        JSON.stringify(payments, null, 2)
+      );
+
+      console.log(
+        "❌ PAYMENT MARKED FAILED:",
+        CheckoutRequestID
+      );
+    }
+
+  } catch (err) {
+    console.error(
+      "❌ FAILED TO UPDATE FAILED PAYMENT",
+      err
+    );
+  }
+
+  return res.status(200).json({ ResultCode: 0 });
+}
 
     // ✅ Payment successful
     console.log("✅ PAYMENT SUCCESSFUL");
@@ -322,17 +369,64 @@ function getPaymentStatus(req, res) {
     payments = [];
   }
 
-  const payment = payments.find(
+  const matchingPayments = payments.filter(
   p => p.accountReference === checkoutRequestID
 );
 
-console.log(
-  `📡 STATUS CHECK: ${checkoutRequestID} -> ${payment?.status || "pending"}`
+// ✅ PAID HAS HIGHEST PRIORITY
+
+const paidPayment = matchingPayments.find(
+  p => p.status === "paid"
 );
 
-  res.json({
-    status: payment?.status || "pending",
+if (paidPayment) {
+
+  console.log(
+    `📡 STATUS CHECK: ${checkoutRequestID} -> paid`
+  );
+
+  return res.json({
+    status: "paid",
   });
+}
+
+// ✅ THEN PENDING
+
+const pendingPayment = matchingPayments.find(
+  p => p.status === "pending"
+);
+
+if (pendingPayment) {
+
+  console.log(
+    `📡 STATUS CHECK: ${checkoutRequestID} -> pending`
+  );
+
+  return res.json({
+    status: "pending",
+  });
+}
+
+// ✅ THEN FAILED
+
+const failedPayment = matchingPayments.find(
+  p => p.status === "failed"
+);
+
+if (failedPayment) {
+
+  console.log(
+    `📡 STATUS CHECK: ${checkoutRequestID} -> failed`
+  );
+
+  return res.json({
+    status: "failed",
+  });
+}
+
+return res.json({
+  status: "pending",
+});
 }
 
 module.exports = { mpesaCallback, getPaymentStatus };
