@@ -89,6 +89,16 @@ export default function PayToClaim({}: PayToClaimProps) {
 
             navigate(`/claimed/${state.idNumber}`);
           }
+
+          if (statusResponse.data.status === "failed") {
+           clearInterval(pollInterval);
+
+          setLoading(false);
+
+         setMessage(
+             "❌ Payment failed. Please try again."
+        );
+      }
         } catch (err) {
           console.error("❌ Status polling failed", err);
         }
