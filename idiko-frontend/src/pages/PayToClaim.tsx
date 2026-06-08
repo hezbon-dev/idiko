@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import axios from "axios";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 
@@ -29,6 +29,8 @@ export default function PayToClaim({}: PayToClaimProps) {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (!state) {
     return (
@@ -73,6 +75,18 @@ export default function PayToClaim({}: PayToClaimProps) {
         
       );
 
+      timeoutRef.current = setTimeout(() => {
+
+      clearInterval(pollInterval);
+
+      setLoading(false);
+
+       setMessage(
+            "❌ Payment timed out. Please try again."
+       );
+
+       }, 60000);
+
       // ✅ START PAYMENT STATUS POLLING
       const pollInterval = setInterval(async () => {
         try {
@@ -83,22 +97,33 @@ export default function PayToClaim({}: PayToClaimProps) {
           console.log("📡 Payment status:", statusResponse.data.status);
 
           if (statusResponse.data.status === "paid") {
-            clearInterval(pollInterval);
+
+           clearInterval(pollInterval);
+
+            if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+  }
 
             setMessage("✅ Payment successful! Redirecting...");
 
             navigate(`/claimed/${state.idNumber}`);
-          }
+}
+
 
           if (statusResponse.data.status === "failed") {
-           clearInterval(pollInterval);
 
-          setLoading(false);
+  clearInterval(pollInterval);
 
-         setMessage(
-             "❌ Payment failed. Please try again."
-        );
-      }
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+
+  setLoading(false);
+
+  setMessage(
+    "❌ Payment failed. Please try again."
+  );
+}
         } catch (err) {
           console.error("❌ Status polling failed", err);
         }

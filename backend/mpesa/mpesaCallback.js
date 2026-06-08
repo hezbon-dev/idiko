@@ -5,6 +5,52 @@
 const fs = require("fs");
 const path = require("path");
 
+// Cleanup rules
+
+const FAILED_RETENTION_MS =
+  24 * 60 * 60 * 1000; // 24 hours
+
+const PAID_RETENTION_MS =
+  30 * 24 * 60 * 60 * 1000; // 30 days
+
+ function cleanupOldPayments(payments) {
+
+  const now = Date.now();
+
+  return payments.filter(payment => {
+
+    // Remove failed records older than 24 hours
+
+    if (
+      payment.status === "failed" &&
+      payment.failedAt
+    ) {
+
+      const age =
+        now - new Date(payment.failedAt).getTime();
+
+      return age < FAILED_RETENTION_MS;
+    }
+
+    // Remove paid records older than 30 days
+
+    if (
+      payment.status === "paid" &&
+      payment.paidAt
+    ) {
+
+      const age =
+        now - new Date(payment.paidAt).getTime();
+
+      return age < PAID_RETENTION_MS;
+    }
+
+    // Keep pending records
+
+    return true;
+  });
+} 
+ 
 // Helper function to update payment status
 async function updatePaymentStatus(
   checkoutRequestID,
@@ -39,6 +85,12 @@ async function updatePaymentStatus(
   }
 
   console.log("📦 PAYMENTS BEFORE UPDATE:", payments);
+
+  payments = cleanupOldPayments(payments);
+
+console.log(
+  "🧹 OLD PAYMENT RECORDS CLEANED"
+);
 
   // Update or add the payment
   const existingIndex = payments.findIndex(
@@ -220,6 +272,8 @@ if (ResultCode !== 0) {
       );
     }
 
+    payments = cleanupOldPayments(payments);
+
     const paymentIndex = payments.findIndex(
       p => p.checkoutRequestID === CheckoutRequestID
     );
@@ -368,6 +422,13 @@ function getPaymentStatus(req, res) {
     console.error("❌ Failed to read payments file", err);
     payments = [];
   }
+
+  payments = cleanupOldPayments(payments);
+
+  fs.writeFileSync(
+  FILE_PATH,
+  JSON.stringify(payments, null, 2)
+);
 
   const matchingPayments = payments.filter(
   p => p.accountReference === checkoutRequestID
