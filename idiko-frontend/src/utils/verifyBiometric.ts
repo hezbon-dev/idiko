@@ -123,6 +123,36 @@ const verifyBiometric = async () => {
       err
     );
 
+  // Passkey missing, cancelled,
+  // timed out or credential invalid
+
+  if (
+    err?.name === "NotAllowedError"
+  ) {
+
+    console.warn(
+      "⚠️ Biometric credential no longer valid"
+    );
+
+    localStorage.removeItem(
+      "trustedDevice"
+    );
+
+    localStorage.removeItem(
+      "credentialId"
+    );
+
+    localStorage.removeItem(
+      "biometricEnabled"
+    );
+
+    return {
+      success: false,
+      skipped: true,
+      reRegister: true,
+    };
+  }
+
     return {
       success: false,
       error:

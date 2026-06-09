@@ -8,6 +8,7 @@ import { RecordProvider } from "./context/RecordContext";
 import { PickupStationProvider } from "./context/PickupStationContext";
 import { NotifyProvider } from "./context/NotifyContext";   
 import { AuthProvider } from "./context/AuthContext"; 
+import {MaintenanceProvider,useMaintenance,} from "./context/MaintenanceContext";
 
 // Layout
 import MainLayout from "./layouts/MainLayout";
@@ -19,6 +20,7 @@ import Payment from "./pages/Payment";
 import PayToClaim from "./pages/PayToClaim"; 
 import ClaimedIDDetails from "./pages/ClaimedIDDetails";
 import NotifyMe from "./pages/NotifyMe";
+import MaintenancePage from "./pages/MaintenancePage";
 
 // Login Pages
 import AdminLogin from "./pages/AdminLogin";
@@ -71,10 +73,75 @@ function ProtectedClaimedRoute() {
   return allowed ? <ClaimedIDDetails /> : <Navigate to={`/payment/${idNumber}`} replace />;
 }
 
-export default function App() {
+
+function AppContent() {
+
+  const {
+    maintenanceMode,
+    loading,
+  } = useMaintenance();
+
+  if (loading) {
+    return null;
+  }
+
+  if (maintenanceMode) {
   return (
     <AuthProvider>
-      <RecordProvider> {/* ✅ Move RecordProvider above NotifyProvider */}
+      <RecordProvider>
+        <NotifyProvider>
+          <IDProvider>
+            <PickupStationProvider>
+
+              <Router>
+                <Routes>
+
+  <Route element={<MainLayout />}>
+
+    <Route
+      path="/admin/login"
+      element={<AdminLogin />}
+    />
+
+    <Route
+      path="/admin/dashboard"
+      element={
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      }
+    />
+
+    <Route
+      path="/admin/control-panel"
+      element={
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminControlPanel />
+        </ProtectedRoute>
+      }
+    />
+
+    <Route
+      path="*"
+      element={<MaintenancePage />}
+    />
+
+  </Route>
+
+</Routes>
+              </Router>
+
+            </PickupStationProvider>
+          </IDProvider>
+        </NotifyProvider>
+      </RecordProvider>
+    </AuthProvider>
+  );
+}
+
+  return (
+    <AuthProvider>
+      <RecordProvider>
         <NotifyProvider>
           <IDProvider>
             <PickupStationProvider>
@@ -208,5 +275,13 @@ export default function App() {
         </NotifyProvider>
       </RecordProvider>
     </AuthProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <MaintenanceProvider>
+      <AppContent />
+    </MaintenanceProvider>
   );
 }

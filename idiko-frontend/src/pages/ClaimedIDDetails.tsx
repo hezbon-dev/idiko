@@ -111,7 +111,6 @@ export default function ClaimedIDDetails() {
     return (
       <div
         style={{
-          backgroundColor: "black",
           color: "white",
           minHeight: "100vh",
           display: "flex",

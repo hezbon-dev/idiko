@@ -389,19 +389,29 @@ export default function AdminLogin() {
       }
 
       if (
-        biometricCheck.skipped
-      ) {
+  biometricCheck.skipped
+) {
 
-        console.log(
-          "🟡 Non-trusted device — skipping biometric"
-        );
+  if (
+    biometricCheck.reRegister
+  ) {
 
-        navigate(
-          "/admin/dashboard"
-        );
+    localStorage.setItem(
+      "needsBiometricRegistration",
+      "true"
+    );
 
-        return;
-      }
+    console.log(
+      "⚠️ Biometric credential missing. Registration required."
+    );
+  }
+
+  navigate(
+    "/admin/dashboard"
+  );
+
+  return;
+}
 
       setError(
         biometricCheck.error ||

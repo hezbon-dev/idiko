@@ -1,7 +1,60 @@
 // src/pages/AdminDashboard.tsx
+import { useEffect } from "react";
+import registerBiometric from "../utils/registerBiometric";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function AdminDashboard() {
+
+useEffect(() => {
+
+  const needsRegistration =
+    localStorage.getItem(
+      "needsBiometricRegistration"
+    );
+
+  if (!needsRegistration) {
+    return;
+  }
+
+  const registerAgain = async () => {
+
+    const confirmed =
+      window.confirm(
+        "Fingerprint registration is required for this device. Register now?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const result =
+      await registerBiometric(
+        "admin"
+      );
+
+    if (result.success) {
+
+      localStorage.removeItem(
+        "needsBiometricRegistration"
+      );
+
+      alert(
+        "Fingerprint registration completed successfully."
+      );
+
+    } else {
+
+      alert(
+        result.error ||
+        "Fingerprint registration failed."
+      );
+    }
+  };
+
+  registerAgain();
+
+}, []);
+
   const navigate = useNavigate();
 
   const containerStyle: React.CSSProperties = {

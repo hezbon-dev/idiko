@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
 import { collection, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
+import { useMaintenance } from "../context/MaintenanceContext";
 import { db } from "../firebase";
 
 type PeriodOption = "All" | "Custom" | "Yesterday" | "LastMonth" | "LastYear";
@@ -18,6 +20,58 @@ export default function AdminControlPanel() {
   const [period, setPeriod] = useState<PeriodOption>("All");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  const { maintenanceMode } = useMaintenance();
+
+const [updatingMaintenance, setUpdatingMaintenance] =
+  useState(false);
+
+  const toggleMaintenanceMode = async () => {
+
+  const action =
+    maintenanceMode
+      ? "Disable"
+      : "Enable";
+
+  const confirmed =
+    window.confirm(
+      `${action} Maintenance Mode?`
+    );
+
+  if (!confirmed) return;
+
+  try {
+
+    setUpdatingMaintenance(true);
+
+    await updateDoc(
+      doc(
+        db,
+        "system",
+        "settings"
+      ),
+      {
+        maintenanceMode:
+          !maintenanceMode,
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Failed to update maintenance mode",
+      error
+    );
+
+    alert(
+      "Failed to update maintenance mode."
+    );
+
+  } finally {
+
+    setUpdatingMaintenance(false);
+  }
+};
 
   // Active staff sessions
   const [activeStaffNames, setActiveStaffNames] = useState<string[]>([]);
@@ -138,6 +192,42 @@ export default function AdminControlPanel() {
     title="Active Staff Sessions" 
     items={activeStaffNames} 
   />
+</section>
+
+<section
+  style={{
+    marginTop: 50,
+    display: "flex",
+    justifyContent: "center",
+  }}
+>
+  <button
+    onClick={toggleMaintenanceMode}
+    disabled={updatingMaintenance}
+    style={{
+      backgroundColor:
+        maintenanceMode
+          ? "#cc0000"
+          : "#009933",
+
+      color: "white",
+      border: "none",
+      borderRadius: "6px",
+
+      padding:
+        "8px 14px",
+
+      fontSize: "13px",
+
+      cursor: "pointer",
+    }}
+  >
+    Maintenance:
+    {" "}
+    {maintenanceMode
+      ? "ON"
+      : "OFF"}
+  </button>
 </section>
 
       <div style={{ textAlign: "center", marginTop: 30 }}>
