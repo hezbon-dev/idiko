@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { db } from "../firebase";
-import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc,query,where } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
 import { StorageService } from "../Services/StorageService";
 
@@ -112,32 +112,71 @@ useEffect(() => {
 
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {
-    const filterByStation = (r: RecordType) =>
-      !stationKey || r.pickupStation?.trim().toLowerCase() === stationKey;
+    const recordsRef =
+  user === "admin" || !stationKey
+    ? collection(db, "records")
+    : query(
+        collection(db, "records"),
+        where("pickupStation", "==", stationKey)
+      );
 
-    const unsubRecords = onSnapshot(collection(db, "records"), snap =>
-      setRecords(snap.docs.map(d => d.data() as RecordType))
-    );
+const historyRef =
+  user === "admin" || !stationKey
+    ? collection(db, "allHistoryRecords")
+    : query(
+        collection(db, "allHistoryRecords"),
+        where("pickupStation", "==", stationKey)
+      );
 
-    const unsubHistory = onSnapshot(collection(db, "allHistoryRecords"), snap =>
-      setAllHistoryRecords(
-        snap.docs
-          .map(d => d.data() as RecordType)
-          .filter(filterByStation)
+const trashRef =
+  user === "admin" || !stationKey
+    ? collection(db, "trash")
+    : query(
+        collection(db, "trash"),
+        where("pickupStation", "==", stationKey)
+      );
+
+const unsubRecords = onSnapshot(
+  recordsRef,
+  snap => {
+    setRecords(
+      snap.docs.map(
+        d => d.data() as RecordType
       )
     );
+  }
+);
 
-    const unsubTrash = onSnapshot(collection(db, "trash"), snap =>
-      setTrash(
-        snap.docs
-          .map(d => d.data() as RecordType)
-          .filter(filterByStation)
+const unsubHistory = onSnapshot(
+  historyRef,
+  snap => {
+    setAllHistoryRecords(
+      snap.docs.map(
+        d => d.data() as RecordType
       )
     );
+  }
+);
 
-    const unsubNotifyReq = onSnapshot(collection(db, "notify_requests"), snap =>
-      setNotifyRequests(snap.docs.map(d => d.data() as NotifyRequestType))
+const unsubTrash = onSnapshot(
+  trashRef,
+  snap => {
+    setTrash(
+      snap.docs.map(
+        d => d.data() as RecordType
+      )
     );
+  }
+);
+
+const unsubNotifyReq = onSnapshot(
+  collection(db, "notify_requests"),
+  snap => {
+    setNotifyRequests(
+      snap.docs.map(d => d.data() as NotifyRequestType)
+    );
+  }
+);
 
     return () => {
       unsubRecords();
@@ -218,7 +257,10 @@ useEffect(() => {
       sex: normalizeText(record.sex),
       district: normalizeText(record.district),
       uploadDate: record.uploadDate || new Date().toISOString(),
-      pickupStation: stationKey || record.pickupStation,
+      pickupStation:
+  (stationKey || record.pickupStation || "")
+    .trim()
+    .toLowerCase()
     };
 
     saveToCollection("records", normalizedRecord);

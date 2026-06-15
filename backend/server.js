@@ -47,6 +47,7 @@ console.log("🔥 AfricaTalking service imported");
 // ✅ ADD OCR ROUTE IMPORT
 const ocrRoutes = require("./routes/ocr");
 const adminAuthRoutes = require("./routes/adminAuth");
+const staffAuthRoutes = require("./routes/staffAuth");
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use("/api/ocr", ocrRoutes);
 
 // 🔐 ADMIN AUTH ROUTES
 app.use("/admin", adminAuthRoutes);
+app.use("/staff", staffAuthRoutes);
 
 // Root route
 app.get("/", (req, res) => {
