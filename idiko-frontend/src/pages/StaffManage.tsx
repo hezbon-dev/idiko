@@ -24,6 +24,7 @@ navigate("/staff/login", { replace: true });
 const [search, setSearch] = useState("");
 const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
 const [zoomImage, setZoomImage] = useState<string | null>(null);
+const [recordToTrash, setRecordToTrash] = useState<any | null>(null);
 
 // ✅ station tracking (UNCHANGED)
 const [stationKey, setStationKey] = useState<string | null>(null);
@@ -228,24 +229,9 @@ const [stationKey, setStationKey] = useState<string | null>(null);
 
 <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
   <button
-    onClick={async () => {
-      moveToTrash(record);
-
-      const q = query(
-        collection(db, "notifyRequests"),
-        where("idNumber", "==", record.idNumber)
-      );
-
-      const snap = await getDocs(q);
-      snap.forEach(async (d) => {
-        await deleteDoc(doc(db, "notifyRequests", d.id));
-      });
-
-      setHiddenIds((prev) => [
-        ...prev,
-        record.idNumber,
-      ]);
-    }}
+   onClick={() =>
+  setRecordToTrash(record)
+} 
                     style={{
                       backgroundColor: "lightgreen",
                       color: "black",
@@ -276,6 +262,107 @@ const [stationKey, setStationKey] = useState<string | null>(null);
           &lt; Dashboard
         </Link>
       </div>
+
+{recordToTrash && (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0,0,0,0.7)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2000,
+    }}
+  >
+    <div
+      style={{
+        color: "white",
+        padding: "20px",
+        borderRadius: "10px",
+        width: "350px",
+        textAlign: "center",
+      }}
+    >
+      <h3>Move ID To Trash</h3>
+
+      <p>
+        Are you sure you want to move
+        <br />
+        <strong>
+          {recordToTrash.idNumber}
+        </strong>
+        <br />
+        to Trash?
+      </p>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: "10px",
+          marginTop: "20px",
+        }}
+      >
+        <button
+          onClick={() =>
+            setRecordToTrash(null)
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={async () => {
+            moveToTrash(
+              recordToTrash
+            );
+
+            const q = query(
+              collection(
+                db,
+                "notify_requests"
+              ),
+              where(
+                "idNumber",
+                "==",
+                recordToTrash.idNumber
+              )
+            );
+
+            const snap =
+              await getDocs(q);
+
+            snap.forEach(
+              async (d) => {
+                await deleteDoc(
+                  doc(
+                    db,
+                    "notify_requests",
+                    d.id
+                  )
+                );
+              }
+            );
+
+            setHiddenIds(prev => [
+              ...prev,
+              recordToTrash.idNumber,
+            ]);
+
+            setRecordToTrash(null);
+          }}
+        >
+          Move to Trash
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {zoomImage && (
         <div

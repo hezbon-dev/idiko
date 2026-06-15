@@ -35,9 +35,13 @@ export default function StaffTrash() {
   }, []);
 
   // ✅ Filter visible records for this staff/station only
-  const visibleRecords = trash.filter(r =>
-    r.pickupStation?.trim().toLowerCase() === stationKey
-  );
+ const visibleRecords =
+stationKey === null
+    ? []
+    : trash.filter(
+        r =>
+          r.pickupStation?.trim().toLowerCase() === stationKey
+      );
 
   // ✅ Count records for visible records only
   const allCount = visibleRecords.length;

@@ -112,7 +112,7 @@ const safeName =
     ? firstName.trim()
     : "there";
 
-const message = `Good news ${safeName}, your ID is available and ready for pickup.Please proceed to idiko.co.ke website under "Find My ID" to search and claim it, or visit your nearest Huduma Centre for assistance. Thank you.`;
+const message = `Good news ${safeName}, your ID is ready for collection. Visit idiko.co.ke under (Find My ID) to confirm, then visit your nearest Huduma Centre for collection. Thank you.`;
 
     console.log("📤 Sending SMS to:", phones);
 

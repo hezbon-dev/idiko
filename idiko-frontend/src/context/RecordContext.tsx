@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 import { db } from "../firebase";
 import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
+import { StorageService } from "../Services/StorageService";
 
 /* ================= TYPES ================= */
 export type RecordType = {
@@ -67,15 +68,14 @@ const RecordContext = createContext<RecordContextType | undefined>(undefined);
 export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
 
+  const [stationKey, setStationKey] = useState<string | null>(null);
+
   const [records, setRecords] = useState<RecordType[]>([]);
   const [allHistoryRecords, setAllHistoryRecords] = useState<RecordType[]>([]);
   const [trash, setTrash] = useState<RecordType[]>([]);
   const [notifyRequests, setNotifyRequests] = useState<NotifyRequestType[]>([]);
 
-  const stationKey =
-    user && user.includes(":")
-      ? user.split(":")[1].trim().toLowerCase()
-      : null;
+
 
   const trashIds = new Set(trash.map(t => t.idNumber));
   const allRecords = records.filter(r => !trashIds.has(r.idNumber));
@@ -85,6 +85,30 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     : allRecords.filter(
         r => r.pickupStation?.trim().toLowerCase() === stationKey
       );
+
+useEffect(() => {
+  const loadStation = async () => {
+    if (user !== "staff") {
+      setStationKey(null);
+      return;
+    }
+
+    const currentStaff =
+      await StorageService.get("currentStaff");
+
+    if (currentStaff?.stationName) {
+      setStationKey(
+        currentStaff.stationName
+          .trim()
+          .toLowerCase()
+      );
+    } else {
+      setStationKey(null);
+    }
+  };
+
+  loadStation();
+}, [user]);
 
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {

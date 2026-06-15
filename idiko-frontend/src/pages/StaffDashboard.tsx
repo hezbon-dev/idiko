@@ -22,52 +22,55 @@ const StaffDashboard = () => {
   useEffect(() => {
   let interval: ReturnType<typeof setInterval>;
 
+  const startHeartbeat = async () => {
+    const staff = await StorageService.get("currentStaff");
+    const sessionId = await StorageService.get("sessionId");
 
-    const startHeartbeat = async () => {
-      const staff = await StorageService.get("currentStaff");
-      const staffId = staff?.id || staff?.stationNumber;
+    if (!staff || !sessionId) {
+      console.error("Missing staff or sessionId");
+      return;
+    }
 
-      if (!staffId) return;
+    // Initial write (safe merge update)
+    await setDoc(
+      doc(db, "staffSessions", sessionId),
+      {
+        sessionId,
+        staffId: staff.id,
+        stationName: staff.stationName || "",
+        lastActive: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-      // Initial session write
-      await setDoc(
-        doc(db, "staffSessions", staffId.toString()),
-        {
-          staffId: staffId.toString(),
-          stationName: staff?.stationName || "",
-          lastActive: serverTimestamp(),
-          createdAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+    // heartbeat
+    interval = setInterval(async () => {
+      try {
+        await setDoc(
+          doc(db, "staffSessions", sessionId),
+          {
+            lastActive: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.error("Heartbeat error:", err);
+      }
+    }, 10000);
+  };
 
-      // Update heartbeat every 10 seconds
-      interval = setInterval(async () => {
-        try {
-          await setDoc(
-            doc(db, "staffSessions", staffId.toString()),
-            {
-              lastActive: serverTimestamp(),
-            },
-            { merge: true }
-          );
-        } catch (error) {
-          console.error("Heartbeat error:", error);
-        }
-      }, 10000);
-    };
+  startHeartbeat();
 
-    startHeartbeat();
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, []);
-
+  return () => {
+    if (interval) clearInterval(interval);
+  };
+}, []);
   // ✅ Logout now only clears local storage
   const handleLogout = async () => {
-    await StorageService.remove("currentStaff");
-  };
+  await StorageService.remove("currentStaff");
+  await StorageService.remove("sessionId");
+};
 
   return (
     <div
@@ -83,7 +86,6 @@ const StaffDashboard = () => {
     >
       <h1 style={{ marginBottom: "30px" }}></h1>
 
-      {/* Button Container */}
       <div
         style={{
           display: "flex",
@@ -105,7 +107,6 @@ const StaffDashboard = () => {
         </Link>
       </div>
 
-      {/* Logout */}
       <Link
         to="/staff/login"
         onClick={handleLogout}
@@ -122,7 +123,6 @@ const StaffDashboard = () => {
   );
 };
 
-// Shared button style
 const buttonStyle: React.CSSProperties = {
   display: "block",
   padding: "12px",

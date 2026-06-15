@@ -88,10 +88,10 @@ function AppContent() {
   if (maintenanceMode) {
   return (
     <AuthProvider>
-      <RecordProvider>
-        <NotifyProvider>
-          <IDProvider>
-            <PickupStationProvider>
+  <PickupStationProvider>
+    <RecordProvider>
+      <NotifyProvider>
+        <IDProvider>
 
               <Router>
                 <Routes>
@@ -131,20 +131,20 @@ function AppContent() {
 </Routes>
               </Router>
 
-            </PickupStationProvider>
-          </IDProvider>
-        </NotifyProvider>
-      </RecordProvider>
-    </AuthProvider>
+           </IDProvider>
+             </NotifyProvider>
+              </RecordProvider>
+                </PickupStationProvider>
+                  </AuthProvider>
   );
 }
 
   return (
     <AuthProvider>
-      <RecordProvider>
-        <NotifyProvider>
-          <IDProvider>
-            <PickupStationProvider>
+      <PickupStationProvider>
+        <RecordProvider>
+          <NotifyProvider>
+           <IDProvider>
               <Router>
                 <Routes>
 
@@ -270,11 +270,11 @@ function AppContent() {
 
                 </Routes>
               </Router>
-            </PickupStationProvider>
-          </IDProvider>
-        </NotifyProvider>
-      </RecordProvider>
-    </AuthProvider>
+            </IDProvider>
+              </NotifyProvider>
+                </RecordProvider>
+                  </PickupStationProvider>
+                    </AuthProvider>
   );
 }
 

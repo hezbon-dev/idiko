@@ -1,7 +1,7 @@
 // src/pages/AdminManageIDs.tsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { collection, doc, setDoc, deleteDoc, onSnapshot } from "firebase/firestore";
+import { collection,doc,setDoc,deleteDoc,onSnapshot,query,where,getDocs} from "firebase/firestore";
 import { db } from "../firebase"; // your Firestore instance
 
 export default function AdminManageIDs() {
@@ -10,6 +10,7 @@ export default function AdminManageIDs() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [recordToTrash, setRecordToTrash] = useState<any | null>(null);
 
   // Real-time listener for records
   useEffect(() => {
@@ -26,24 +27,42 @@ export default function AdminManageIDs() {
   }, []);
 
   // Move record to trash (update in Firebase)
-  const moveToTrash = async (record: any) => {
-    try {
-      // Step 1: Add record to "trash" collection
-      await setDoc(doc(db, "trash", record.id), record);
+const moveToTrash = async (record: any) => {
+  try {
+    // Move to trash
+    await setDoc(
+      doc(db, "trash", record.id),
+      record
+    );
 
-      // Step 2: Remove record from "records" collection
-      await deleteDoc(doc(db, "records", record.id));
+    // Remove from records
+    await deleteDoc(
+      doc(db, "records", record.id)
+    );
 
-      console.log(
-  `Record ${record.idNumber} moved to Trash successfully.`
+    // Delete notify request(s)
+   const q = query(
+  collection(db, "notify_requests"),
+  where("idNumber", "==", record.idNumber)
 );
 
-      // Step 4: Update local state
-      setRecords(prev => prev.filter(r => r.id !== record.id));
-    } catch (error) {
-      console.error("Error moving to trash:", error);
-    }
-  };
+const snap = await getDocs(q);
+
+for (const d of snap.docs) {
+  await deleteDoc(
+    doc(db, "notify_requests", d.id)
+  );
+}
+    setRecords(prev =>
+      prev.filter(r => r.id !== record.id)
+    );
+  } catch (error) {
+    console.error(
+      "Error moving to trash:",
+      error
+    );
+  }
+};
 
   // Filter + search
   const filteredRecords = records
@@ -236,7 +255,7 @@ export default function AdminManageIDs() {
 
                 <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
                   <button
-                    onClick={() => moveToTrash(record)}
+                    onClick={() =>setRecordToTrash(record)}
                     style={{
                       backgroundColor: "lightgreen",
                       color: "black",
@@ -269,6 +288,75 @@ export default function AdminManageIDs() {
         </Link>
       </div>
 
+
+
+{recordToTrash && (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0,0,0,0.7)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 2000,
+    }}
+  >
+    <div
+      style={{
+        color: "white",
+        padding: "20px",
+        borderRadius: "10px",
+        width: "350px",
+        textAlign: "center",
+      }}
+    >
+      <h3>Move ID To Trash</h3>
+
+      <p>
+        Are you sure you want to move
+        <br />
+        <strong>
+          {recordToTrash.idNumber}
+        </strong>
+        <br />
+        to Trash?
+      </p>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: "10px",
+          marginTop: "20px",
+        }}
+      >
+        <button
+          onClick={() =>
+            setRecordToTrash(null)
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={async () => {
+            await moveToTrash(
+              recordToTrash
+            );
+
+            setRecordToTrash(null);
+          }}
+        >
+          Move to Trash
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {/* Zoom Modal */}
       {zoomImage && (
         <div

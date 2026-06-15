@@ -106,24 +106,37 @@ export default function StaffLogin() {
     setCurrentStation(station);
     await StorageService.set("currentStaff", station);
 
-    // ✅ START Firestore SESSION CREATION using currentStaff.id
-    await setDoc(doc(db, "staffSessions", station.id), {
-      id: station.id,
-      staffName: station.stationName,
-      stationNumber: station.stationNumber,
-      lastActive: serverTimestamp(),
-    });
+    // ✅ CREATE UNIQUE SESSION ID 
+const sessionId = `${station.id}_${Date.now()}`;
 
-    // ✅ Start heartbeat to update lastActive every 10 seconds
-    heartbeatRef.current = setInterval(async () => {
-      await setDoc(
-        doc(db, "staffSessions", station.id),
-        {
-          lastActive: serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }, 10000);
+// store locally (used everywhere else)
+await StorageService.set("sessionId", sessionId);
+await StorageService.set("currentStaff", station);
+
+// ✅ CREATE FIRESTORE SESSION (NO OVERWRITES)
+await setDoc(doc(db, "staffSessions", sessionId), {
+  sessionId,
+  staffId: station.id,
+  staffName: station.stationName,
+  stationNumber: station.stationNumber,
+  createdAt: serverTimestamp(),
+  lastActive: serverTimestamp(),
+});
+
+// ✅ HEARTBEAT (updates SAME SESSION ONLY)
+heartbeatRef.current = setInterval(async () => {
+  try {
+    await setDoc(
+      doc(db, "staffSessions", sessionId),
+      {
+        lastActive: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.error("Heartbeat error:", err);
+  }
+}, 10000);
     // ✅ END SESSION CREATION
 
     login("staff");

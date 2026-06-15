@@ -6,10 +6,18 @@ import { useRecords, type NotifyRequestType } from "../context/RecordContext";
 export default function NotifyRequests() {
   const { notifyRequests } = useRecords();
   const [requests, setRequests] = useState<NotifyRequestType[]>([]);
+  const [search, setSearch] = useState("");
+
 
   useEffect(() => {
     setRequests(notifyRequests);
   }, [notifyRequests]);
+
+const filteredRequests = requests.filter((req) =>
+  req.idNumber
+    .toLowerCase()
+    .includes(search.toLowerCase())
+);
 
   return (
     <div
@@ -24,30 +32,98 @@ export default function NotifyRequests() {
         
       </h1>
 
+      {/* Search + Count */}
+<div
+  style={{
+    marginBottom: "20px",
+    textAlign: "center",
+  }}
+>
+  <input
+    type="text"
+    placeholder="Search by ID Number..."
+    value={search}
+    onChange={(e) =>
+      setSearch(e.target.value)
+    }
+    style={{
+      padding: "10px",
+      width: "60%",
+      maxWidth: "300px",
+      borderRadius: "8px",
+      border: "1px solid gray",
+      marginRight: "10px",
+    }}
+  />
+
+ <span
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "38px",
+    minWidth: "150px",
+    textAlign: "center",
+    borderRadius: "8px",
+    border: "1px solid gray",
+    backgroundColor: "black",
+    color: "white",
+    boxSizing: "border-box",
+    verticalAlign: "middle",
+  }}
+>
+  Total: {requests.length}
+</span>
+</div>
+
       {/* Table Container */}
       <div style={{ overflowX: "auto" }}>
         <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            color: "white",
-          }}
-        >
-          <thead>
-            <tr style={{ backgroundColor: "#222" }}>
-              <th style={cellStyle}>Full Name</th>
-              <th style={cellStyle}>ID Number</th>
-              <th style={cellStyle}>Date of Birth</th>
-              <th style={cellStyle}>Sex</th>
-              <th style={cellStyle}>District of Birth</th>
-              <th style={cellStyle}>Primary Phone</th>
-              <th style={cellStyle}>Secondary Phone</th>
-              <th style={cellStyle}>Email</th>
-            </tr>
-          </thead>
+  style={{
+    width: "100%",
+    color: "white",
+    borderCollapse: "separate",
+    borderSpacing: "0 8px",
+  }}
+>
+         <thead>
+  <tr>
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Full Name
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      ID Number
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Date of Birth
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Sex
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      District of Birth
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Primary Phone
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Secondary Phone
+    </th>
+
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Email
+    </th>
+  </tr>
+</thead>
 
           <tbody>
-            {requests.length === 0 ? (
+            {filteredRequests.length === 0 ? (
               <tr>
                 <td
                   colSpan={8}
@@ -61,8 +137,8 @@ export default function NotifyRequests() {
                 </td>
               </tr>
             ) : (
-              requests.map((req) => (
-                <tr key={req.id} style={{ borderBottom: "1px solid #333" }}>
+              filteredRequests.map((req) => (
+                <tr key={req.id}>
                   <td style={cellStyle}>{req.fullName}</td>
                   <td style={cellStyle}>{req.idNumber}</td>
                   <td style={cellStyle}>{req.dob}</td>
@@ -98,7 +174,6 @@ export default function NotifyRequests() {
 
 // Styling for table cells
 const cellStyle: React.CSSProperties = {
-  border: "1px solid #333",
   padding: "10px",
   textAlign: "left",
 };

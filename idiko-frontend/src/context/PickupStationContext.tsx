@@ -31,6 +31,19 @@ export const PickupStationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [stations, setStations] = useState<PickupStation[]>([]);
   const [currentStation, setCurrentStation] = useState<PickupStation | null>(null);
 
+  useEffect(() => {
+  const loadCurrentStation = async () => {
+    const savedStaff =
+      await StorageService.get("currentStaff");
+
+    if (savedStaff) {
+      setCurrentStation(savedStaff);
+    }
+  };
+
+  loadCurrentStation();
+}, []);
+
   // ✅ NEW — prevents overwriting Firebase on first render
   const [loaded, setLoaded] = useState(false);
 
