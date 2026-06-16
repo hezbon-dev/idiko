@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
+const jwt = require("jsonwebtoken");
 
 router.post("/login", async (req, res) => {
 
@@ -59,8 +60,23 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    return res.json({
+
+const token = jwt.sign(
+  {
+    stationId: station.id,
+    stationName: station.stationName,
+    stationNumber: station.stationNumber,
+    role: "staff"
+  },
+  process.env.JWT_SECRET,
+  {
+    expiresIn: "12h"
+  }
+);
+
+ return res.json({
   success: true,
+  token,
   station: {
     id: station.id,
     stationName: station.stationName,
