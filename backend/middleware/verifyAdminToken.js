@@ -40,18 +40,35 @@ const verifyAdminToken = (req, res, next) => {
     // ✅ VERIFY TOKEN
     // =========================
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
+   const decoded = jwt.verify(
+  token,
+  process.env.JWT_SECRET
+);
 
-    console.log("✅ Token verified:", decoded.username);
+// =========================
+// ✅ ADMIN ROLE CHECK
+// =========================
 
-    // attach user to request
+if (decoded.role !== "admin") {
 
-    req.admin = decoded;
+  console.log("❌ Non-admin token blocked");
 
-    next();
+  return res.status(403).json({
+    success: false,
+    error: "Admin access required",
+  });
+}
+
+console.log(
+  "✅ Admin token verified:",
+  decoded.username
+);
+
+// attach admin to request
+
+req.admin = decoded;
+
+next();
 
   } catch (err) {
 

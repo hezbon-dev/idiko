@@ -8,18 +8,69 @@ import ReactCrop, {
 import "react-image-crop/dist/ReactCrop.css";
 import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
-import { useAuth } from "../context/AuthContext";
+import { StorageService } from "../Services/StorageService";
+
 
 export default function StaffUpload() {
-  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   // 🔒 Prevent login bypass
-  useEffect(() => {
-    if (!isAuthenticated || user !== "staff") {
-      navigate("/staff/login", { replace: true });
+  const [authChecked, setAuthChecked] =
+  useState(false);
+
+useEffect(() => {
+
+  const verifyStaff = async () => {
+
+    try {
+
+      const token =
+        await StorageService.get(
+          "staffToken"
+        );
+
+      if (!token) {
+        navigate("/staff/login", {
+          replace: true,
+        });
+        return;
+      }
+
+      const response = await fetch(
+        "https://idiko.onrender.com/staff/verify",
+        {
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!data.success) {
+        navigate("/staff/login", {
+          replace: true,
+        });
+        return;
+      }
+
+      setAuthChecked(true);
+
+    } catch {
+
+      navigate("/staff/login", {
+        replace: true,
+      });
+
     }
-  }, [isAuthenticated, user, navigate]);
+
+  };
+
+  verifyStaff();
+
+}, [navigate]);
 
   const [frontPreview, setFrontPreview] = useState<string | null>(null);
   const [backPreview, setBackPreview] = useState<string | null>(null);
@@ -268,6 +319,10 @@ const handleCropSave = async () => {
       setPickupStation(currentStation.stationName);
     }
   };
+
+if (!authChecked) {
+  return <div>Loading...</div>;
+}
 
   return (
     <div
