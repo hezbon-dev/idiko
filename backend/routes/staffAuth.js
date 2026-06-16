@@ -126,6 +126,11 @@ router.post(
   verifyStaffToken,
   async (req, res) => {
 
+    console.log(
+  "🚪 Staff logout:",
+  req.staff.stationName
+);
+
     return res.json({
       success: true,
       message: "Logged out",

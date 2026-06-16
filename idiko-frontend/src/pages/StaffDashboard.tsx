@@ -91,19 +91,40 @@ const StaffDashboard = () => {
   };
 }, []);
   // ✅ Logout now only clears local storage
-  const handleLogout = async () => {
+ const handleLogout = async () => {
 
-  await StorageService.remove(
-    "currentStaff"
-  );
+  try {
 
-  await StorageService.remove(
-    "sessionId"
-  );
+    const token =
+      localStorage.getItem("staffToken");
 
-  await StorageService.remove(
-    "staffToken"
-  );
+    if (token) {
+
+      await fetch(
+        "https://idiko.onrender.com/staff/logout",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "Logout request failed:",
+      err
+    );
+
+  }
+
+  await StorageService.remove("currentStaff");
+  await StorageService.remove("sessionId");
+
+  localStorage.removeItem("staffToken");
 };
 
   return (
