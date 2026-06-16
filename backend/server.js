@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const helmet = require("helmet");
 
 console.log("🔥 Express and CORS loaded");
 
@@ -53,6 +54,8 @@ const app = express();
 
 // ✅ REQUIRED FOR RENDER + EXPRESS-RATE-LIMIT
 app.set("trust proxy", 1);
+
+app.use(helmet());
 
 app.use(cors());
 
