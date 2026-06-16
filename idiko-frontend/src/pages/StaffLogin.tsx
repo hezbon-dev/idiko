@@ -129,16 +129,6 @@ try {
   return;
 }
 
-    if (!station.enabled) {
-      const attempts = await incrementFailedAttempts();
-      setError(
-        `This station is disabled. Kindly contact Admin. Attempts left: ${
-          MAX_ATTEMPTS - attempts
-        }`
-      );
-      return;
-    }
-
     await resetFailedAttempts();
     setCurrentStation(station);
     await StorageService.set("currentStaff", station);

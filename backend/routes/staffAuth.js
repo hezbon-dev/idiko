@@ -70,13 +70,14 @@ router.post("/login", async (req, res) => {
     }
 
     return res.json({
-      success: true,
-      station: {
-        id: station.id,
-        stationName: station.stationName,
-        stationNumber: station.stationNumber
-      }
-    });
+  success: true,
+  station: {
+    id: station.id,
+    stationName: station.stationName,
+    stationNumber: station.stationNumber,
+    enabled: station.enabled
+  }
+});
 
   } catch (err) {
 
