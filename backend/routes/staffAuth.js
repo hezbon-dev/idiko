@@ -103,6 +103,19 @@ const token = jwt.sign(
   }
 });
 
+router.get(
+  "/verify",
+  verifyStaffToken,
+  async (req, res) => {
+
+    return res.json({
+      success: true,
+      staff: req.staff,
+    });
+
+  }
+);
+
 // =========================
 // 🔒 VERIFY STAFF TOKEN
 // =========================
