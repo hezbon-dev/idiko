@@ -117,4 +117,21 @@ router.get(
   }
 );
 
+// =========================
+// 🚪 STAFF LOGOUT
+// =========================
+
+router.post(
+  "/logout",
+  verifyStaffToken,
+  async (req, res) => {
+
+    return res.json({
+      success: true,
+      message: "Logged out",
+    });
+
+  }
+);
+
 module.exports = router;
