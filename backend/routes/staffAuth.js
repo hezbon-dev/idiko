@@ -32,11 +32,21 @@ router.post("/login", async (req, res) => {
     const stations =
       storageDoc.data()?.value || [];
 
+      console.log(
+  "📦 Pickup Stations:",
+  JSON.stringify(stations, null, 2)
+);
+
     const station = stations.find(
       s =>
         s.stationName?.toLowerCase() ===
         stationName.toLowerCase()
     );
+
+    console.log(
+  "🔍 Station Found:",
+  station
+);
 
     if (!station) {
       return res.status(401).json({
