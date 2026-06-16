@@ -4,9 +4,6 @@ const admin = require("firebase-admin");
 const jwt = require("jsonwebtoken");
 const verifyStaffToken = require("../middleware/verifyStaffToken");
 
-const verifyStaffToken =
-  require("../middleware/verifyStaffToken");
-
 router.post("/login", async (req, res) => {
 
   try {
@@ -102,19 +99,6 @@ const token = jwt.sign(
     });
   }
 });
-
-router.get(
-  "/verify",
-  verifyStaffToken,
-  async (req, res) => {
-
-    return res.json({
-      success: true,
-      staff: req.staff,
-    });
-
-  }
-);
 
 // =========================
 // 🔒 VERIFY STAFF TOKEN
