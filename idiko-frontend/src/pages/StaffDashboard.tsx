@@ -11,12 +11,36 @@ const StaffDashboard = () => {
 
   // 🔒 Prevent login bypass
   useEffect(() => {
-    const effectiveAuth = isAuthenticated;
 
-    if (!effectiveAuth || user !== "staff") {
-      navigate("/staff/login", { replace: true });
+  const verifySession = async () => {
+
+    const token =
+      await StorageService.get(
+        "staffToken"
+      );
+
+    if (
+      !token ||
+      !isAuthenticated ||
+      user !== "staff"
+    ) {
+
+      navigate(
+        "/staff/login",
+        { replace: true }
+      );
+
+      return;
     }
-  }, [isAuthenticated, user, navigate]);
+  };
+
+  verifySession();
+
+}, [
+  isAuthenticated,
+  user,
+  navigate
+]);
 
   // ✅ Heartbeat system (updates every 10 seconds)
   useEffect(() => {
@@ -68,8 +92,18 @@ const StaffDashboard = () => {
 }, []);
   // ✅ Logout now only clears local storage
   const handleLogout = async () => {
-  await StorageService.remove("currentStaff");
-  await StorageService.remove("sessionId");
+
+  await StorageService.remove(
+    "currentStaff"
+  );
+
+  await StorageService.remove(
+    "sessionId"
+  );
+
+  await StorageService.remove(
+    "staffToken"
+  );
 };
 
   return (

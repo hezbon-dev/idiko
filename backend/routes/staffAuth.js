@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
 const jwt = require("jsonwebtoken");
+const verifyStaffToken = require("../middleware/verifyStaffToken");
 
 const verifyStaffToken =
   require("../middleware/verifyStaffToken");
@@ -101,6 +102,10 @@ const token = jwt.sign(
     });
   }
 });
+
+// =========================
+// 🔒 VERIFY STAFF TOKEN
+// =========================
 
 router.get(
   "/verify",
