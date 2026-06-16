@@ -7,7 +7,7 @@ import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase";
 
 export default function StaffLogin() {
-  const { stations, setCurrentStation } = usePickupStations();
+  const { setCurrentStation } = usePickupStations();
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -76,21 +76,58 @@ export default function StaffLogin() {
       return;
     }
 
-    const station = stations.find(
-      (s) => s.stationName.toLowerCase() === stationName && s.password === pwd
-    );
+    let station = null;
 
-    if (!station) {
-      const attempts = await incrementFailedAttempts();
-      if (attempts >= MAX_ATTEMPTS) {
-        setError("Too many failed attempts. Contact Admin.");
-      } else {
-        setError(
-          `Incorrect station name or password. Attempts left: ${MAX_ATTEMPTS - attempts}`
-        );
-      }
-      return;
+try {
+
+  const response = await fetch(
+    "https://idiko.onrender.com/staff/login",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        stationName,
+        password: pwd,
+      }),
     }
+  );
+
+  const data = await response.json();
+
+  if (!data.success) {
+
+    const attempts =
+      await incrementFailedAttempts();
+
+    if (attempts >= MAX_ATTEMPTS) {
+      setError(
+        "Too many failed attempts. Contact Admin."
+      );
+    } else {
+      setError(
+        `${data.error}. Attempts left: ${
+          MAX_ATTEMPTS - attempts
+        }`
+      );
+    }
+
+    return;
+  }
+
+  station = data.station;
+
+} catch (err) {
+
+  console.error(err);
+
+  setError(
+    "Unable to reach login server."
+  );
+
+  return;
+}
 
     if (!station.enabled) {
       const attempts = await incrementFailedAttempts();
