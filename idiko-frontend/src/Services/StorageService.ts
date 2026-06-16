@@ -22,7 +22,7 @@ export const StorageService = {
   async set(key: string, value: any) {
     try {
       // ✅ Device-specific session data
-      if (key === "currentStaff" || key === "sessionId") {
+      if (key === "currentStaff" || key === "sessionId" || key === "staffToken") {
         localStorage.setItem(key, JSON.stringify(value));
         console.log(`✅ StorageService: Set local key "${key}"`);
         return;
@@ -44,7 +44,7 @@ export const StorageService = {
   async get(key: string) {
     try {
       // ✅ Device-specific session data
-      if (key === "currentStaff" || key === "sessionId") {
+      if (key === "currentStaff" || key === "sessionId" || key === "staffToken") {
         const value = localStorage.getItem(key);
 
         return value ? JSON.parse(value) : null;
@@ -71,7 +71,7 @@ export const StorageService = {
   async remove(key: string) {
     try {
       // ✅ Device-specific session data
-      if (key === "currentStaff" || key === "sessionId") {
+      if (key === "currentStaff" || key === "sessionId" || key === "staffToken") {
         localStorage.removeItem(key);
 
         console.log(`✅ StorageService: Removed local key "${key}"`);

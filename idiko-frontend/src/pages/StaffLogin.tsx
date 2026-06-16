@@ -118,6 +118,11 @@ try {
 
   station = data.station;
 
+  await StorageService.set(
+  "staffToken",
+  data.token
+);
+
 } catch (err) {
 
   console.error(err);
