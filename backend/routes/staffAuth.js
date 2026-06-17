@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const verifyStaffToken = require("../middleware/verifyStaffToken");
 
 router.post("/login", async (req, res) => {
@@ -47,12 +48,64 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    if (station.password !== password) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid password"
-      });
-    }
+    // =========================
+// PASSWORD MIGRATION LOGIC
+// =========================
+
+if (station.passwordHash) {
+
+  const passwordValid =
+    await bcrypt.compare(
+      password,
+      station.passwordHash
+    );
+
+  if (!passwordValid) {
+
+    return res.status(401).json({
+      success: false,
+      error: "Invalid password",
+    });
+  }
+
+} else if (station.password) {
+
+  if (station.password !== password) {
+
+    return res.status(401).json({
+      success: false,
+      error: "Invalid password",
+    });
+  }
+
+  console.log(
+    "🔄 Migrating station password:",
+    station.stationName
+  );
+
+  const passwordHash =
+    await bcrypt.hash(password, 10);
+
+  station.passwordHash = passwordHash;
+
+  delete station.password;
+
+  await storageDoc.ref.update({
+    value: stations,
+  });
+
+  console.log(
+    "✅ Password migrated:",
+    station.stationName
+  );
+
+} else {
+
+  return res.status(500).json({
+    success: false,
+    error: "Station password not configured",
+  });
+}
 
     if (!station.enabled) {
       return res.status(403).json({
