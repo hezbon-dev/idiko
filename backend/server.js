@@ -1,5 +1,10 @@
 require("dotenv").config();
 
+if (!process.env.JWT_SECRET) {
+  console.error("❌ JWT_SECRET missing");
+  process.exit(1);
+}
+
 console.log("🔥 SERVER.JS FILE LOADED");
 
 const express = require("express");
