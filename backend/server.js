@@ -1,8 +1,22 @@
 require("dotenv").config();
 
-if (!process.env.JWT_SECRET) {
-  console.error("❌ JWT_SECRET missing");
-  process.exit(1);
+const requiredEnvVars = [
+  "JWT_SECRET",
+  "EMAIL_USER",
+  "EMAIL_PASS",
+  "FIREBASE_SERVICE_ACCOUNT",
+];
+
+for (const envVar of requiredEnvVars) {
+
+  if (!process.env[envVar]) {
+
+    console.error(
+      `❌ Missing required environment variable: ${envVar}`
+    );
+
+    process.exit(1);
+  }
 }
 
 console.log("🔥 SERVER.JS FILE LOADED");
