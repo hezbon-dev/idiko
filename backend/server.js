@@ -61,8 +61,7 @@ app.use(
   cors({
     origin: [
       "https://idiko.co.ke",
-      "https://www.idiko.co.ke",
-      "http://localhost:5173",
+      "https://idiko-81906.web.app",
     ],
     credentials: true,
   })
