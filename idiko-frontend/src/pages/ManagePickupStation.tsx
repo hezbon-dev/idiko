@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { usePickupStations, type PickupStation } from "../context/PickupStationContext";
 import { useNavigate } from "react-router-dom";
+import bcrypt from "bcryptjs";
 import { StorageService } from "../Services/StorageService";
 
 const ManagePickupStation: React.FC = () => {
@@ -47,22 +48,42 @@ const ManagePickupStation: React.FC = () => {
     let passwordChanged = false;
     let statusChangedToDisabled = false;
 
-    const updatedStations = stations.map((station) => {
-      if (editedStations[station.id]) {
-        const patch = editedStations[station.id];
+    const updatedStations = await Promise.all(
+  stations.map(async (station) => {
 
-        if (patch.password && patch.password !== station.password) {
-          passwordChanged = station.id === currentStation?.id;
-        }
-
-        if (patch.enabled !== undefined && patch.enabled !== station.enabled && !patch.enabled) {
-          statusChangedToDisabled = station.id === currentStation?.id;
-        }
-
-        return { ...station, ...patch };
-      }
+    if (!editedStations[station.id]) {
       return station;
-    });
+    }
+
+    const patch = {
+      ...editedStations[station.id]
+    };
+
+    // =========================
+    // 🔐 PASSWORD CHANGED
+    // =========================
+
+    if (
+      patch.password &&
+      patch.password.trim() !== ""
+    ) {
+
+      patch.passwordHash =
+        await bcrypt.hash(
+          patch.password,
+          10
+        );
+
+      delete patch.password;
+    }
+
+    return {
+      ...station,
+      ...patch,
+    };
+  })
+);
+
 
     setStations(updatedStations);
     await StorageService.set("pickupStations", updatedStations);
