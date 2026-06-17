@@ -57,7 +57,16 @@ app.set("trust proxy", 1);
 
 app.use(helmet());
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://idiko.co.ke",
+      "https://www.idiko.co.ke",
+      "http://localhost:5173",
+    ],
+    credentials: true,
+  })
+);
 
 
 // Allow larger payloads (50MB should be more than enough for ID images)
