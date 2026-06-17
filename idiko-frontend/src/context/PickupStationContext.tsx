@@ -12,6 +12,7 @@ export interface PickupStation {
   stationName: string;
   stationNumber: string;
   password: string;
+  passwordHash?: string;
   enabled: boolean;
 }
 

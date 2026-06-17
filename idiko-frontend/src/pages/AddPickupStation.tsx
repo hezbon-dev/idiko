@@ -1,6 +1,7 @@
 // src/pages/AddPickupStation.tsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import bcrypt from "bcryptjs";
 import { usePickupStations } from "../context/PickupStationContext";
 
 export default function AddPickupStation() {
@@ -14,7 +15,7 @@ export default function AddPickupStation() {
   const [phone1, setPhone1] = useState("");
   const [phone2, setPhone2] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -31,18 +32,25 @@ export default function AddPickupStation() {
     }
 
     // Save to context with unique ID
-    addStation({
-      id: Date.now().toString(), // unique id
-      stationName,
-      stationNumber,
-      password,
-      location,
-      gps,
-      phone1,
-      phone2,
-      enabled: true,
-      name: ""
-    });
+    const passwordHash =
+  await bcrypt.hash(password, 10);
+
+addStation({
+  id: Date.now().toString(),
+  stationName,
+  stationNumber,
+
+  password: "",
+
+  passwordHash,
+
+  location,
+  gps,
+  phone1,
+  phone2,
+  enabled: true,
+  name: ""
+});
 
     alert("Pickup Station saved successfully.");
 
