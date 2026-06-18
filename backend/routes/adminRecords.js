@@ -47,4 +47,81 @@ router.get(
   }
 );
 
+// =========================
+// MOVE RECORD TO TRASH
+// =========================
+
+router.post(
+  "/move-to-trash",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const { record } = req.body;
+
+      if (!record) {
+
+        return res.status(400).json({
+          success: false,
+          error: "Record missing",
+        });
+
+      }
+
+      const db = admin.firestore();
+
+      // Move record to trash
+
+      await db
+        .collection("trash")
+        .doc(record.id)
+        .set(record);
+
+      // Remove from records
+
+      await db
+        .collection("records")
+        .doc(record.id)
+        .delete();
+
+      // Remove notify requests
+
+      const notifySnapshot =
+        await db
+          .collection("notify_requests")
+          .where(
+            "idNumber",
+            "==",
+            record.idNumber
+          )
+          .get();
+
+      for (const docSnap of notifySnapshot.docs) {
+
+        await docSnap.ref.delete();
+
+      }
+
+      return res.json({
+        success: true,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ Move To Trash Failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Move to trash failed",
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;
