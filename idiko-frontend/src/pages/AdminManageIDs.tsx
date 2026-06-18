@@ -1,8 +1,6 @@
 // src/pages/AdminManageIDs.tsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import {collection, doc,setDoc,deleteDoc,query,where,getDocs} from "firebase/firestore";
-import { db } from "../firebase"; // your Firestore instance
 
 export default function AdminManageIDs() {
   const navigate = useNavigate();
@@ -65,41 +63,63 @@ setLoading(false);
 
 
   // Move record to trash (update in Firebase)
-const moveToTrash = async (record: any) => {
+const moveToTrash = async (
+  record: any
+) => {
+
   try {
-    // Move to trash
-    await setDoc(
-      doc(db, "trash", record.id),
-      record
-    );
 
-    // Remove from records
-    await deleteDoc(
-      doc(db, "records", record.id)
-    );
+    const token =
+      localStorage.getItem(
+        "idiko_admin_token"
+      );
 
-    // Delete notify request(s)
-   const q = query(
-  collection(db, "notify_requests"),
-  where("idNumber", "==", record.idNumber)
-);
+    const response =
+      await fetch(
+        "https://idiko.onrender.com/admin/move-to-trash",
+        {
+          method: "POST",
 
-const snap = await getDocs(q);
+          headers: {
+            "Content-Type":
+              "application/json",
 
-for (const d of snap.docs) {
-  await deleteDoc(
-    doc(db, "notify_requests", d.id)
-  );
-}
+            Authorization:
+              `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            record,
+          }),
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!data.success) {
+
+      throw new Error(
+        data.error
+      );
+
+    }
+
     setRecords(prev =>
-      prev.filter(r => r.id !== record.id)
+      prev.filter(
+        r => r.id !== record.id
+      )
     );
+
   } catch (error) {
+
     console.error(
       "Error moving to trash:",
       error
     );
+
   }
+
 };
 
   // Filter + search

@@ -124,4 +124,50 @@ router.post(
   }
 );
 
+// =========================
+// GET ALL TRASH
+// =========================
+
+router.get(
+  "/trash",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const snapshot =
+        await db
+          .collection("trash")
+          .get();
+
+      const trash =
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+      return res.json({
+        success: true,
+        trash,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ Failed to load trash:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load trash",
+      });
+    }
+
+  }
+);
+
 module.exports = router;
