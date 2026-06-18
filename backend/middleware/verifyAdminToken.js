@@ -59,11 +59,17 @@ if (decoded.role !== "admin") {
   });
 }
 
-console.log(
-  "✅ Admin token verified:",
-  decoded.username
-);
+if (
+  process.env.NODE_ENV !==
+  "production"
+) {
 
+  console.log(
+    "✅ Admin token verified:",
+    decoded.username
+  );
+
+}
 // attach admin to request
 
 req.admin = decoded;

@@ -7,6 +7,7 @@ import { db } from "../firebase"; // your Firestore instance
 export default function AdminManageIDs() {
   const navigate = useNavigate();
   const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -37,13 +38,15 @@ useEffect(() => {
       const data =
         await response.json();
 
-      if (data.success) {
+     if (data.success) {
 
-        setRecords(
-          data.records
-        );
+  setRecords(
+    data.records
+  );
 
-      }
+}
+
+setLoading(false);
 
     } catch (err) {
 
@@ -115,6 +118,22 @@ for (const d of snap.docs) {
   const allCount = records.length;
   const paidCount = records.filter(r => r.status === "Paid").length;
   const pendingCount = records.filter(r => r.status === "Pending").length;
+
+if (loading) {
+
+  return (
+    <div
+      style={{
+        color: "white",
+        textAlign: "center",
+        marginTop: "50px",
+      }}
+    >
+      Loading records...
+    </div>
+  );
+
+}
 
   return (
     <div
