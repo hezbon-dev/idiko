@@ -68,7 +68,7 @@ console.log("🔥 AfricaTalking service imported");
 const ocrRoutes = require("./routes/ocr");
 const adminAuthRoutes = require("./routes/adminAuth");
 const staffAuthRoutes = require("./routes/staffAuth");
-
+const adminRecordsRoutes = require("./routes/adminRecords");
 const app = express();
 
 // ✅ REQUIRED FOR RENDER + EXPRESS-RATE-LIMIT
@@ -97,6 +97,7 @@ app.use("/api/ocr", ocrRoutes);
 // 🔐 ADMIN AUTH ROUTES
 app.use("/admin", adminAuthRoutes);
 app.use("/staff", staffAuthRoutes);
+app.use("/admin", adminRecordsRoutes);
 
 // Root route
 app.get("/", (req, res) => {

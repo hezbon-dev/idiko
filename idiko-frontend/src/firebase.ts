@@ -6,13 +6,13 @@ import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDKhHJPB6n6JkZtB3bZZ90pCM6NkO5vm58",
+  apiKey: "AIzaSyDKhHJPB6nNkO5vm58",
   authDomain: "idiko-81906.firebaseapp.com",
   projectId: "idiko-81906",
   storageBucket: "idiko-81906.firebasestorage.app",
-  messagingSenderId: "755505525686",
-  appId: "1:755505525686:web:931de36c30692a79444717",
-  measurementId: "G-K56Z3K25MX"
+  messagingSenderId: "755686",
+  appId: "1:755505525686:w692a79444717",
+  measurementId: "G-K5MX"
 };
 
 const app = initializeApp(firebaseConfig);

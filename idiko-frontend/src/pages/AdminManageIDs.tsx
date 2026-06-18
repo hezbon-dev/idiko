@@ -1,7 +1,7 @@
 // src/pages/AdminManageIDs.tsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { collection,doc,setDoc,deleteDoc,onSnapshot,query,where,getDocs} from "firebase/firestore";
+import {collection, doc,setDoc,deleteDoc,query,where,getDocs} from "firebase/firestore";
 import { db } from "../firebase"; // your Firestore instance
 
 export default function AdminManageIDs() {
@@ -12,19 +12,54 @@ export default function AdminManageIDs() {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [recordToTrash, setRecordToTrash] = useState<any | null>(null);
 
-  // Real-time listener for records
-  useEffect(() => {
-    const recordsRef = collection(db, "records");
-    const unsubscribe = onSnapshot(recordsRef, (snapshot) => {
-      const fetchedRecords: any[] = [];
-      snapshot.forEach((docSnap) => {
-        fetchedRecords.push({ id: docSnap.id, ...docSnap.data() });
-      });
-      setRecords(fetchedRecords);
-    });
+  // Real-time listener for records from backend
+useEffect(() => {
 
-    return () => unsubscribe(); // cleanup on unmount
-  }, []);
+  const loadRecords = async () => {
+
+    try {
+
+      const token =
+        localStorage.getItem(
+          "idiko_admin_token"
+        );
+
+      const response =
+        await fetch(
+          "https://idiko.onrender.com/admin/records",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (data.success) {
+
+        setRecords(
+          data.records
+        );
+
+      }
+
+    } catch (err) {
+
+      console.error(
+        "Failed to load records",
+        err
+      );
+
+    }
+
+  };
+
+  loadRecords();
+
+}, []);
+
 
   // Move record to trash (update in Firebase)
 const moveToTrash = async (record: any) => {

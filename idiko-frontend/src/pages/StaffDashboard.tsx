@@ -122,12 +122,16 @@ const StaffDashboard = () => {
   }
 
   await StorageService.remove("currentStaff");
-  await StorageService.remove("sessionId");
+await StorageService.remove("sessionId");
 
-  localStorage.removeItem("staffToken");
+await StorageService.remove(
+  "staffToken"
+);
+
 };
 
-  return (
+return (
+  
     <div
       style={{
         color: "white",
