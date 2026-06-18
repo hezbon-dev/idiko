@@ -493,7 +493,7 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
 finally {
   schedulerRunning = false;
 }  
-}, 2000);
+}, 1000);
 
 const PORT = process.env.PORT || 5000;
 
