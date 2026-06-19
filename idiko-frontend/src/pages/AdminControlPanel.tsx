@@ -11,15 +11,32 @@ import { db } from "../firebase";
 type PeriodOption = "All" | "Custom" | "Yesterday" | "LastMonth" | "LastYear";
 
 export default function AdminControlPanel() {
-  const { records, allHistoryRecords, notifyRequests: contextNotify } = useRecords();
+useRecords();
   const { stations } = usePickupStations();
 
-  const today = new Date();
   const totalStations = stations.length;
 
   const [period, setPeriod] = useState<PeriodOption>("All");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  const [loading, setLoading] =
+  useState(true);
+
+  const [stats, setStats] =
+  useState({
+
+    totalUploaded: 0,
+
+    pending: 0,
+
+    paid: 0,
+
+    awaiting: 0,
+
+    matched: 0,
+
+  });
 
   const { maintenanceMode } = useMaintenance();
 
@@ -97,51 +114,93 @@ const [updatingMaintenance, setUpdatingMaintenance] =
     return () => unsubscribe();
   }, []);
 
-  const parseDate = (str?: string) => {
-    if (!str) return null;
-    const d = new Date(str);
-    return isNaN(d.getTime()) ? null : d;
-  };
 
-  const matchesPeriod = (dateStr?: string) => {
-    if (!dateStr) return true;
-    const date = parseDate(dateStr);
-    if (!date) return true;
-    if (period === "All") return true;
-    if (period === "Custom") {
-      if (!customFrom || !customTo) return true;
-      const from = new Date(customFrom);
-      const to = new Date(customTo);
-      to.setHours(23, 59, 59, 999);
-      return date >= from && date <= to;
-    }
-    if (period === "Yesterday") {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
-      return date.toDateString() === y.toDateString();
-    }
-    if (period === "LastMonth") {
-      const lastMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-      const lastMonthIndex = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-      return date.getFullYear() === lastMonthYear && date.getMonth() === lastMonthIndex;
-    }
-    if (period === "LastYear") return date.getFullYear() === today.getFullYear() - 1;
-    return true;
-  };
+  useEffect(() => {
 
-  const mergedRecords = [...(records || []), ...(allHistoryRecords || [])];
+  const loadStats =
+    async () => {
 
-  const uniqueRecords = Array.from(new Map(mergedRecords.map(r => [r.idNumber, r])).values());
-  const filtered = uniqueRecords.filter(r => matchesPeriod(r.uploadDate));
+      try {
 
-  const filteredStats = {
-    totalUploaded: filtered.length,
-    pending: filtered.filter(r => r.status && r.status === "Pending").length,
-    paid: filtered.filter(r => r.status && r.status === "Paid").length,
-    awaiting: contextNotify.filter(n => n.matched === false || n.matched === undefined).length,
-    matched: contextNotify.filter(n => n.matched && n.matchedDate && matchesPeriod(n.matchedDate)).length,
-  };
+        const token =
+          localStorage.getItem(
+            "idiko_admin_token"
+          );
 
+        const response =
+          await fetch(
+            "https://idiko.onrender.com/admin/dashboard-stats",
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (data.success) {
+
+          setStats({
+
+            totalUploaded:
+              data.totalUploaded,
+
+            pending:
+              data.pending,
+
+            paid:
+              data.paid,
+
+            awaiting:
+              data.awaiting,
+
+            matched:
+              data.matched,
+
+          });
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          "Failed to load stats",
+          err
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+  loadStats();
+
+}, []);
+
+
+
+  
+if (loading) {
+
+  return (
+    <div
+      style={{
+        color: "white",
+        textAlign: "center",
+        marginTop: "50px",
+      }}
+    >
+      Loading records...
+    </div>
+  );
+
+}
    return (
     <div style={{ color: "#fff", minHeight: "100vh", padding: "20px" }}>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
@@ -179,11 +238,11 @@ const [updatingMaintenance, setUpdatingMaintenance] =
         <h2>Overview </h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
           <StatBox label="Total Stations" value={totalStations} />
-          <StatBox label="Total Uploaded IDs" value={filteredStats.totalUploaded} />
-          <StatBox label="Total Pending IDs" value={filteredStats.pending} />
-          <StatBox label="Total Paid IDs" value={filteredStats.paid} />
-          <StatBox label="Unmatched Notify Requests" value={filteredStats.awaiting} />
-          <StatBox label="Matched Notifications" value={filteredStats.matched} />
+          <StatBox label="Total Uploaded IDs" value={stats.totalUploaded}/>
+          <StatBox label="Total Pending IDs" value={stats.pending}/>
+          <StatBox label="Total Paid IDs" value={stats.paid} />
+          <StatBox label="Unmatched Notify Requests" value={stats.awaiting} />
+          <StatBox label="Matched Notifications" value={stats.matched} />
         </div>
       </section>
 

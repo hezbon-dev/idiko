@@ -382,4 +382,64 @@ router.get(
   }
 );
 
+// =========================
+// GET NOTIFY REQUESTS
+// =========================
+
+router.get(
+  "/notify-requests",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const snapshot =
+        await db
+          .collection(
+            "notify_requests"
+          )
+          .get();
+
+      const requests =
+        snapshot.docs.map(
+          doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })
+        );
+
+      return res.json({
+
+        success: true,
+
+        requests,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Failed to load notify requests",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          error:
+            "Failed to load notify requests",
+
+        });
+
+    }
+
+  }
+);
+
 module.exports = router;
