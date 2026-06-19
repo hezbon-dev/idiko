@@ -264,4 +264,122 @@ router.delete(
   }
 );
 
+
+// =========================
+// DASHBOARD STATS
+// =========================
+
+router.get(
+  "/dashboard-stats",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const recordsSnap =
+        await db
+          .collection("records")
+          .get();
+
+      const historySnap =
+        await db
+          .collection("allHistoryRecords")
+          .get();
+
+      const notifySnap =
+        await db
+          .collection("notify_requests")
+          .get();
+
+      const records =
+        recordsSnap.docs.map(
+          doc => doc.data()
+        );
+
+      const history =
+        historySnap.docs.map(
+          doc => doc.data()
+        );
+
+      const notify =
+        notifySnap.docs.map(
+          doc => doc.data()
+        );
+
+      const merged =
+        [...records, ...history];
+
+      const unique =
+        Array.from(
+          new Map(
+            merged.map(
+              r => [
+                r.idNumber,
+                r,
+              ]
+            )
+          ).values()
+        );
+
+      return res.json({
+
+        success: true,
+
+        totalUploaded:
+          unique.length,
+
+        pending:
+          unique.filter(
+            r =>
+              r.status ===
+              "Pending"
+          ).length,
+
+        paid:
+          unique.filter(
+            r =>
+              r.status ===
+              "Paid"
+          ).length,
+
+        awaiting:
+          notify.filter(
+            n =>
+              !n.matched
+          ).length,
+
+        matched:
+          notify.filter(
+            n =>
+              n.matched
+          ).length,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Dashboard stats failed:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          error:
+            "Failed to load dashboard stats",
+
+        });
+
+    }
+
+  }
+);
+
 module.exports = router;

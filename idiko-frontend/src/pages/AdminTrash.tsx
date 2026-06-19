@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRecords } from "../context/RecordContext";
 
 export default function AdminTrash() {
-const { restoreRecord, deleteRecord } = useRecords();
+useRecords();
 
   const [trash, setTrash] =useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -94,6 +94,109 @@ setLoading(false);
 }, []);
 
 
+const restoreTrashRecord = async (
+  record: any
+) => {
+
+  try {
+
+    const token =
+      localStorage.getItem(
+        "idiko_admin_token"
+      );
+
+    const response =
+      await fetch(
+        "https://idiko.onrender.com/admin/trash/restore",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            record,
+          }),
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (data.success) {
+
+      setTrash(prev =>
+        prev.filter(
+          r =>
+            r.idNumber !==
+            record.idNumber
+        )
+      );
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "Restore failed",
+      err
+    );
+
+  }
+
+};
+
+const deleteTrashRecord = async (
+  idNumber: string
+) => {
+
+  try {
+
+    const token =
+      localStorage.getItem(
+        "idiko_admin_token"
+      );
+
+    const response =
+      await fetch(
+        `https://idiko.onrender.com/admin/trash/${idNumber}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+          },
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (data.success) {
+
+      setTrash(prev =>
+        prev.filter(
+          r =>
+            r.idNumber !==
+            idNumber
+        )
+      );
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "Delete failed",
+      err
+    );
+
+  }
+
+};
+
   // ✅ NEW: clear selection when filter/search changes
   useEffect(() => {
     setSelectedIds([]);
@@ -108,11 +211,18 @@ setLoading(false);
     }
   };
 
-  // ✅ NEW: bulk delete
-  const handleDeleteSelected = () => {
-    selectedIds.forEach(id => deleteRecord(id));
+ const handleDeleteSelected =
+  async () => {
+
+    for (const id of selectedIds) {
+
+      await deleteTrashRecord(id);
+
+    }
+
     setSelectedIds([]);
-  };
+
+};
 
 if (loading) {
 
@@ -319,7 +429,7 @@ if (loading) {
                 </td>
                 <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
                   <button
-                    onClick={() => restoreRecord(record)}
+                    onClick={() =>restoreTrashRecord(record)}
                     style={{
                       backgroundColor: "lightgreen",
                       color: "black",
@@ -334,7 +444,7 @@ if (loading) {
                 </td>
                 <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
                   <button
-                    onClick={() => deleteRecord(record.idNumber)}
+                    onClick={() => deleteTrashRecord(record.idNumber)}
                     style={{
                       backgroundColor: "red",
                       color: "white",
