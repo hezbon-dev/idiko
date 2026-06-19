@@ -170,4 +170,98 @@ router.get(
   }
 );
 
+// =========================
+// RESTORE RECORD
+// =========================
+
+router.post(
+  "/trash/restore",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const { record } =
+        req.body;
+
+      await db
+        .collection("records")
+        .doc(record.idNumber)
+        .set(record);
+
+      await db
+        .collection("allHistoryRecords")
+        .doc(record.idNumber)
+        .set(record);
+
+      await db
+        .collection("trash")
+        .doc(record.idNumber)
+        .delete();
+
+      return res.json({
+        success: true,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ Restore failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+      });
+
+    }
+
+  }
+);
+
+// =========================
+// DELETE TRASH RECORD
+// =========================
+
+router.delete(
+  "/trash/:idNumber",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const { idNumber } =
+        req.params;
+
+      await db
+        .collection("trash")
+        .doc(idNumber)
+        .delete();
+
+      return res.json({
+        success: true,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ Delete failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;

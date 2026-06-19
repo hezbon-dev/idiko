@@ -4,10 +4,13 @@ import { useState, useEffect } from "react";
 import { useRecords } from "../context/RecordContext";
 
 export default function AdminTrash() {
-  const { trash, restoreRecord, deleteRecord } = useRecords();
+const { restoreRecord, deleteRecord } = useRecords();
+
+  const [trash, setTrash] =useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+  const [loading, setLoading] =useState(true);
 
   // ✅ NEW: bulk selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -16,7 +19,8 @@ export default function AdminTrash() {
   const searchedRecords = trash.filter((r) => {
     const term = search.toLowerCase();
 
-    return (
+
+   return (
       r.fullName.toLowerCase().includes(term) ||
       r.idNumber.includes(search) ||
       (r.pickupStation ?? "").toLowerCase().includes(term)
@@ -35,6 +39,60 @@ export default function AdminTrash() {
   const allCount = searchedRecords.length;
   const paidCount = searchedRecords.filter(r => r.status === "Paid").length;
   const pendingCount = searchedRecords.filter(r => r.status === "Pending").length;
+
+// Load trash from backend
+useEffect(() => {
+
+  const loadTrash = async () => {
+
+    try {
+
+      const token =
+        localStorage.getItem(
+          "idiko_admin_token"
+        );
+
+      const response =
+        await fetch(
+          "https://idiko.onrender.com/admin/trash",
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+     if (data.success) {
+
+  setTrash(
+    data.trash
+  );
+
+}
+
+setLoading(false);
+
+   } catch (err) {
+
+  console.error(
+    "Failed to load trash",
+    err
+  );
+
+  setLoading(false);
+
+}
+
+  };
+
+  loadTrash();
+
+}, []);
+
 
   // ✅ NEW: clear selection when filter/search changes
   useEffect(() => {
@@ -55,6 +113,22 @@ export default function AdminTrash() {
     selectedIds.forEach(id => deleteRecord(id));
     setSelectedIds([]);
   };
+
+if (loading) {
+
+  return (
+    <div
+      style={{
+        color: "white",
+        textAlign: "center",
+        marginTop: "50px",
+      }}
+    >
+      Loading records...
+    </div>
+  );
+
+}
 
   return (
     <div
