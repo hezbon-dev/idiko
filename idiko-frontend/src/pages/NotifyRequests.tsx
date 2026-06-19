@@ -1,23 +1,87 @@
 // src/pages/NotifyRequests.tsx
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useRecords, type NotifyRequestType } from "../context/RecordContext";
+import type { NotifyRequestType } from "../context/RecordContext";
 
 export default function NotifyRequests() {
-  const { notifyRequests } = useRecords();
   const [requests, setRequests] = useState<NotifyRequestType[]>([]);
-  const [search, setSearch] = useState("");
+  const [loading, setLoading] =useState(true);
+  const [search, setSearch] = useState(""); 
 
+ useEffect(() => {
 
-  useEffect(() => {
-    setRequests(notifyRequests);
-  }, [notifyRequests]);
+  const loadRequests =
+    async () => {
+
+      try {
+
+        const token =
+          localStorage.getItem(
+            "idiko_admin_token"
+          );
+
+        const response =
+          await fetch(
+            "https://idiko.onrender.com/admin/notify-requests",
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (data.success) {
+
+          setRequests(
+            data.requests
+          );
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          "Failed to load notify requests",
+          err
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+  loadRequests();
+
+}, []); 
 
 const filteredRequests = requests.filter((req) =>
   req.idNumber
     .toLowerCase()
     .includes(search.toLowerCase())
 );
+
+if (loading) {
+
+  return (
+    <div
+      style={{
+        color: "white",
+        textAlign: "center",
+        marginTop: "50px",
+      }}
+    >
+      Loading requests...
+    </div>
+  );
+
+}
 
   return (
     <div

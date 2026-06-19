@@ -442,4 +442,60 @@ router.get(
   }
 );
 
+// =========================
+// GET PICKUP STATIONS
+// =========================
+
+router.get(
+  "/pickup-stations",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const docSnap =
+        await db
+          .collection("appStorage")
+          .doc("pickupStations")
+          .get();
+
+      const stations =
+        docSnap.exists
+          ? docSnap.data().value || []
+          : [];
+
+      return res.json({
+
+        success: true,
+
+        stations,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Failed to load pickup stations",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          error:
+            "Failed to load pickup stations",
+
+        });
+
+    }
+
+  }
+);
+
 module.exports = router;
