@@ -6,13 +6,6 @@ import {
   type ReactNode,
 } from "react";
 
-import {
-  doc,
-  onSnapshot,
-} from "firebase/firestore";
-
-import { db } from "../firebase";
-
 type MaintenanceContextType = {
   maintenanceMode: boolean;
   loading: boolean;
@@ -39,35 +32,53 @@ export const MaintenanceProvider = ({
     setLoading,
   ] = useState(true);
 
+  const API_URL =
+    import.meta.env.VITE_API_URL ||
+    "https://idiko.onrender.com";
+
   useEffect(() => {
 
-    const unsubscribe =
-      onSnapshot(
-        doc(
-          db,
-          "system",
-          "settings"
-        ),
-        (snapshot) => {
+    const loadMaintenance =
+      async () => {
+
+        try {
+
+          const response =
+            await fetch(
+              `${API_URL}/admin/maintenance-status`
+            );
+
+          const data =
+            await response.json();
 
           if (
-            snapshot.exists()
+            data.success
           ) {
 
             setMaintenanceMode(
-              snapshot.data()
-                .maintenanceMode === true
+              data.maintenanceMode === true
             );
+
           }
 
+        } catch (err) {
+
+          console.error(
+            "Failed to load maintenance mode",
+            err
+          );
+
+        } finally {
+
           setLoading(false);
+
         }
-      );
 
-    return () =>
-      unsubscribe();
+      };
 
-  }, []);
+    loadMaintenance();
+
+  }, [API_URL]);
 
   return (
     <MaintenanceContext.Provider
@@ -93,7 +104,9 @@ export const useMaintenance = () => {
     throw new Error(
       "useMaintenance must be used inside MaintenanceProvider"
     );
+
   }
 
   return context;
+
 };

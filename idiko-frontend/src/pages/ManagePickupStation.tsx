@@ -3,25 +3,13 @@ import React, { useEffect, useState } from "react";
 import { usePickupStations, type PickupStation } from "../context/PickupStationContext";
 import { useNavigate } from "react-router-dom";
 import bcrypt from "bcryptjs";
-import { StorageService } from "../Services/StorageService";
 
-const ManagePickupStation: React.FC = () => {
+  const ManagePickupStation: React.FC = () => {
   const { stations, setStations, currentStation, setCurrentStation } = usePickupStations();
   const [search, setSearch] = useState("");
   const [editedStations, setEditedStations] = useState<{ [key: string]: Partial<PickupStation> }>({});
   const navigate = useNavigate();
-
-  // Remove dummy station; load stations are already loaded from context
-  useEffect(() => {
-    const loadStations = async () => {
-      const savedStations = await StorageService.get("pickupStations");
-      if (savedStations) {
-        setStations(savedStations);
-      }
-    };
-
-    loadStations();
-  }, [setStations]);
+  const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
 
   // Warn before leaving page with unsaved changes
   useEffect(() => {
@@ -85,10 +73,76 @@ const ManagePickupStation: React.FC = () => {
 );
 
 
-    setStations(updatedStations);
-    await StorageService.set("pickupStations", updatedStations);
-    setEditedStations({});
-    alert("Changes saved successfully!");
+  try {
+
+  const token =
+    localStorage.getItem(
+      "idiko_admin_token"
+    );
+
+  const response =
+    await fetch(
+      `${API_URL}/admin/pickup-stations`,
+      {
+        method: "PUT",
+
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+        body: JSON.stringify({
+
+          stations:
+            updatedStations,
+
+        }),
+
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    alert(
+      "Failed to save changes."
+    );
+
+    return;
+
+  }
+
+  setStations(
+    updatedStations
+  );
+
+  setEditedStations({});
+
+  alert(
+    "Changes saved successfully!"
+  );
+
+} catch (err) {
+
+  console.error(
+    "Save changes failed",
+    err
+  );
+
+  alert(
+    "Failed to save changes."
+  );
+
+  return;
+
+}  
 
     if (passwordChanged || statusChangedToDisabled) {
       await incrementFailedAttempts();
@@ -105,14 +159,27 @@ const ManagePickupStation: React.FC = () => {
     }
   };
 
-  const incrementFailedAttempts = async () => {
-    const currentAttempts = Number((await StorageService.get("staffLoginAttempts")) || "0");
-    await StorageService.set("staffLoginAttempts", (currentAttempts + 1).toString());
-  };
+ const incrementFailedAttempts = async () => {
+
+  const currentAttempts =
+    Number(
+      localStorage.getItem(
+        "staffLoginAttempts"
+      ) || "0"
+    );
+
+  localStorage.setItem(
+    "staffLoginAttempts",
+    String(
+      currentAttempts + 1
+    )
+  );
+
+};   
 
   const logoutCurrentStaff = async () => {
     setCurrentStation(null);
-    await StorageService.remove("currentStaff");
+    localStorage.removeItem("currentStaff");
     navigate("/staff/login");
   };
 
@@ -123,12 +190,81 @@ const ManagePickupStation: React.FC = () => {
   );
 
   const toggleEnabled = async (id: string) => {
-    const updatedStations = stations.map((s) =>
-      s.id === id ? { ...s, enabled: !s.enabled } : s
+ const updatedStations =
+  stations.map((s) =>
+    s.id === id
+      ? {
+          ...s,
+          enabled:
+            !s.enabled,
+        }
+      : s
+  );
+
+try {
+
+  const token =
+    localStorage.getItem(
+      "idiko_admin_token"
     );
 
-    setStations(updatedStations);
-    await StorageService.set("pickupStations", updatedStations);
+  const response =
+    await fetch(
+      `${API_URL}/admin/pickup-stations`,
+      {
+        method: "PUT",
+
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+        body: JSON.stringify({
+
+          stations:
+            updatedStations,
+
+        }),
+
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    alert(
+      "Failed to update station."
+    );
+
+    return;
+
+  }
+
+  setStations(
+    updatedStations
+  );
+
+} catch (err) {
+
+  console.error(
+    "Update station failed",
+    err
+  );
+
+  alert(
+    "Failed to update station."
+  );
+
+  return;
+
+}
 
     const station = updatedStations.find((s) => s.id === id);
     if (currentStation && currentStation.id === id && station && !station.enabled) {

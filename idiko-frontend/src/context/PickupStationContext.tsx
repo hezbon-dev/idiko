@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { StorageService } from "../Services/StorageService";
 
 export interface PickupStation {
   id: string;
@@ -31,38 +30,75 @@ const PickupStationContext = createContext<PickupStationContextProps | undefined
 export const PickupStationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [stations, setStations] = useState<PickupStation[]>([]);
   const [currentStation, setCurrentStation] = useState<PickupStation | null>(null);
+  const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
 
   useEffect(() => {
-  const loadCurrentStation = async () => {
-    const savedStaff =
-      await StorageService.get("currentStaff");
 
-    if (savedStaff) {
-      setCurrentStation(savedStaff);
-    }
-  };
+  const savedStaff =
+    localStorage.getItem(
+      "currentStaff"
+    );
 
-  loadCurrentStation();
+  if (savedStaff) {
+
+    setCurrentStation(
+      JSON.parse(savedStaff)
+    );
+
+  }
+
 }, []);
 
   // ✅ NEW — prevents overwriting Firebase on first render
-  const [loaded, setLoaded] = useState(false);
-
-  // ✅ Load stations from Firebase on mount
   useEffect(() => {
-    const loadStations = async () => {
-      const savedStations = await StorageService.get("pickupStations");
-      if (savedStations) setStations(savedStations);
-      setLoaded(true); // ✅ mark ready
-    };
-    loadStations();
-  }, []);
 
-  // ✅ Save ONLY after loaded
-  useEffect(() => {
-    if (!loaded) return;
-    StorageService.set("pickupStations", stations);
-  }, [stations, loaded]);
+  const loadStations = async () => {
+
+    try {
+
+      const token =
+    localStorage.getItem(
+    "idiko_admin_token"
+  );
+
+      const response =
+        await fetch(
+          `${API_URL}/admin/pickup-stations`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        data.success
+      ) {
+
+        setStations(
+          data.stations || []
+        );
+
+      }
+
+    } catch (err) {
+
+      console.error(
+        "Failed to load stations",
+        err
+      );
+
+    }
+
+  };
+
+  loadStations();
+
+}, [API_URL]);
 
   const addStation = (station: PickupStation) => {
     setStations((prev) => [...prev, station]);

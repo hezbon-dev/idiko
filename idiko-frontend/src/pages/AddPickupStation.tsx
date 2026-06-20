@@ -6,7 +6,7 @@ import { usePickupStations } from "../context/PickupStationContext";
 
 export default function AddPickupStation() {
   const { addStation } = usePickupStations();
-
+  const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
   const [stationName, setStationName] = useState("");
   const [stationNumber, setStationNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -33,11 +33,18 @@ export default function AddPickupStation() {
 
     // Save to context with unique ID
     const passwordHash =
-  await bcrypt.hash(password, 10);
+  await bcrypt.hash(
+    password,
+    10
+  );
 
-addStation({
-  id: Date.now().toString(),
+const station = {
+
+  id:
+    Date.now().toString(),
+
   stationName,
+
   stationNumber,
 
   password: "",
@@ -45,12 +52,84 @@ addStation({
   passwordHash,
 
   location,
+
   gps,
+
   phone1,
+
   phone2,
+
   enabled: true,
-  name: ""
-});
+
+  name: "",
+
+};
+
+try {
+
+  const token =
+    localStorage.getItem(
+      "idiko_admin_token"
+    );
+
+  const response =
+    await fetch(
+      `${API_URL}/admin/pickup-stations`,
+      {
+        method: "POST",
+
+        headers: {
+
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+
+        },
+
+        body: JSON.stringify({
+
+          station,
+
+        }),
+
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    alert(
+      "Failed to save pickup station."
+    );
+
+    return;
+
+  }
+
+  addStation(station);
+
+  alert(
+    "Pickup Station saved successfully."
+  );
+
+} catch (err) {
+
+  console.error(
+    "Create station failed",
+    err
+  );
+
+  alert(
+    "Failed to save pickup station."
+  );
+
+  return;
+
+}
 
     alert("Pickup Station saved successfully.");
 

@@ -478,62 +478,6 @@ router.get(
     } catch (err) {
 
       console.error(
-        "Failed to load pickup stations",
-        err
-      );
-
-      return res
-        .status(500)
-        .json({
-
-          success: false,
-
-          error:
-            "Failed to load pickup stations",
-
-        });
-
-    }
-
-  }
-);
-
-// =========================
-// GET PICKUP STATIONS
-// =========================
-
-router.get(
-  "/pickup-stations",
-  verifyAdminToken,
-  async (req, res) => {
-
-    try {
-
-      const db =
-        admin.firestore();
-
-      const docSnap =
-        await db
-          .collection("appStorage")
-          .doc("pickupStations")
-          .get();
-
-      const stations =
-        docSnap.exists
-          ? docSnap.data().value || []
-          : [];
-
-      return res.json({
-
-        success: true,
-
-        stations,
-
-      });
-
-    } catch (err) {
-
-      console.error(
         "Load stations failed",
         err
       );
@@ -660,6 +604,201 @@ router.put(
 
       console.error(
         "Update stations failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+
+// =========================
+// GET MAINTENANCE STATUS
+// =========================
+
+router.get(
+  "/maintenance-status",
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const docSnap =
+        await db
+          .collection("system")
+          .doc("settings")
+          .get();
+
+      const maintenanceMode =
+        docSnap.exists
+          ? docSnap.data()
+              .maintenanceMode === true
+          : false;
+
+      return res.json({
+
+        success: true,
+
+        maintenanceMode,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Maintenance status failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          maintenanceMode: false,
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
+// UPDATE MAINTENANCE STATUS
+// =========================
+
+router.put(
+  "/maintenance-status",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const {
+        maintenanceMode,
+      } = req.body;
+
+      await admin
+        .firestore()
+        .collection("system")
+        .doc("settings")
+        .set(
+          {
+            maintenanceMode,
+          },
+          {
+            merge: true,
+          }
+        );
+
+      return res.json({
+
+        success: true,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Update maintenance failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
+// GET ACTIVE STAFF SESSIONS
+// =========================
+
+router.get(
+  "/staff-sessions",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const snapshot =
+        await admin
+          .firestore()
+          .collection(
+            "staffSessions"
+          )
+          .get();
+
+      const now =
+        Date.now();
+
+      const tenSecondsAgo =
+        now - 10000;
+
+      const active =
+        snapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .filter(session => {
+
+            if (
+              !session.lastActive
+            ) {
+              return false;
+            }
+
+            const lastActive =
+              session
+                .lastActive
+                .toDate()
+                .getTime();
+
+            return (
+              lastActive >
+              tenSecondsAgo
+            );
+
+          })
+          .map(
+            session =>
+              session.stationName ||
+              session.staffId
+          );
+
+      return res.json({
+
+        success: true,
+
+        active,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Load staff sessions failed",
         err
       );
 
