@@ -61,6 +61,10 @@ export const PickupStationProvider: React.FC<{ children: React.ReactNode }> = ({
     "idiko_admin_token"
   );
 
+if (!token) {
+  return;
+}
+
       const response =
         await fetch(
           `${API_URL}/admin/pickup-stations`,

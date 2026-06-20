@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useRecords } from "../context/RecordContext";
 
 export default function NotifyMe() {
-  const { addNotifyRequest } = useRecords();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -31,7 +29,7 @@ export default function NotifyMe() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const normalizedForm = {
@@ -53,12 +51,51 @@ export default function NotifyMe() {
         : form.dob,
     };
 
-    const added = addNotifyRequest(normalizedForm);
+    try {
 
-    if (!added) {
-      alert("⚠️ You already requested notification for this ID.");
-      return;
-    }
+  const response =
+    await fetch(
+      "https://idiko.onrender.com/user/notify-request",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify(
+          normalizedForm
+        ),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    alert(
+      data.error ||
+      "Failed to save request"
+    );
+
+    return;
+  }
+
+} catch (err) {
+
+  console.error(
+    "Notify request failed:",
+    err
+  );
+
+  alert(
+    "Failed to save request"
+  );
+
+  return;
+}
 
     setSaved(true);
   };
