@@ -3,16 +3,15 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
-import { collection, onSnapshot } from "firebase/firestore";
-import { doc, updateDoc } from "firebase/firestore";
 import { useMaintenance } from "../context/MaintenanceContext";
-import { db } from "../firebase";
+
 
 type PeriodOption = "All" | "Custom" | "Yesterday" | "LastMonth" | "LastYear";
 
 export default function AdminControlPanel() {
 useRecords();
   const { stations } = usePickupStations();
+  const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
 
   const totalStations = stations.length;
 
@@ -43,76 +42,156 @@ useRecords();
 const [updatingMaintenance, setUpdatingMaintenance] =
   useState(false);
 
-  const toggleMaintenanceMode = async () => {
+const toggleMaintenanceMode =
+  async () => {
 
-  const action =
-    maintenanceMode
-      ? "Disable"
-      : "Enable";
+    const action =
+      maintenanceMode
+        ? "Disable"
+        : "Enable";
 
-  const confirmed =
-    window.confirm(
-      `${action} Maintenance Mode?`
-    );
+    const confirmed =
+      window.confirm(
+        `${action} Maintenance Mode?`
+      );
 
-  if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
-  try {
+    try {
 
-    setUpdatingMaintenance(true);
+      setUpdatingMaintenance(
+        true
+      );
 
-    await updateDoc(
-      doc(
-        db,
-        "system",
-        "settings"
-      ),
-      {
-        maintenanceMode:
-          !maintenanceMode,
+      const token =
+        localStorage.getItem(
+          "idiko_admin_token"
+        );
+
+      const response =
+        await fetch(
+          `${API_URL}/admin/maintenance-status`,
+          {
+            method: "PUT",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${token}`,
+            },
+
+            body: JSON.stringify({
+              maintenanceMode:
+                !maintenanceMode,
+            }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        !data.success
+      ) {
+
+        alert(
+          "Failed to update maintenance mode."
+        );
+
       }
-    );
 
-  } catch (error) {
+      window.location.reload();
 
-    console.error(
-      "Failed to update maintenance mode",
-      error
-    );
+    } catch (error) {
 
-    alert(
-      "Failed to update maintenance mode."
-    );
+      console.error(
+        "Failed to update maintenance mode",
+        error
+      );
 
-  } finally {
+      alert(
+        "Failed to update maintenance mode."
+      );
 
-    setUpdatingMaintenance(false);
-  }
-};
+    } finally {
+
+      setUpdatingMaintenance(
+        false
+      );
+
+    }
+
+  };
 
   // Active staff sessions
   const [activeStaffNames, setActiveStaffNames] = useState<string[]>([]);
 
   // ✅ REAL-TIME Firestore listener for staffSessions (with 10s expiry filter)
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "staffSessions"), (snapshot) => {
-      const now = Date.now();
-      const tenSecondsAgo = now - 10000;
+ useEffect(() => {
 
-      const active = snapshot.docs
-        .map((doc) => doc.data())
-        .filter((data) => {
-          if (!data.lastActive) return false;
-          const lastActiveMillis = data.lastActive.toDate().getTime();
-          return lastActiveMillis > tenSecondsAgo;
-        })
-        .map((data) => data.stationName || data.staffId);
+  const loadActiveStaff =
+    async () => {
 
-      setActiveStaffNames(active);
-    });
+      try {
 
-    return () => unsubscribe();
-  }, []);
+        const token =
+          localStorage.getItem(
+            "idiko_admin_token"
+          );
+
+        const response =
+          await fetch(
+            `${API_URL}/admin/staff-sessions`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (
+          data.success
+        ) {
+
+          setActiveStaffNames(
+            data.active || []
+          );
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          "Failed to load staff sessions",
+          err
+        );
+
+      }
+
+    };
+
+  loadActiveStaff();
+
+  const interval =
+    setInterval(
+      loadActiveStaff,
+      10000
+    );
+
+  return () =>
+    clearInterval(
+      interval
+    );
+
+}, [API_URL]);
 
 
   useEffect(() => {
@@ -129,7 +208,7 @@ const [updatingMaintenance, setUpdatingMaintenance] =
 
         const response =
           await fetch(
-            "https://idiko.onrender.com/admin/dashboard-stats",
+           `${API_URL}/admin/dashboard-stats`,
             {
               headers: {
                 Authorization:
