@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { usePickupStations } from "../context/PickupStationContext";
 import { useAuth } from "../context/AuthContext";
 import { StorageService } from "../Services/StorageService";
-import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
 
 export default function StaffLogin() {
   const { setCurrentStation } = usePickupStations();
@@ -17,8 +15,6 @@ export default function StaffLogin() {
   const [loginAttempts, setLoginAttempts] = useState<number>(0);
 
   const MAX_ATTEMPTS = 5;
-
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const loadAttempts = async () => {
@@ -43,29 +39,6 @@ export default function StaffLogin() {
     setLoginAttempts(0);
     await StorageService.set("staffLoginAttempts", "0");
   };
-
-  // ✅ Remove Firestore session on tab/browser close
-  useEffect(() => {
-    const handleUnload = async () => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-
-      const staff = JSON.parse(localStorage.getItem("currentStaff") || "{}");
-      const staffId = staff.id;
-
-      if (staffId) {
-        await deleteDoc(doc(db, "staffSessions", staffId));
-      }
-
-      localStorage.removeItem("currentStaff");
-    };
-
-    window.addEventListener("beforeunload", handleUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    };
-  }, []);
 
   const handleLogin = async () => {
     const stationName = username.trim().toLowerCase();
@@ -145,30 +118,6 @@ const sessionId = `${station.id}_${Date.now()}`;
 await StorageService.set("sessionId", sessionId);
 await StorageService.set("currentStaff", station);
 
-// ✅ CREATE FIRESTORE SESSION (NO OVERWRITES)
-await setDoc(doc(db, "staffSessions", sessionId), {
-  sessionId,
-  staffId: station.id,
-  staffName: station.stationName,
-  stationNumber: station.stationNumber,
-  createdAt: serverTimestamp(),
-  lastActive: serverTimestamp(),
-});
-
-// ✅ HEARTBEAT (updates SAME SESSION ONLY)
-heartbeatRef.current = setInterval(async () => {
-  try {
-    await setDoc(
-      doc(db, "staffSessions", sessionId),
-      {
-        lastActive: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  } catch (err) {
-    console.error("Heartbeat error:", err);
-  }
-}, 10000);
     // ✅ END SESSION CREATION
 
     login("staff");

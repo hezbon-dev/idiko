@@ -1,12 +1,8 @@
 // src/pages/StaffUpload.tsx
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import ReactCrop, {
-  type Crop,
-  type PixelCrop,
-} from "react-image-crop";
+import ReactCrop, {type Crop,type PixelCrop,} from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
 import { StorageService } from "../Services/StorageService";
 
@@ -106,7 +102,6 @@ useEffect(() => {
   const [district, setDistrict] = useState("");
   const [pickupStation, setPickupStation] = useState("");
 
-  const { addRecord, records } = useRecords();
   const { currentStation } = usePickupStations();
 
   // ✅ Auto-fill pickup station from logged-in station
@@ -252,7 +247,7 @@ const handleCropSave = async () => {
     return `${day}/${month}/${year}`;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (
@@ -262,8 +257,8 @@ const handleCropSave = async () => {
       !idNumber ||
       !dob ||
       !sex ||
-      !district ||
-      !pickupStation
+      !district
+      
     ) {
       alert("Please fill in all fields and upload both images.");
       return;
@@ -273,32 +268,81 @@ const handleCropSave = async () => {
     const normalizedIdNumber = idNumber.replace(/\s+/g, "");
     const normalizedDistrict = district.trim().toUpperCase();
     const normalizedSex = sex.trim().toUpperCase();
-    const normalizedPickupStation = pickupStation.trim();
+    
 
-    // ✅ PREVENT DUPLICATE ID UPLOAD
-    const exists = records.some(
-      (r) => r.idNumber.replace(/\s+/g, "") === normalizedIdNumber
+
+    try {
+
+  const token =
+    await StorageService.get(
+      "staffToken"
     );
 
-    if (exists) {
-      alert("ID already exists in the system");
-      return;
-    }
+  const response =
+    await fetch(
+      "https://idiko.onrender.com/staff/upload-record",
+      {
+        method: "POST",
 
-    addRecord({
-      // ✅ Save compressed images instead of huge originals
-      frontImage: frontImageCompressed!,
-      backImage: backImageCompressed!,
-      fullName: normalizedFullName,
-      idNumber: normalizedIdNumber,
-      dob: formatDate(dob),
-      sex: normalizedSex,
-      district: normalizedDistrict,
-      pickupStation: normalizedPickupStation,
-      status: "Pending",
-      uploadDate: "",
-      stationId: null
-    });
+        headers: {
+          Authorization:
+            `Bearer ${token}`,
+
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          frontImage:
+            frontImageCompressed,
+
+          backImage:
+            backImageCompressed,
+
+          fullName:
+            normalizedFullName,
+
+          idNumber:
+            normalizedIdNumber,
+
+          dob:
+            formatDate(dob),
+
+          sex:
+            normalizedSex,
+
+          district:
+            normalizedDistrict,
+        }),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    alert(
+      data.error ||
+      "Upload failed"
+    );
+
+    return;
+  }
+
+} catch (err) {
+
+  console.error(
+    "Upload failed:",
+    err
+  );
+
+  alert(
+    "Failed to upload record"
+  );
+
+  return;
+}
 
     // Reset except pickupStation
     setFrontPreview(null);

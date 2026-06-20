@@ -36,15 +36,15 @@ useEffect(() => {
       const data =
         await response.json();
 
-     if (data.success) {
+      if (data.success) {
 
-  setRecords(
-    data.records
-  );
+        setRecords(
+          data.records
+        );
 
-}
+      }
 
-setLoading(false);
+      setLoading(false);
 
     } catch (err) {
 
@@ -58,6 +58,17 @@ setLoading(false);
   };
 
   loadRecords();
+
+  const interval =
+    setInterval(
+      loadRecords,
+      30000
+    );
+
+  return () =>
+    clearInterval(
+      interval
+    );
 
 }, []);
 

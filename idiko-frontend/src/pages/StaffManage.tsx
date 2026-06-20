@@ -3,9 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useRecords } from "../context/RecordContext";
 import { StorageService } from "../Services/StorageService";
-import { collection, query, where, getDocs, deleteDoc, doc } from "firebase/firestore";
-import { db } from "../firebase";
-
 export default function StaffManage() {
 const { recordsForStaff, moveToTrash } = useRecords();
 const navigate = useNavigate();
@@ -370,33 +367,6 @@ if (!authChecked) {
           onClick={async () => {
             moveToTrash(
               recordToTrash
-            );
-
-            const q = query(
-              collection(
-                db,
-                "notify_requests"
-              ),
-              where(
-                "idNumber",
-                "==",
-                recordToTrash.idNumber
-              )
-            );
-
-            const snap =
-              await getDocs(q);
-
-            snap.forEach(
-              async (d) => {
-                await deleteDoc(
-                  doc(
-                    db,
-                    "notify_requests",
-                    d.id
-                  )
-                );
-              }
             );
 
             setHiddenIds(prev => [

@@ -183,7 +183,7 @@ const toggleMaintenanceMode =
   const interval =
     setInterval(
       loadActiveStaff,
-      10000
+      30000
     );
 
   return () =>
@@ -193,8 +193,7 @@ const toggleMaintenanceMode =
 
 }, [API_URL]);
 
-
-  useEffect(() => {
+useEffect(() => {
 
   const loadStats =
     async () => {
@@ -208,7 +207,7 @@ const toggleMaintenanceMode =
 
         const response =
           await fetch(
-           `${API_URL}/admin/dashboard-stats`,
+            `${API_URL}/admin/dashboard-stats`,
             {
               headers: {
                 Authorization:
@@ -260,11 +259,20 @@ const toggleMaintenanceMode =
 
   loadStats();
 
-}, []);
+  const interval =
+    setInterval(
+      loadStats,
+      30000
+    );
 
+  return () =>
+    clearInterval(
+      interval
+    );
 
+}, [API_URL]);
 
-  
+ 
 if (loading) {
 
   return (

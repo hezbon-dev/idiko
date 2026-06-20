@@ -48,7 +48,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // =========================
+// =========================
 // PASSWORD MIGRATION LOGIC
 // =========================
 
@@ -254,6 +254,136 @@ router.post(
 
       return res.status(500).json({
         success: false,
+      });
+
+    }
+
+  }
+);
+
+router.post(
+  "/upload-record",
+  verifyStaffToken,
+  async (req, res) => {
+
+    try {
+
+      const {
+        frontImage,
+        backImage,
+        fullName,
+        idNumber,
+        dob,
+        sex,
+        district
+      } = req.body;
+
+      if (
+        !frontImage ||
+        !backImage ||
+        !fullName ||
+        !idNumber ||
+        !dob ||
+        !sex ||
+        !district
+      ) {
+
+        return res.status(400).json({
+          success: false,
+          error: "Missing required fields"
+        });
+
+      }
+
+      const normalizedId =
+        String(idNumber)
+          .replace(/\s+/g, "");
+
+      const db =
+        admin.firestore();
+
+      const existing =
+        await db
+          .collection("records")
+          .doc(normalizedId)
+          .get();
+
+      if (existing.exists) {
+
+        return res.status(409).json({
+          success: false,
+          error: "ID already exists"
+        });
+
+      }
+
+      const record = {
+
+        stationId:
+          req.staff.stationId,
+
+        uploadDate:
+          new Date().toISOString(),
+
+        fullName:
+          fullName
+            .trim()
+            .toLowerCase(),
+
+        idNumber:
+          normalizedId,
+
+        dob,
+
+        sex:
+          sex
+            .trim()
+            .toLowerCase(),
+
+        district:
+          district
+            .trim()
+            .toLowerCase(),
+
+        status: "Pending",
+
+        frontImage,
+
+        backImage,
+
+        pickupStation:
+          req.staff.stationName
+            .trim()
+            .toLowerCase()
+
+      };
+
+      await db
+        .collection("records")
+        .doc(normalizedId)
+        .set(record);
+
+      await db
+        .collection(
+          "allHistoryRecords"
+        )
+        .doc(normalizedId)
+        .set(record);
+
+      return res.json({
+        success: true
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Upload record error:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Server error"
       });
 
     }
