@@ -498,4 +498,183 @@ router.get(
   }
 );
 
+// =========================
+// GET PICKUP STATIONS
+// =========================
+
+router.get(
+  "/pickup-stations",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const docSnap =
+        await db
+          .collection("appStorage")
+          .doc("pickupStations")
+          .get();
+
+      const stations =
+        docSnap.exists
+          ? docSnap.data().value || []
+          : [];
+
+      return res.json({
+
+        success: true,
+
+        stations,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Load stations failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
+// CREATE PICKUP STATION
+// =========================
+
+router.post(
+  "/pickup-stations",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const { station } =
+        req.body;
+
+      if (!station) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error:
+            "Station missing",
+
+        });
+
+      }
+
+      const docRef =
+        db
+          .collection("appStorage")
+          .doc("pickupStations");
+
+      const docSnap =
+        await docRef.get();
+
+      const stations =
+        docSnap.exists
+          ? docSnap.data().value || []
+          : [];
+
+      stations.push(station);
+
+      await docRef.set({
+        value: stations,
+      });
+
+      return res.json({
+
+        success: true,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Create station failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
+// UPDATE PICKUP STATIONS
+// =========================
+
+router.put(
+  "/pickup-stations",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const { stations } =
+        req.body;
+
+      await db
+        .collection("appStorage")
+        .doc("pickupStations")
+        .set({
+          value: stations,
+        });
+
+      return res.json({
+
+        success: true,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Update stations failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+
 module.exports = router;
