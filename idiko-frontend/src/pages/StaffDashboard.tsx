@@ -1,8 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
 import { StorageService } from "../Services/StorageService";
 
 const StaffDashboard = () => {
@@ -43,52 +41,108 @@ const StaffDashboard = () => {
 ]);
 
   // ✅ Heartbeat system (updates every 10 seconds)
-  useEffect(() => {
-  let interval: ReturnType<typeof setInterval>;
+   useEffect(() => {
 
-  const startHeartbeat = async () => {
-    const staff = await StorageService.get("currentStaff");
-    const sessionId = await StorageService.get("sessionId");
+  let interval: ReturnType<
+    typeof setInterval
+  >;
 
-    if (!staff || !sessionId) {
-      console.error("Missing staff or sessionId");
-      return;
-    }
+  const startHeartbeat =
+    async () => {
 
-    // Initial write (safe merge update)
-    await setDoc(
-      doc(db, "staffSessions", sessionId),
-      {
-        sessionId,
-        staffId: staff.id,
-        stationName: staff.stationName || "",
-        lastActive: serverTimestamp(),
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    // heartbeat
-    interval = setInterval(async () => {
-      try {
-        await setDoc(
-          doc(db, "staffSessions", sessionId),
-          {
-            lastActive: serverTimestamp(),
-          },
-          { merge: true }
+      const staff =
+        await StorageService.get(
+          "currentStaff"
         );
-      } catch (err) {
-        console.error("Heartbeat error:", err);
+
+      const sessionId =
+        await StorageService.get(
+          "sessionId"
+        );
+
+      const token =
+        await StorageService.get(
+          "staffToken"
+        );
+
+      if (
+        !staff ||
+        !sessionId ||
+        !token
+      ) {
+
+        console.error(
+          "Missing heartbeat data"
+        );
+
+        return;
       }
-    }, 10000);
-  };
+
+      const sendHeartbeat =
+        async () => {
+
+          try {
+
+            await fetch(
+              "https://idiko.onrender.com/staff/heartbeat",
+              {
+                method: "POST",
+
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+
+                  "Content-Type":
+                    "application/json",
+                },
+
+                body: JSON.stringify({
+                  sessionId,
+                  staffId:
+                    staff.id,
+
+                  stationName:
+                    staff.stationName ||
+                    "",
+                }),
+              }
+            );
+
+          } catch (err) {
+
+            console.error(
+              "Heartbeat error",
+              err
+            );
+
+          }
+
+        };
+
+      await sendHeartbeat();
+
+      interval =
+        setInterval(
+          sendHeartbeat,
+          10000
+        );
+
+    };
 
   startHeartbeat();
 
   return () => {
-    if (interval) clearInterval(interval);
+
+    if (interval) {
+
+      clearInterval(
+        interval
+      );
+
+    }
+
   };
+
 }, []);
   // ✅ Logout now only clears local storage
  const handleLogout = async () => {
@@ -96,7 +150,7 @@ const StaffDashboard = () => {
   try {
 
     const token =
-      localStorage.getItem("staffToken");
+      StorageService.get("staffToken")
 
     if (token) {
 

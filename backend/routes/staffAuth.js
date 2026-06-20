@@ -192,4 +192,74 @@ router.post(
   }
 );
 
+// =========================
+// STAFF HEARTBEAT
+// =========================
+
+router.post(
+  "/heartbeat",
+  verifyStaffToken,
+  async (req, res) => {
+
+    try {
+
+      const {
+        sessionId,
+        staffId,
+        stationName,
+      } = req.body;
+
+      if (
+        !sessionId ||
+        !staffId
+      ) {
+
+        return res.status(400).json({
+          success: false,
+          error: "Missing session data",
+        });
+
+      }
+
+      await admin
+        .firestore()
+        .collection("staffSessions")
+        .doc(sessionId)
+        .set(
+          {
+            sessionId,
+            staffId,
+            stationName:
+              stationName || "",
+            lastActive:
+              admin.firestore.FieldValue.serverTimestamp(),
+            createdAt:
+              admin.firestore.FieldValue.serverTimestamp(),
+          },
+          {
+            merge: true,
+          }
+        );
+
+      return res.json({
+        success: true,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Heartbeat failed",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+      });
+
+    }
+
+  }
+);
+
+
 module.exports = router;
