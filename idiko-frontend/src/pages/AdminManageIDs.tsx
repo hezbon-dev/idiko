@@ -62,7 +62,7 @@ useEffect(() => {
   const interval =
     setInterval(
       loadRecords,
-      30000
+      1000
     );
 
   return () =>

@@ -183,7 +183,7 @@ const toggleMaintenanceMode =
   const interval =
     setInterval(
       loadActiveStaff,
-      30000
+      1000
     );
 
   return () =>
@@ -262,7 +262,7 @@ useEffect(() => {
   const interval =
     setInterval(
       loadStats,
-      30000
+      1000
     );
 
   return () =>
