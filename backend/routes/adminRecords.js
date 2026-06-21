@@ -443,6 +443,82 @@ router.get(
 );
 
 // =========================
+// PUBLIC PICKUP STATIONS
+// =========================
+
+router.get(
+  "/public-pickup-stations",
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const docSnap =
+        await db
+          .collection("appStorage")
+          .doc("pickupStations")
+          .get();
+
+      const stations =
+        docSnap.exists
+          ? docSnap.data().value || []
+          : [];
+
+      const publicStations =
+        stations.map(station => ({
+
+          stationName:
+            station.stationName,
+
+          location:
+            station.location,
+
+          phone1:
+            station.phone1,
+
+          phone2:
+            station.phone2,
+
+          gps:
+            station.gps,
+
+          enabled:
+            station.enabled,
+
+        }));
+
+      return res.json({
+
+        success: true,
+
+        stations:
+          publicStations,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Public stations failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
 // GET PICKUP STATIONS
 // =========================
 

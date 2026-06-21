@@ -40,7 +40,7 @@ export default function NotifyMe() {
 
       ...form,
 
-      fullName: form.fullName.trim().toUpperCase(),
+      fullName: form.fullName.trim().toLowerCase(),
       idNumber: form.idNumber.replace(/\s+/g, ""),
       primaryPhone: form.primaryPhone.replace(/\s+/g, ""),
       secondaryPhone: form.secondaryPhone.replace(/\s+/g, ""),
