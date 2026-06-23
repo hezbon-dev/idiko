@@ -132,6 +132,11 @@ payments.forEach((payment) => {
     try {
       fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
 
+      console.log("🔥 PAYMENT FILE AFTER SAVE:");
+      console.log(
+      fs.readFileSync(FILE_PATH, "utf8")
+);
+
       console.log("✅ PAYMENT SAVED");
       console.log("📂 FILE PATH:", FILE_PATH);
       console.log("📦 SAVED RECORD:", paymentRecord);
