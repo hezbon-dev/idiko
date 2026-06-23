@@ -434,10 +434,6 @@ function getPaymentStatus(req, res) {
   p => p.accountReference === checkoutRequestID
 );
 
-const matchingPayments = payments.filter(
-  p => p.accountReference === checkoutRequestID
-);
-
 console.log("🔥 STATUS REQUEST FOR:", checkoutRequestID);
 
 console.log("🔥 PAYMENTS FILE CONTENT:");
