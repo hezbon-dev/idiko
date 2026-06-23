@@ -51,7 +51,11 @@ function normalizeDate(dob?: string): string {
 }
 
 export default function ClaimedIDDetails() {
+console.log("🔥 CLAIMED ID DETAILS PAGE LOADED");
+
   const { idNumber } = useParams<{ idNumber: string }>();
+
+  console.log("🔥 URL ID:", idNumber);
 
   const { records } = useRecords();
   const { stations } = usePickupStations();
@@ -71,6 +75,8 @@ export default function ClaimedIDDetails() {
   const record = records.find(
     (r) => normalizeId(r.idNumber) === normalizeId(idNumber)
   );
+
+  console.log("🔥 RECORD FOUND:", record);
 
   // 🔹 DEBUG: field-by-field mismatch logging
   if (record) {

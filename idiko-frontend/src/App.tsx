@@ -52,19 +52,29 @@ function ProtectedClaimedRoute() {
   const { idNumber } = useParams();
   const [allowed, setAllowed] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    async function checkPayment() {
-      try {
-        const res = await axios.get(
-  `https://idiko.onrender.com/mpesa/status/${idNumber}`
-);
-        setAllowed(res.data.status === "paid");
-      } catch {
-        setAllowed(false);
-      }
+ useEffect(() => {
+  async function checkPayment() {
+
+    console.log("🔥 ROUTE CHECKING ID:", idNumber);
+
+    try {
+      const res = await axios.get(
+        `https://idiko.onrender.com/mpesa/status/${idNumber}`
+      );
+
+      console.log("🔥 STATUS RESPONSE:", res.data);
+
+      setAllowed(res.data.status === "paid");
+    } catch (err) {
+
+      console.log("🔥 STATUS REQUEST FAILED:", err);
+
+      setAllowed(false);
     }
-    checkPayment();
-  }, [idNumber]);
+  }
+
+  checkPayment();
+}, [idNumber]);
 
   if (allowed === null) {
     return <h2 style={{ color: "white", textAlign: "center" }}></h2>;

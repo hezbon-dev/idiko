@@ -434,6 +434,18 @@ function getPaymentStatus(req, res) {
   p => p.accountReference === checkoutRequestID
 );
 
+const matchingPayments = payments.filter(
+  p => p.accountReference === checkoutRequestID
+);
+
+console.log("🔥 STATUS REQUEST FOR:", checkoutRequestID);
+
+console.log("🔥 PAYMENTS FILE CONTENT:");
+console.log(JSON.stringify(payments, null, 2));
+
+console.log("🔥 MATCHING PAYMENTS:");
+console.log(JSON.stringify(matchingPayments, null, 2));
+
 // ✅ PAID HAS HIGHEST PRIORITY
 
 const paidPayment = matchingPayments.find(

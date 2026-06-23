@@ -62,6 +62,9 @@ function normalizeSex(value?: string): string {
 
 export default function FindMyID() {
   const { records } = useRecords();
+
+  console.log("TOTAL RECORDS LOADED:", records.length);
+
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -147,12 +150,22 @@ export default function FindMyID() {
     );
 
     if (found) {
+
+  console.log("=================================");
+  console.log("FOUND RECORD:", found);
+  console.log("FOUND STATUS:", found.status);
+  console.log("FOUND ID:", found.idNumber);
+  console.log("=================================");
+
       if (found.status.toLowerCase() === "paid") {
         navigate(`/claimed/${found.idNumber}`);
       } else {
         navigate(`/payment/${found.idNumber}`);
       }
     } else {
+
+      console.log("❌ NO MATCHING RECORD FOUND");
+
       navigate("/notify-me", { state: { formData } });
     }
   };

@@ -50,38 +50,45 @@ export const PickupStationProvider: React.FC<{ children: React.ReactNode }> = ({
 }, []);
 
   // ✅ NEW — prevents overwriting Firebase on first render
-  useEffect(() => {
+useEffect(() => {
 
   const loadStations = async () => {
 
     try {
 
       const token =
-    localStorage.getItem(
-    "idiko_admin_token"
-  );
-
-if (!token) {
-  return;
-}
-
-      const response =
-        await fetch(
-          `${API_URL}/admin/pickup-stations`,
-          {
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-            },
-          }
+        localStorage.getItem(
+          "idiko_admin_token"
         );
+
+      let response;
+
+      if (token) {
+
+        response =
+          await fetch(
+            `${API_URL}/admin/pickup-stations`,
+            {
+              headers: {
+                Authorization:
+                  `Bearer ${token}`,
+              },
+            }
+          );
+
+      } else {
+
+        response =
+          await fetch(
+            `${API_URL}/admin/public-pickup-stations`
+          );
+
+      }
 
       const data =
         await response.json();
 
-      if (
-        data.success
-      ) {
+      if (data.success) {
 
         setStations(
           data.stations || []
