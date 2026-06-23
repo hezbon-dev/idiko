@@ -407,6 +407,11 @@ function getPaymentStatus(req, res) {
   let payments = [];
 
   try {
+   console.log(
+  "🔥 FULL FILE PATH:",
+  FILE_PATH
+);
+
     const fileData = fs.readFileSync(FILE_PATH, "utf8");
 
     payments =
