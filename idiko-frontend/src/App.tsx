@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useRecords } from "./context/RecordContext";
+
 
 // Context Providers
 import { IDProvider } from "./context/IDContext";
@@ -50,37 +50,47 @@ import { ProtectedRoute } from "./routes/ProtectedRoute";
  */
 function ProtectedClaimedRoute() {
   const { idNumber } = useParams();
-  const [allowed, setAllowed] = useState<boolean | null>(null);
 
- useEffect(() => {
-  async function checkPayment() {
+  const { records } = useRecords();
 
-    console.log("🔥 ROUTE CHECKING ID:", idNumber);
+  const record = records.find(
+  (r) => r.idNumber === idNumber
+);
 
-    try {
-      const res = await axios.get(
-        `https://idiko.onrender.com/mpesa/status/${idNumber}`
-      );
+console.log(
+  "🔥 FIRESTORE RECORD:",
+  record
+);
 
-      console.log("🔥 STATUS RESPONSE:", res.data);
+console.log(
+  "🔥 RECORDS LOADED:",
+  records.length
+);
 
-      setAllowed(res.data.status === "paid");
-    } catch (err) {
+// Wait for Firestore snapshot to load
+if (records.length === 0) {
+  return <h2></h2>;
+}
 
-      console.log("🔥 STATUS REQUEST FAILED:", err);
+if (!record) {
+  return (
+    <Navigate
+      to={`/payment/${idNumber}`}
+      replace
+    />
+  );
+}
+  const allowed =
+    record.status === "Paid";
 
-      setAllowed(false);
-    }
-  }
+  console.log(
+    "🔥 FIRESTORE STATUS:",
+    record.status
+  );
 
-  checkPayment();
-}, [idNumber]);
-
-  if (allowed === null) {
-    return <h2 style={{ color: "white", textAlign: "center" }}></h2>;
-  }
-
-  return allowed ? <ClaimedIDDetails /> : <Navigate to={`/payment/${idNumber}`} replace />;
+  return allowed
+    ? <ClaimedIDDetails />
+    : <Navigate to={`/payment/${idNumber}`} replace />;
 }
 
 
