@@ -119,4 +119,60 @@ router.post("/find-id", async (req, res) => {
   }
 });
 
+router.get("/record/:idNumber", async (req, res) => {
+
+  if (!db) {
+    return res.status(500).json({
+      success: false,
+      error: "Database unavailable",
+    });
+  }
+
+  try {
+
+    const requestedId =
+      normalizeId(req.params.idNumber);
+
+    const snapshot =
+      await db.collection("records").get();
+
+    const records =
+      snapshot.docs.map(doc => doc.data());
+
+    const record =
+      records.find(r =>
+        normalizeId(r.idNumber) ===
+        requestedId
+      );
+
+    if (!record) {
+
+      return res.json({
+        success: false,
+        found: false,
+      });
+
+    }
+
+    return res.json({
+      success: true,
+      found: true,
+      record,
+    });
+
+  } catch (err) {
+
+    console.error(
+      "record lookup error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+    });
+
+  }
+
+});
+
 module.exports = router;
