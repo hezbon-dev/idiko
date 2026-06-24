@@ -136,16 +136,22 @@ const trashRef =
         where("pickupStation", "==", stationKey)
       );
 
-const unsubRecords = onSnapshot(
-  recordsRef,
-  snap => {
-    setRecords(
-      snap.docs.map(
-        d => d.data() as RecordType
-      )
-    );
-  }
-);
+let unsubRecords = () => {};
+
+if (user === "admin" || user === "staff") {
+  unsubRecords = onSnapshot(
+    recordsRef,
+    snap => {
+      setRecords(
+        snap.docs.map(
+          d => d.data() as RecordType
+        )
+      );
+    }
+  );
+} else {
+  setRecords([]);
+}
 
 const unsubHistory = onSnapshot(
   historyRef,

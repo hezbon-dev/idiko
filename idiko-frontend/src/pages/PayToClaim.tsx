@@ -104,9 +104,11 @@ export default function PayToClaim({}: PayToClaimProps) {
             clearTimeout(timeoutRef.current);
   }
 
-            setMessage("✅ Payment successful! Redirecting...");
+  setMessage("✅ Payment successful! Redirecting...");
 
-            navigate(`/claimed/${state.idNumber}`);
+setTimeout(() => {
+  navigate(`/claimed/${state.idNumber}`);
+}, 1000);
 }
 
 

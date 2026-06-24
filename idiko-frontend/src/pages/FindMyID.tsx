@@ -1,7 +1,5 @@
 // src/pages/FindMyID.tsx
-
 import { useState } from "react";
-import { useRecords } from "../context/RecordContext";
 import { useNavigate, Link } from "react-router-dom";
 
 // Reuse normalization functions exactly like in RecordContext
@@ -61,9 +59,7 @@ function normalizeSex(value?: string): string {
 }
 
 export default function FindMyID() {
-  const { records } = useRecords();
-
-  console.log("TOTAL RECORDS LOADED:", records.length);
+ 
 
   const navigate = useNavigate();
 
@@ -110,7 +106,7 @@ export default function FindMyID() {
     [name]: value,
   });
 };
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!formData.fullName || !formData.idNumber || !formData.dob || !formData.sex || !formData.district) {
       setError("⚠️ Please fill in all fields before searching.");
       return;
@@ -128,46 +124,82 @@ export default function FindMyID() {
     });
 
     // ✅ DEBUG: check each record for mismatches
-    records.forEach((rec) => {
-      const mismatches = [];
-      if (normalizeText(rec.fullName) !== normalizeText(formData.fullName)) mismatches.push("fullName");
-      if (normalizeId(rec.idNumber) !== normalizeId(formData.idNumber)) mismatches.push("idNumber");
-      if (normalizeDate(rec.dob) !== normalizeDate(formData.dob)) mismatches.push("dob");
-      if (normalizeSex(rec.sex) !== normalizeSex(formData.sex)) mismatches.push("sex");
-      if (normalizeText(rec.district) !== normalizeText(formData.district)) mismatches.push("district");
+try {
 
-      if (mismatches.length) {
-        console.log(`Record ${rec.idNumber} mismatches:`, mismatches);
+  const response =
+    await fetch(
+      `${import.meta.env.VITE_API_URL}/api/find-id`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          fullName:
+            formData.fullName,
+
+          idNumber:
+            formData.idNumber,
+
+          dob:
+            formData.dob,
+
+          sex:
+            formData.sex,
+
+          district:
+            formData.district,
+        }),
       }
-    });
-
-    const found = records.find((rec) =>
-      normalizeText(rec.fullName) === normalizeText(formData.fullName) &&
-      normalizeId(rec.idNumber) === normalizeId(formData.idNumber) &&
-      normalizeDate(rec.dob) === normalizeDate(formData.dob) &&
-      normalizeSex(rec.sex) === normalizeSex(formData.sex) &&
-      normalizeText(rec.district) === normalizeText(formData.district)
     );
 
-    if (found) {
+  const data =
+    await response.json();
 
-  console.log("=================================");
-  console.log("FOUND RECORD:", found);
-  console.log("FOUND STATUS:", found.status);
-  console.log("FOUND ID:", found.idNumber);
-  console.log("=================================");
+  if (data.found) {
 
-      if (found.status.toLowerCase() === "paid") {
-        navigate(`/claimed/${found.idNumber}`);
-      } else {
-        navigate(`/payment/${found.idNumber}`);
-      }
+    if (
+      String(data.status)
+        .toLowerCase() === "paid"
+    ) {
+
+      navigate(
+        `/claimed/${data.idNumber}`
+      );
+
     } else {
 
-      console.log("❌ NO MATCHING RECORD FOUND");
+      navigate(
+        `/payment/${data.idNumber}`
+      );
 
-      navigate("/notify-me", { state: { formData } });
     }
+
+  } else {
+
+    navigate(
+      "/notify-me",
+      {
+        state: {
+          formData,
+        },
+      }
+    );
+
+  }
+
+} catch (err) {
+
+  console.error(err);
+
+  setError(
+    "Search failed. Please try again."
+  );
+
+}
   };
 
   const containerStyle: React.CSSProperties = {

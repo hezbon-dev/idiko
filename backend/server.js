@@ -70,6 +70,10 @@ const adminAuthRoutes = require("./routes/adminAuth");
 const staffAuthRoutes = require("./routes/staffAuth");
 const adminRecordsRoutes = require("./routes/adminRecords");
 const userRoutes = require("./routes/userRoutes");
+
+// ✅ NEW
+const findMyIDRoutes = require("./routes/findMyID");
+
 const app = express();
 
 // ✅ REQUIRED FOR RENDER + EXPRESS-RATE-LIMIT
@@ -94,6 +98,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // ✅ REGISTER OCR ROUTE
 app.use("/api/ocr", ocrRoutes);
+
+// ✅ NEW FIND MY ID API
+app.use("/api", findMyIDRoutes);
 
 // 🔐 ADMIN AUTH ROUTES
 app.use("/admin", adminAuthRoutes);
