@@ -1,24 +1,62 @@
 // src/pages/Payment.tsx
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useRecords } from "../context/RecordContext";
 import { useState, useEffect } from "react";
 
 export default function Payment() {
-  const { idNumber } = useParams();
-  const { records } = useRecords(); // ❌ updateRecordStatus REMOVED
-  const navigate = useNavigate();
-
-  const record = records.find((r) => r.idNumber === idNumber);
-
-  const [zoomImage, setZoomImage] = useState<string | null>(null);
+const { idNumber } = useParams();
+const navigate = useNavigate();
+const [record, setRecord] = useState<any>(null);
+const [loading, setLoading] = useState(true);
+const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   // ⚠️ IMPORTANT:
   // Frontend no longer decides if payment is done.
   // Any "already paid" redirect MUST be handled by backend-protected routes.
-  useEffect(() => {
-    // intentionally left blank to avoid frontend-based payment decisions
-  }, []);
+ useEffect(() => {
 
+  async function loadRecord() {
+
+    try {
+
+      const response =
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/api/record/${idNumber}`
+        );
+
+      const data =
+        await response.json();
+
+      if (
+        data.success &&
+        data.found
+      ) {
+
+        setRecord(
+          data.record
+        );
+
+      }
+
+    } catch (err) {
+
+      console.error(
+        "Failed to load record:",
+        err
+      );
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }
+
+  if (idNumber) {
+    loadRecord();
+  }
+
+}, [idNumber]);
   const containerStyle: React.CSSProperties = {
     color: "white",
     minHeight: "100vh",
@@ -93,6 +131,22 @@ export default function Payment() {
       },
     });
   };
+
+if (loading) {
+
+  return (
+    <div
+      style={{
+        color: "white",
+        padding: "40px",
+        textAlign: "center",
+      }}
+    >
+      Loading...
+    </div>
+  );
+
+}
 
   return (
     <div style={containerStyle}>
