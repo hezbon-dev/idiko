@@ -1,10 +1,9 @@
 // src/pages/AdminTrash.tsx
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useRecords } from "../context/RecordContext";
 
 export default function AdminTrash() {
-useRecords();
+
 
   const [trash, setTrash] =useState<any[]>([]);
   const [search, setSearch] = useState("");

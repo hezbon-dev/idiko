@@ -1,9 +1,7 @@
 // src/pages/ClaimedIDDetails.tsx
 
 import { useParams, Link } from "react-router-dom";
-import { useState } from "react";
-
-import { useRecords } from "../context/RecordContext";
+import { useState, useEffect } from "react";
 import { usePickupStations } from "../context/PickupStationContext";
 
 // 🔹 more robust normalizeId helper
@@ -51,32 +49,100 @@ function normalizeDate(dob?: string): string {
 }
 
 export default function ClaimedIDDetails() {
+
 console.log("🔥 CLAIMED ID DETAILS PAGE LOADED");
 
-  const { idNumber } = useParams<{ idNumber: string }>();
+  const { idNumber } =
+  useParams<{ idNumber: string }>();
 
-  console.log("🔥 URL ID:", idNumber);
+console.log(
+  "🔥 URL ID:",
+  idNumber
+);
 
-  const { records } = useRecords();
-  const { stations } = usePickupStations();
+console.log(
+  "🔥 API URL:",
+  import.meta.env.VITE_API_URL
+);
 
-  // 🔹 DEBUG: log all records normalized IDs
-  console.log("Normalized input idNumber:", normalizeId(idNumber));
-  records.forEach((r) => {
-    console.log(
-      "Record normalized id:",
-      normalizeId(r.idNumber),
-      "original id:",
-      r.idNumber
-    );
-  });
+const { stations } =
+  usePickupStations();
 
-  // ✅ Updated to use normalized idNumber for reliable search
-  const record = records.find(
-    (r) => normalizeId(r.idNumber) === normalizeId(idNumber)
-  );
+const [record, setRecord] =
+  useState<any>(null);
 
-  console.log("🔥 RECORD FOUND:", record);
+const [loading, setLoading] =
+  useState(true);
+
+useEffect(() => {
+
+  if (!idNumber) {
+    setLoading(false);
+    return;
+  }
+
+  const loadRecord =
+    async () => {
+
+      try {
+
+        const apiUrl =
+  `${import.meta.env.VITE_API_URL}/api/record/${idNumber}`;
+
+console.log(
+  "🔥 FETCHING:",
+  apiUrl
+);
+
+const response =
+  await fetch(apiUrl);
+
+console.log(
+  "🔥 RESPONSE STATUS:",
+  response.status
+);
+
+const data =
+  await response.json();
+
+console.log(
+  "🔥 RESPONSE DATA:",
+  data
+);
+
+        console.log(
+          "🔥 CLAIMED RECORD RESPONSE:",
+          data
+        );
+
+        if (
+          data.success &&
+          data.record
+        ) {
+
+          setRecord(
+            data.record
+          );
+
+        }
+
+      } catch (err) {
+
+        console.error(
+          err
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+  loadRecord();
+
+}, [idNumber]);
 
   // 🔹 DEBUG: field-by-field mismatch logging
   if (record) {
@@ -105,6 +171,28 @@ console.log("🔥 CLAIMED ID DETAILS PAGE LOADED");
   }
 
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  if (loading) {
+
+  return (
+
+    <div
+      style={{
+        color: "white",
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+
+      Loading...
+
+    </div>
+
+  );
+
+}
 
   // safe station lookup
   const station = stations.find(

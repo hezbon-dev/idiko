@@ -1,4 +1,4 @@
-// src/pages/ClaimedIDDetails.tsx
+// src/pages/RecordDetailsDetails.tsx
 import { useParams, Link } from "react-router-dom";
 import { useRecords } from "../context/RecordContext";
 import { useState } from "react";

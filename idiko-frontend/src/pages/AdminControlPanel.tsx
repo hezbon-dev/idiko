@@ -1,7 +1,6 @@
 // src/pages/AdminControlPanel.tsx
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useRecords } from "../context/RecordContext";
 import { usePickupStations } from "../context/PickupStationContext";
 import { useMaintenance } from "../context/MaintenanceContext";
 
@@ -9,7 +8,7 @@ import { useMaintenance } from "../context/MaintenanceContext";
 type PeriodOption = "All" | "Custom" | "Yesterday" | "LastMonth" | "LastYear";
 
 export default function AdminControlPanel() {
-useRecords();
+
   const { stations } = usePickupStations();
   const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
 

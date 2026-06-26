@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from "react-router-dom";
-import { useRecords } from "./context/RecordContext";
+import {BrowserRouter as Router,Routes,Route,Navigate,useParams,} from "react-router-dom";
+import React from "react";
 
 
 // Context Providers
@@ -45,54 +45,92 @@ import AdminControlPanel from "./pages/AdminControlPanel";
 // Auth + ProtectedRoute
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
-/**
- * 🔒 Route Guard: Only allow access if backend confirms payment
- */
 function ProtectedClaimedRoute() {
   const { idNumber } = useParams();
 
-  const { records } = useRecords();
+  const [loading, setLoading] =
+    React.useState(true);
 
-  const record = records.find(
-  (r) => r.idNumber === idNumber
-);
+  const [allowed, setAllowed] =
+    React.useState(false);
 
-console.log(
-  "🔥 FIRESTORE RECORD:",
-  record
-);
+  React.useEffect(() => {
 
-console.log(
-  "🔥 RECORDS LOADED:",
-  records.length
-);
+    if (!idNumber) {
+      setLoading(false);
+      return;
+    }
 
-// Wait for Firestore snapshot to load
-if (records.length === 0) {
-  return <h2></h2>;
-}
+    const checkRecord =
+      async () => {
 
-if (!record) {
-  return (
-    <Navigate
-      to={`/payment/${idNumber}`}
-      replace
-    />
-  );
-}
-  const allowed =
-    record.status === "Paid";
+        try {
 
-  console.log(
-    "🔥 FIRESTORE STATUS:",
-    record.status
-  );
+          const response =
+            await fetch(
+              `${import.meta.env.VITE_API_URL}/api/record/${idNumber}`
+            );
+
+          const data =
+            await response.json();
+
+          console.log(
+            "🔥 PAYMENT CHECK:",
+            data
+          );
+
+          if (
+            data.success &&
+            data.record &&
+            data.record.status === "Paid"
+          ) {
+            setAllowed(true);
+          }
+
+        } catch (err) {
+
+          console.error(
+            "🔥 PAYMENT CHECK ERROR:",
+            err
+          );
+
+        } finally {
+
+          setLoading(false);
+
+        }
+
+      };
+
+    checkRecord();
+
+  }, [idNumber]);
+
+  if (loading) {
+
+    return (
+      <div
+        style={{
+          color: "white",
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        Loading...
+      </div>
+    );
+
+  }
 
   return allowed
     ? <ClaimedIDDetails />
-    : <Navigate to={`/payment/${idNumber}`} replace />;
+    : <Navigate
+        to={`/payment/${idNumber}`}
+        replace
+      />;
 }
-
 
 function AppContent() {
 
