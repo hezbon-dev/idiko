@@ -296,7 +296,7 @@ loadNotifyRequests();
 
   /* ================= FUNCTIONS ================= */
 
-  const addRecord = (record: RecordType) => {
+  const addRecord = async (record: RecordType) => {
     const normalizedRecord = {
       ...record,
       fullName: normalizeText(record.fullName),
@@ -311,8 +311,10 @@ loadNotifyRequests();
     .toLowerCase()
     };
 
-    saveToCollection("records", normalizedRecord);
-    saveToCollection("allHistoryRecords", normalizedRecord);
+   await RecordService.createRecord(
+  normalizedRecord
+);
+
   };
 
   const moveToTrash = async (record: RecordType) => {

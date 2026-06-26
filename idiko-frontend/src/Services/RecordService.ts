@@ -50,9 +50,32 @@ export const RecordService = {
 
   },
 
-  async createRecord() {
-    throw new Error("createRecord() not implemented yet");
-  },
+async createRecord(record: any) {
+
+  const response =
+    await fetch(
+      `${API_URL}/admin/records`,
+      {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          record,
+        }),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      "Failed to create record"
+    );
+
+  }
+
+},
 
   async updateRecordStatus() {
     throw new Error("updateRecordStatus() not implemented yet");
