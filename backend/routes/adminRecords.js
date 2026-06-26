@@ -48,6 +48,129 @@ router.get(
 );
 
 // =========================
+// CREATE RECORD
+// =========================
+
+router.post(
+  "/records",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const { record } =
+        req.body;
+
+      if (!record) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          error: "Record missing",
+
+        });
+
+      }
+
+      await db
+        .collection("records")
+        .doc(record.idNumber)
+        .set(record);
+
+      await db
+        .collection("allHistoryRecords")
+        .doc(record.idNumber)
+        .set(record);
+
+      return res.json({
+
+        success: true,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Create record failed:",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          error: "Failed to create record",
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
+// GET HISTORY RECORDS
+// =========================
+
+router.get(
+  "/history-records",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const db =
+        admin.firestore();
+
+      const snapshot =
+        await db
+          .collection("allHistoryRecords")
+          .get();
+
+      const records =
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+      return res.json({
+
+        success: true,
+
+        records,
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Failed to load history records",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+          error:
+            "Failed to load history records",
+
+        });
+
+    }
+
+  }
+);
+
+// =========================
 // MOVE RECORD TO TRASH
 // =========================
 
@@ -891,5 +1014,229 @@ router.get(
   }
 );
 
+// =========================
+// GET HISTORY RECORDS
+// =========================
+
+router.get(
+  "/history-records",
+  verifyAdminToken,
+  async (req, res) => {
+
+    try {
+
+      const snapshot =
+        await admin
+          .firestore()
+          .collection("allHistoryRecords")
+          .get();
+
+      const records =
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+      return res.json({
+        success: true,
+        records,
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      return res.status(500).json({
+        success:false,
+      });
+
+    }
+
+  }
+);
+
+// =========================
+// CREATE RECORD
+// =========================
+
+router.post(
+  "/records",
+  verifyAdminToken,
+  async (req,res)=>{
+
+    try{
+
+      const record=req.body.record;
+
+      if(!record){
+
+        return res.status(400).json({
+          success:false
+        });
+
+      }
+
+      const db=admin.firestore();
+
+      await db
+        .collection("records")
+        .doc(record.idNumber)
+        .set(record);
+
+      await db
+        .collection("allHistoryRecords")
+        .doc(record.idNumber)
+        .set(record);
+
+      return res.json({
+        success:true
+      });
+
+    }
+
+    catch(err){
+
+      console.error(err);
+
+      return res.status(500).json({
+        success:false
+      });
+
+    }
+
+  }
+);
+
+// =========================
+// UPDATE RECORD STATUS
+// =========================
+
+router.put(
+  "/records/status",
+  verifyAdminToken,
+  async(req,res)=>{
+
+    try{
+
+      const {idNumber,status}=req.body;
+
+      await admin
+        .firestore()
+        .collection("records")
+        .doc(idNumber)
+        .set(
+          {
+            status,
+          },
+          {
+            merge:true,
+          }
+        );
+
+      return res.json({
+        success:true,
+      });
+
+    }
+
+    catch(err){
+
+      console.error(err);
+
+      return res.status(500).json({
+        success:false,
+      });
+
+    }
+
+  }
+);
+
+// =========================
+// CREATE NOTIFY REQUEST
+// =========================
+
+router.post(
+  "/notify-requests",
+  async(req,res)=>{
+
+    try{
+
+      const request=req.body.request;
+
+      if(!request){
+
+        return res.status(400).json({
+          success:false,
+        });
+
+      }
+
+      await admin
+        .firestore()
+        .collection("notify_requests")
+        .doc(request.id || request.idNumber)
+        .set(request);
+
+      return res.json({
+        success:true,
+      });
+
+    }
+
+    catch(err){
+
+      console.error(err);
+
+      return res.status(500).json({
+        success:false,
+      });
+
+    }
+
+  }
+);
+
+// =========================
+// UPDATE NOTIFY REQUEST
+// =========================
+
+router.put(
+  "/notify-requests/:id",
+  async(req,res)=>{
+
+    try{
+
+      const {id}=req.params;
+
+      await admin
+        .firestore()
+        .collection("notify_requests")
+        .doc(id)
+        .set(
+          req.body,
+          {
+            merge:true,
+          }
+        );
+
+      return res.json({
+        success:true,
+      });
+
+    }
+
+    catch(err){
+
+      console.error(err);
+
+      return res.status(500).json({
+        success:false,
+      });
+
+    }
+
+  }
+);
 
 module.exports = router;

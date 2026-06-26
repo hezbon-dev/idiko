@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { db } from "../firebase";
-import { collection, onSnapshot, doc, setDoc, deleteDoc,query,where } from "firebase/firestore";
+import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
 import { StorageService } from "../Services/StorageService";
+import { RecordService } from "../Services/RecordService";
 
 /* ================= TYPES ================= */
 export type RecordType = {
@@ -112,83 +113,124 @@ useEffect(() => {
 
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {
-    const recordsRef =
-  user === "admin" || !stationKey
-    ? collection(db, "records")
-    : query(
-        collection(db, "records"),
-        where("pickupStation", "==", stationKey)
-      );
 
-const historyRef =
-  user === "admin" || !stationKey
-    ? collection(db, "allHistoryRecords")
-    : query(
-        collection(db, "allHistoryRecords"),
-        where("pickupStation", "==", stationKey)
-      );
 
-const trashRef =
-  user === "admin" || !stationKey
-    ? collection(db, "trash")
-    : query(
-        collection(db, "trash"),
-        where("pickupStation", "==", stationKey)
-      );
 
-let unsubRecords = () => {};
+   const loadRecords = async () => {
 
-if (user === "admin" || user === "staff") {
-  unsubRecords = onSnapshot(
-    recordsRef,
-    snap => {
-      setRecords(
-        snap.docs.map(
-          d => d.data() as RecordType
-        )
-      );
-    }
-  );
-} else {
-  setRecords([]);
-}
+  if (user !== "admin") {
 
-const unsubHistory = onSnapshot(
-  historyRef,
-  snap => {
-    setAllHistoryRecords(
-      snap.docs.map(
-        d => d.data() as RecordType
-      )
-    );
+    return;
+
   }
-);
 
-const unsubTrash = onSnapshot(
-  trashRef,
-  snap => {
-    setTrash(
-      snap.docs.map(
-        d => d.data() as RecordType
-      )
-    );
-  }
-);
+  try {
 
-const unsubNotifyReq = onSnapshot(
-  collection(db, "notify_requests"),
-  snap => {
-    setNotifyRequests(
-      snap.docs.map(d => d.data() as NotifyRequestType)
+    const records =
+      await RecordService.getRecords();
+
+    setRecords(records);
+
+  } catch (err) {
+
+    console.error(
+      "Failed to load records",
+      err
     );
+
   }
-);
+
+};
+
+loadRecords();   
+
+const loadHistory = async () => {
+
+  if (user !== "admin") {
+
+    return;
+
+  }
+
+  try {
+
+    const history =
+      await RecordService.getHistoryRecords();
+
+    setAllHistoryRecords(history);
+
+  } catch (err) {
+
+    console.error(
+      "Failed to load history",
+      err
+    );
+
+  }
+
+};
+
+loadHistory();
+
+const loadTrash = async () => {
+
+  if (user !== "admin") {
+
+    return;
+
+  }
+
+  try {
+
+    const trash =
+      await RecordService.getTrashRecords();
+
+    setTrash(trash);
+
+  } catch (err) {
+
+    console.error(
+      "Failed to load trash",
+      err
+    );
+
+  }
+
+};
+
+loadTrash();
+
+const loadNotifyRequests = async () => {
+
+  if (user !== "admin") {
+
+    return;
+
+  }
+
+  try {
+
+    const requests =
+      await RecordService.getNotifyRequests();
+
+    setNotifyRequests(requests);
+
+  } catch (err) {
+
+    console.error(
+      "Failed to load notify requests",
+      err
+    );
+
+  }
+
+};
+
+loadNotifyRequests();
 
     return () => {
-      unsubRecords();
-      unsubHistory();
-      unsubTrash();
-      unsubNotifyReq();
+      
+      
     };
   }, [stationKey]);
 
