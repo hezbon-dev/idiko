@@ -392,4 +392,54 @@ router.post(
 );
 
 
+// =========================
+// GET STAFF RECORDS
+// =========================
+
+router.get(
+  "/records",
+  verifyStaffToken,
+  async (req, res) => {
+
+    try {
+
+      const snapshot =
+        await admin
+          .firestore()
+          .collection("records")
+          .where(
+            "stationId",
+            "==",
+            req.staff.stationId
+          )
+          .get();
+
+      const records =
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+      return res.json({
+        success: true,
+        records,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Load staff records failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load records",
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;
