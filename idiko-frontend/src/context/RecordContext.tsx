@@ -116,22 +116,39 @@ useEffect(() => {
 
 
 
-   const loadRecords = async () => {
-
-  if (user !== "admin") {
-
-    return;
-
-  }
+const loadRecords = async () => {
 
   try {
 
-    const records =
-      await RecordService.getRecords();
+    let loadedRecords = [];
 
-    setRecords(records);
+    if (user === "admin") {
 
-  } catch (err) {
+      loadedRecords =
+        await RecordService.getRecords();
+
+    }
+
+    else if (user === "staff") {
+
+      loadedRecords =
+        await RecordService.getStaffRecords();
+
+    }
+
+    else {
+
+      return;
+
+    }
+
+    setRecords(
+      loadedRecords
+    );
+
+  }
+
+  catch (err) {
 
     console.error(
       "Failed to load records",

@@ -1,6 +1,7 @@
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://idiko.onrender.com";
+import { StorageService }from "./StorageService";
+
+
+const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
 
 const getHeaders = () => {
   const token = localStorage.getItem(
@@ -50,6 +51,42 @@ export const RecordService = {
 
   },
 
+async getStaffRecords() {
+
+  const token =
+    await StorageService.get(
+      "staffToken"
+    );
+
+  const response =
+    await fetch(
+      `${API_URL}/staff/records`,
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      "Failed to load staff records"
+    );
+
+  }
+
+  return data.records;
+
+},
+
 async createRecord(record: any) {
 
   const response =
@@ -81,9 +118,34 @@ async createRecord(record: any) {
     throw new Error("updateRecordStatus() not implemented yet");
   },
 
-  async moveToTrash() {
-    throw new Error("moveToTrash() not implemented yet");
-  },
+  async moveToTrash(record: any) {
+
+  const response =
+    await fetch(
+      `${API_URL}/admin/move-to-trash`,
+      {
+        method: "POST",
+
+        headers: getHeaders(),
+
+        body: JSON.stringify({
+          record,
+        }),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      "Failed to move record to trash"
+    );
+
+  }
+
+},
 
   async restoreRecord() {
     throw new Error("restoreRecord() not implemented yet");
