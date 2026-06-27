@@ -118,15 +118,41 @@ async createRecord(record: any) {
     throw new Error("updateRecordStatus() not implemented yet");
   },
 
-  async moveToTrash(record: any) {
+async moveToTrash(
+  record: any,
+  user: "admin" | "staff"
+) {
+
+  const isAdmin =
+    user === "admin";
+
+  const token =
+    isAdmin
+      ? localStorage.getItem(
+          "idiko_admin_token"
+        )
+      : await StorageService.get(
+          "staffToken"
+        );
+
+  const endpoint =
+    isAdmin
+      ? `${API_URL}/admin/move-to-trash`
+      : `${API_URL}/staff/move-to-trash`;
 
   const response =
     await fetch(
-      `${API_URL}/admin/move-to-trash`,
+      endpoint,
       {
         method: "POST",
 
-        headers: getHeaders(),
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
 
         body: JSON.stringify({
           record,
@@ -140,6 +166,7 @@ async createRecord(record: any) {
   if (!data.success) {
 
     throw new Error(
+      data.error ||
       "Failed to move record to trash"
     );
 

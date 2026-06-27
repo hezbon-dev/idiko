@@ -334,23 +334,32 @@ loadNotifyRequests();
 
   };
 
-  const moveToTrash = async (record: RecordType) => {
-    await saveToCollection("trash", record);
+const moveToTrash = async (
+  record: RecordType
+) => {
 
-    await removeFromCollection("records", record.idNumber);
+  await RecordService.moveToTrash(
+    record,
+    user as "admin" | "staff"
+  );
 
-    const match = notifyRequests.find(
-      r => normalizeId(r.idNumber) === normalizeId(record.idNumber)
-    );
+  setRecords(prev =>
+    prev.filter(
+      r =>
+        r.idNumber !==
+        record.idNumber
+    )
+  );
 
-    if (match?.id) {
-      await removeFromCollection("notify_requests", match.id);
-    }
+  setNotifyRequests(prev =>
+    prev.filter(
+      r =>
+        normalizeId(r.idNumber) !==
+        normalizeId(record.idNumber)
+    )
+  );
 
-    setRecords(prev =>
-      prev.filter(r => r.idNumber !== record.idNumber)
-    );
-  };
+};
 
   const restoreRecord = async (record: RecordType) => {
     await saveToCollection("records", record);
