@@ -373,7 +373,8 @@ router.post(
         .set(record);
 
       return res.json({
-        success: true
+        success: true,
+         record,
       });
 
     } catch (err) {
