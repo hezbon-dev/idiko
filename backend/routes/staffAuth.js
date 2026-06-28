@@ -472,14 +472,14 @@ router.post(
 
       await db
         .collection("trash")
-        .doc(record.idNumber)
+        .doc(record.id)
         .set(record);
 
       // Remove from records
 
       await db
         .collection("records")
-        .doc(record.idNumber)
+        .doc(record.id)
         .delete();
 
       // Remove notify requests
