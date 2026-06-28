@@ -49,72 +49,6 @@ router.get(
   }
 );
 
-// =========================
-// CREATE RECORD
-// =========================
-
-router.post(
-  "/records",
-  verifyAdminToken,
-  async (req, res) => {
-
-    try {
-
-      const db =
-        admin.firestore();
-
-      const { record } =
-        req.body;
-
-      if (!record) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          error: "Record missing",
-
-        });
-
-      }
-
-      await db
-        .collection("records")
-        .doc(record.idNumber)
-        .set(record);
-
-      await db
-        .collection("allHistoryRecords")
-        .doc(record.idNumber)
-        .set(record);
-
-      return res.json({
-
-        success: true,
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "Create record failed:",
-        err
-      );
-
-      return res
-        .status(500)
-        .json({
-
-          success: false,
-
-          error: "Failed to create record",
-
-        });
-
-    }
-
-  }
-);
 
 // =========================
 // GET HISTORY RECORDS
@@ -1065,47 +999,6 @@ router.get(
           success: false,
 
         });
-
-    }
-
-  }
-);
-
-// =========================
-// GET HISTORY RECORDS
-// =========================
-
-router.get(
-  "/history-records",
-  verifyAdminToken,
-  async (req, res) => {
-
-    try {
-
-      const snapshot =
-        await admin
-          .firestore()
-          .collection("allHistoryRecords")
-          .get();
-
-      const records =
-        snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-      return res.json({
-        success: true,
-        records,
-      });
-
-    } catch (err) {
-
-      console.error(err);
-
-      return res.status(500).json({
-        success:false,
-      });
 
     }
 

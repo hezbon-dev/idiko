@@ -186,20 +186,17 @@ const loadHistory = async () => {
 
 loadHistory();
 
+
 const loadTrash = async () => {
-
-  if (user !== "admin") {
-
-    return;
-
-  }
 
   try {
 
-    const trash =
-      await RecordService.getTrashRecords();
+    const loadedTrash =
+      user === "admin"
+        ? await RecordService.getTrashRecords()
+        : await RecordService.getStaffTrashRecords();
 
-    setTrash(trash);
+    setTrash(loadedTrash || []);
 
   } catch (err) {
 

@@ -523,4 +523,54 @@ router.post(
   }
 );
 
+// =========================
+// GET STAFF TRASH
+// =========================
+
+router.get(
+  "/trash",
+  verifyStaffToken,
+  async (req, res) => {
+
+    try {
+
+      const snapshot =
+        await admin
+          .firestore()
+          .collection("trash")
+          .where(
+            "stationId",
+            "==",
+            req.staff.stationId
+          )
+          .get();
+
+      const trash =
+        snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+      return res.json({
+        success: true,
+        trash,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Load staff trash failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load staff trash",
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;

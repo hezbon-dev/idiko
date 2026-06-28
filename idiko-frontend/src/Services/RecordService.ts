@@ -244,6 +244,42 @@ async getHistoryRecords() {
 
   },
 
+async getStaffTrashRecords() {
+
+  const token =
+    await StorageService.get(
+      "staffToken"
+    );
+
+  const response =
+    await fetch(
+      `${API_URL}/staff/trash`,
+      {
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      "Failed to load staff trash"
+    );
+
+  }
+
+  return data.trash;
+
+},
+
   /*
    * ==========================
    * NOTIFY REQUESTS
