@@ -153,10 +153,34 @@ const refreshRecords = async () => {
 
 };
 
+const loadTrash = async () => {
+
+  try {
+
+    const loadedTrash =
+      user === "admin"
+        ? await RecordService.getTrashRecords()
+        : await RecordService.getStaffTrashRecords();
+
+    setTrash(loadedTrash || []);
+
+  } catch (err) {
+
+    console.error(
+      "Failed to load trash",
+      err
+    );
+
+  }
+
+};
+
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {
 
   refreshRecords(); 
+
+  loadTrash();
 
 const loadHistory = async () => {
 
@@ -186,31 +210,6 @@ const loadHistory = async () => {
 
 loadHistory();
 
-
-const loadTrash = async () => {
-
-  try {
-
-    const loadedTrash =
-      user === "admin"
-        ? await RecordService.getTrashRecords()
-        : await RecordService.getStaffTrashRecords();
-
-    setTrash(loadedTrash || []);
-
-  } catch (err) {
-
-    console.error(
-      "Failed to load trash",
-      err
-    );
-
-  }
-
-};
-
-loadTrash();
-
 const loadNotifyRequests = async () => {
 
   if (user !== "admin") {
@@ -239,10 +238,19 @@ const loadNotifyRequests = async () => {
 
 loadNotifyRequests();
 
-    return () => {
-      
-      
-    };
+const interval = setInterval(() => {
+
+    refreshRecords();
+
+    loadTrash();
+
+}, 1000);
+
+return () => {
+
+    clearInterval(interval);
+
+};
   }, [stationKey]);
 
   /* ================= HELPERS ================= */
@@ -355,6 +363,10 @@ const moveToTrash = async (
         normalizeId(record.idNumber)
     )
   );
+
+  await refreshRecords();
+
+  await loadTrash();
 
 };
 
