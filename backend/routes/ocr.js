@@ -1,4 +1,6 @@
- const express = require("express");
+// routes/ocr.js.js
+
+const express = require("express");
 const router = express.Router();
 
 const { extractIDData } = require("../services/ocr");

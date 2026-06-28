@@ -1,3 +1,5 @@
+// routes/staffAuth.js
+
 const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
@@ -422,7 +424,6 @@ router.get(
 
       return res.json({
         success: true,
-        records,
       });
 
     } catch (err) {
