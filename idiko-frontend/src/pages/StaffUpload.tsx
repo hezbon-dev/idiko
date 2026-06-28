@@ -5,10 +5,11 @@ import ReactCrop, {type Crop,type PixelCrop,} from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { usePickupStations } from "../context/PickupStationContext";
 import { StorageService } from "../Services/StorageService";
+import { useRecords } from "../context/RecordContext";
 
-
-export default function StaffUpload() {
+  export default function StaffUpload() {
   const navigate = useNavigate();
+  const { reloadRecords } = useRecords();
 
   // 🔒 Prevent login bypass
   const [authChecked, setAuthChecked] =
@@ -330,7 +331,10 @@ const handleCropSave = async () => {
     return;
   }
 
+await reloadRecords();
+
 } catch (err) {
+
 
   console.error(
     "Upload failed:",

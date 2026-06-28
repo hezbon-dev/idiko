@@ -46,6 +46,7 @@ type RecordContextType = {
   allRecords: RecordType[];
   trash: RecordType[];
   notifyRequests: NotifyRequestType[];
+  reloadRecords: () => Promise<void>;
   addRecord: (record: RecordType) => void;
   moveToTrash: (record: RecordType) => void;
   restoreRecord: (record: RecordType) => void;
@@ -111,12 +112,7 @@ useEffect(() => {
   loadStation();
 }, [user]);
 
-  /* ================= FIRESTORE LISTENERS ================= */
-  useEffect(() => {
-
-
-
-const loadRecords = async () => {
+const refreshRecords = async () => {
 
   try {
 
@@ -142,7 +138,8 @@ const loadRecords = async () => {
 
     }
 
-  setRecords(loadedRecords || []);
+    setRecords(loadedRecords || []);
+
   }
 
   catch (err) {
@@ -156,7 +153,10 @@ const loadRecords = async () => {
 
 };
 
-loadRecords();   
+  /* ================= FIRESTORE LISTENERS ================= */
+  useEffect(() => {
+
+  refreshRecords(); 
 
 const loadHistory = async () => {
 
@@ -327,7 +327,10 @@ loadNotifyRequests();
 
    await RecordService.createRecord(
   normalizedRecord
+
 );
+
+  await refreshRecords();
 
   };
 
@@ -430,6 +433,7 @@ const moveToTrash = async (
         allRecords,
         trash,
         notifyRequests,
+        reloadRecords: refreshRecords,
         addRecord,
         moveToTrash,
         restoreRecord,
