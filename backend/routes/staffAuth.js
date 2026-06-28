@@ -374,7 +374,7 @@ router.post(
 
       return res.json({
         success: true,
-         records,
+         record,
       });
 
     } catch (err) {
@@ -424,7 +424,8 @@ router.get(
         }));
 
       return res.json({
-        success: true,
+      success: true,
+      records,
       });
 
     } catch (err) {
@@ -472,14 +473,14 @@ router.post(
 
       await db
         .collection("trash")
-        .doc(record.id)
+        .doc(record.idNumber)
         .set(record);
 
       // Remove from records
 
       await db
         .collection("records")
-        .doc(record.id)
+        .doc(record.idNumber)
         .delete();
 
       // Remove notify requests

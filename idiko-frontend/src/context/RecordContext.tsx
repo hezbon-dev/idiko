@@ -142,10 +142,7 @@ const loadRecords = async () => {
 
     }
 
-    setRecords(
-      loadedRecords
-    );
-
+  setRecords(loadedRecords || []);
   }
 
   catch (err) {
