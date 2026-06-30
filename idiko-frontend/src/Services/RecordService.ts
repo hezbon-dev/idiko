@@ -174,9 +174,61 @@ async moveToTrash(
 
 },
 
-  async restoreRecord() {
-    throw new Error("restoreRecord() not implemented yet");
-  },
+async restoreRecord(
+  record: any,
+  user: "admin" | "staff"
+) {
+
+  const isAdmin =
+    user === "admin";
+
+  const token =
+    isAdmin
+      ? localStorage.getItem(
+          "idiko_admin_token"
+        )
+      : await StorageService.get(
+          "staffToken"
+        );
+
+  const endpoint =
+    isAdmin
+      ? `${API_URL}/admin/trash/restore`
+      : `${API_URL}/staff/trash/restore`;
+
+  const response =
+    await fetch(
+      endpoint,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          Authorization:
+            `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          record,
+        }),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      data.error ||
+      "Failed to restore record"
+    );
+
+  }
+
+},
 
   async deleteRecord() {
     throw new Error("deleteRecord() not implemented yet");

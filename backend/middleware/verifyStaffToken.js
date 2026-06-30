@@ -1,3 +1,5 @@
+//middleware/verifyStaffToken.js
+
 const jwt = require("jsonwebtoken");
 
 const verifyStaffToken = (

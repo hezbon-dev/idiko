@@ -573,4 +573,65 @@ router.get(
   }
 );
 
+// =========================
+// RESTORE STAFF RECORD
+// =========================
+
+router.post(
+  "/trash/restore",
+  verifyStaffToken,
+  async (req, res) => {
+
+    try {
+
+      const { record } = req.body;
+
+      if (!record) {
+
+        return res.status(400).json({
+          success: false,
+          error: "Record missing",
+        });
+
+      }
+
+      const db = admin.firestore();
+
+      await db
+        .collection("records")
+        .doc(record.idNumber)
+        .set(record);
+
+      await db
+        .collection("allHistoryRecords")
+        .doc(record.idNumber)
+        .set(record);
+
+      await db
+        .collection("trash")
+        .doc(record.idNumber)
+        .delete();
+
+      return res.json({
+        success: true,
+        record,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "❌ Staff Restore Failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Restore failed",
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;

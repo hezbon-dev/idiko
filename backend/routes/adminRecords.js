@@ -1006,58 +1006,6 @@ router.get(
 );
 
 // =========================
-// CREATE RECORD
-// =========================
-
-router.post(
-  "/records",
-  verifyAdminToken,
-  async (req,res)=>{
-
-    try{
-
-      const record=req.body.record;
-
-      if(!record){
-
-        return res.status(400).json({
-          success:false
-        });
-
-      }
-
-      const db=admin.firestore();
-
-      await db
-        .collection("records")
-        .doc(record.idNumber)
-        .set(record);
-
-      await db
-        .collection("allHistoryRecords")
-        .doc(record.idNumber)
-        .set(record);
-
-      return res.json({
-        success:true
-      });
-
-    }
-
-    catch(err){
-
-      console.error(err);
-
-      return res.status(500).json({
-        success:false
-      });
-
-    }
-
-  }
-);
-
-// =========================
 // UPDATE RECORD STATUS
 // =========================
 

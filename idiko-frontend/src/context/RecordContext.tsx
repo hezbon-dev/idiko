@@ -244,7 +244,7 @@ const interval = setInterval(() => {
 
     loadTrash();
 
-}, 1000);
+}, 3000);
 
 return () => {
 
@@ -370,13 +370,20 @@ const moveToTrash = async (
 
 };
 
-  const restoreRecord = async (record: RecordType) => {
-    await saveToCollection("records", record);
+const restoreRecord = async (
+  record: RecordType
+) => {
 
-    await saveToCollection("allHistoryRecords", record);
+  await RecordService.restoreRecord(
+    record,
+    user as "admin" | "staff"
+  );
 
-    await removeFromCollection("trash", record.idNumber);
-  };
+  await refreshRecords();
+
+  await loadTrash();
+
+};
 
   const deleteRecord = async (idNumber: string) => {
     await removeFromCollection("trash", idNumber);
