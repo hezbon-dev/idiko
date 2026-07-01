@@ -51,19 +51,14 @@ const verifyStaffToken = (
 
     next();
 
-} catch (err) {
+  } catch (err) {
 
-  console.error(
-    "❌ verifyStaffToken:",
-    err.message
-  );
-
-  return res.status(401).json({
-    success: false,
-    error: err.message,
-  });
-
-}
+    return res.status(401).json({
+      success: false,
+      error:
+        "Invalid or expired token",
+    });
+  }
 };
 
 module.exports =
