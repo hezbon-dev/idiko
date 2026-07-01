@@ -1,8 +1,6 @@
 // src/context/RecordContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { db } from "../firebase";
-import { doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "./AuthContext";
 import { StorageService } from "../Services/StorageService";
 import { RecordService } from "../Services/RecordService";
@@ -298,21 +296,6 @@ return () => {
     return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
   };
 
-  const saveToCollection = async <T,>(
-    name: string,
-    data: T & { id?: string; idNumber?: string }
-  ) => {
-    const docId = data.id || data.idNumber;
-
-    if (!docId) throw new Error("No id provided");
-
-    await setDoc(doc(db, name, docId.toString()), data);
-  };
-
-  const removeFromCollection = async (name: string, id: string) => {
-    await deleteDoc(doc(db, name, id));
-  };
-
   /* ================= FUNCTIONS ================= */
 
   const addRecord = async (record: RecordType) => {
@@ -385,32 +368,52 @@ const restoreRecord = async (
 
 };
 
-  const deleteRecord = async (idNumber: string) => {
-    await removeFromCollection("trash", idNumber);
-  };
+const deleteRecord = async (
+  idNumber: string
+) => {
 
-  const updateRecordStatus = async (
-    idNumber: string,
-    status: "Paid" | "Pending"
-  ) => {
-    await setDoc(
-      doc(db, "records", idNumber),
-      { status },
-      { merge: true }
-    );
-  };
+  await RecordService.deleteRecord(
+    idNumber
+  );
 
-  // ✅ THIS BLOCK BELONGS HERE
-  const updateNotifyRequest = async (
-    id: string,
-    data: Partial<NotifyRequestType>
-  ) => {
-    await setDoc(
-      doc(db, "notify_requests", id),
-      data,
-      { merge: true }
-    );
-  };
+  await loadTrash();
+
+};
+
+const updateRecordStatus = async (
+  idNumber: string,
+  status: "Paid" | "Pending"
+) => {
+
+  await RecordService.updateRecordStatus(
+    idNumber,
+    status
+  );
+
+  await refreshRecords();
+
+};
+
+const updateNotifyRequest = async (
+  id: string,
+  data: Partial<NotifyRequestType>
+) => {
+
+  await RecordService.updateNotifyRequest(
+    id,
+    data
+  );
+
+  if (user === "admin") {
+
+    const requests =
+      await RecordService.getNotifyRequests();
+
+    setNotifyRequests(requests);
+
+  }
+
+};
 
   const addNotifyRequest = async (req: NotifyRequestType) => {
     const normalizedReq = {
@@ -433,7 +436,9 @@ const restoreRecord = async (
       return false;
     }
 
-    await saveToCollection("notify_requests", normalizedReq);
+  await RecordService.addNotifyRequest(
+  normalizedReq
+);
 
     return true;
   };

@@ -114,9 +114,38 @@ async createRecord(record: any) {
 
 },
 
-  async updateRecordStatus() {
-    throw new Error("updateRecordStatus() not implemented yet");
-  },
+async updateRecordStatus(
+  idNumber: string,
+  status: "Paid" | "Pending"
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/admin/records/status`,
+      {
+        method: "PUT",
+
+        headers: getHeaders(),
+
+        body: JSON.stringify({
+          idNumber,
+          status,
+        }),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      "Failed to update record status"
+    );
+
+  }
+
+},
 
 async moveToTrash(
   record: any,
@@ -230,9 +259,32 @@ async restoreRecord(
 
 },
 
-  async deleteRecord() {
-    throw new Error("deleteRecord() not implemented yet");
-  },
+async deleteRecord(
+  idNumber: string
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/admin/trash/${idNumber}`,
+      {
+        method: "DELETE",
+        headers: getHeaders(),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      data.error ||
+      "Failed to delete record"
+    );
+
+  }
+
+},
 
   /*
    * ==========================
@@ -363,12 +415,71 @@ async getStaffTrashRecords() {
 
   },
 
-  async addNotifyRequest() {
-    throw new Error("addNotifyRequest() not implemented yet");
-  },
+async addNotifyRequest(
+  request: any
+) {
 
-  async updateNotifyRequest() {
-    throw new Error("updateNotifyRequest() not implemented yet");
+  const response =
+    await fetch(
+      `${API_URL}/notify-requests`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          request,
+        }),
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!data.success) {
+
+    throw new Error(
+      "Failed to create notify request"
+    );
+
   }
+
+},
+
+async updateNotifyRequest(
+  id: string,
+  data: any
+) {
+
+  const response =
+    await fetch(
+      `${API_URL}/notify-requests/${id}`,
+      {
+        method: "PUT",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify(data),
+      }
+    );
+
+  const result =
+    await response.json();
+
+  if (!result.success) {
+
+    throw new Error(
+      "Failed to update notify request"
+    );
+
+  }
+
+},
 
 };
