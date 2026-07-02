@@ -309,8 +309,8 @@ const kenyaHour = new Date(
 
 const now = Date.now();
 
-// Run only between 6AM and 11PM Kenya time
-if (kenyaHour < 6 || kenyaHour >= 23) {
+// Run only between 6AM and 6PM Kenya time
+if (kenyaHour < 6 || kenyaHour >= 18) {
 
   // Log sleeping status only once every 2 hours
   if (now - lastSchedulerLog > 2 * 60 * 60 * 1000) {
@@ -322,8 +322,8 @@ if (kenyaHour < 6 || kenyaHour >= 23) {
   return;
 }
 
-// Log active status only once every 15 minutes
-if (now - lastSchedulerLog > 15 * 60 * 1000) {
+// Log active status only once every 30 minutes
+if (now - lastSchedulerLog > 30 * 60 * 1000) {
   console.log("🟢 Scheduler active");
   lastSchedulerLog = now;
 }
@@ -447,11 +447,11 @@ if (now - lastSchedulerLog > 15 * 60 * 1000) {
           (now - startedAt) / (1000 * 60 * 60 * 24)
       );
 
-        if (daysPassed >= 15) {
+        if (daysPassed >= 14) {
 
         if (!req.expired) {
         console.log(
-        "🛑 Notifications stopped (15 DAY LIMIT REACHED):",
+        "🛑 Notifications stopped (14 DAY LIMIT REACHED):",
         req.idNumber
       );
 
