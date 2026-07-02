@@ -150,7 +150,7 @@ const StaffDashboard = () => {
   try {
 
     const token =
-      StorageService.get("staffToken")
+     await StorageService.get("staffToken")
 
     if (token) {
 

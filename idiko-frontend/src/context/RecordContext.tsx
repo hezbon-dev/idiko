@@ -176,80 +176,92 @@ const loadTrash = async () => {
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {
 
-  refreshRecords(); 
+  // ==========================
+  // Don't load anything until
+  // a user is authenticated.
+  // ==========================
+
+  if (!user) {
+
+    return;
+
+  }
+
+  refreshRecords();
 
   loadTrash();
 
-const loadHistory = async () => {
+  const loadHistory = async () => {
 
-  if (user !== "admin") {
+    if (user !== "admin") {
 
-    return;
+      return;
 
-  }
+    }
 
-  try {
+    try {
 
-    const history =
-      await RecordService.getHistoryRecords();
+      const history =
+        await RecordService.getHistoryRecords();
 
-    setAllHistoryRecords(history);
+      setAllHistoryRecords(history);
 
-  } catch (err) {
+    } catch (err) {
 
-    console.error(
-      "Failed to load history",
-      err
-    );
+      console.error(
+        "Failed to load history",
+        err
+      );
 
-  }
+    }
 
-};
+  };
 
-loadHistory();
+  loadHistory();
 
-const loadNotifyRequests = async () => {
+  const loadNotifyRequests = async () => {
 
-  if (user !== "admin") {
+    if (user !== "admin") {
 
-    return;
+      return;
 
-  }
+    }
 
-  try {
+    try {
 
-    const requests =
-      await RecordService.getNotifyRequests();
+      const requests =
+        await RecordService.getNotifyRequests();
 
-    setNotifyRequests(requests);
+      setNotifyRequests(requests);
 
-  } catch (err) {
+    } catch (err) {
 
-    console.error(
-      "Failed to load notify requests",
-      err
-    );
+      console.error(
+        "Failed to load notify requests",
+        err
+      );
 
-  }
+    }
 
-};
+  };
 
-loadNotifyRequests();
+  loadNotifyRequests();
 
-const interval = setInterval(() => {
+  const interval = setInterval(() => {
 
     refreshRecords();
 
     loadTrash();
 
-}, 3000);
+  }, 3000);
 
-return () => {
+  return () => {
 
     clearInterval(interval);
 
-};
-  }, [stationKey]);
+  };
+
+}, [user, stationKey]);
 
   /* ================= HELPERS ================= */
   const normalizeText = (s?: string) => (s || "").trim().toLowerCase();
