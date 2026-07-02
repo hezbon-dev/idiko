@@ -54,10 +54,6 @@ try {
   console.warn("⚠️ Firestore not available");
 }
 
-// 🔁 Pesapal integration
-const { pesapalInitiatePayment } = require("./pesapal/pesapalPayment");
-const { pesapalIPNCallback } = require("./pesapal/pesapalCallback");
-
 // 🔵 MPESA (Daraja) integration
 const { stkPush } = require("./mpesa/stkPush");
 const { mpesaCallback, getPaymentStatus } = require("./mpesa/mpesaCallback");
@@ -218,23 +214,6 @@ app.post("/start-notification", async (req, res) => {
     res.status(500).json({ success: false });
   }
 });
-
-// 🔍 DEBUG PESAPAL CONFIG (SAFE PREVIEW)
-app.get("/debug/pesapal", (req, res) => {
-  res.json({
-    CONSUMER_KEY: process.env.PESAPAL_CONSUMER_KEY?.slice(0, 6) + "...",
-    CONSUMER_SECRET: process.env.PESAPAL_CONSUMER_SECRET?.slice(0, 6) + "...",
-    IPN_ID: process.env.PESAPAL_IPN_ID,
-    CALLBACK_URL: process.env.PESAPAL_CALLBACK_URL,
-    ENV: process.env.NODE_ENV,
-  });
-});
-
-// ✅ PESAPAL PAYMENT INITIATION
-app.post("/pesapal/pay", pesapalInitiatePayment);
-
-// ✅ PESAPAL IPN CALLBACK
-app.post("/pesapal/ipn", pesapalIPNCallback);
 
 // 🔵 MPESA STK PUSH
 app.post("/mpesa/stkpush", stkPush);
@@ -438,7 +417,7 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
       }
 
         // =========================
-        // ✅ STOP AFTER 15 DAYS
+        // ✅ STOP AFTER 14 DAYS
         // =========================
 
         const startedAt = new Date(req.startedAt).getTime();
@@ -464,9 +443,9 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
   continue;
      }
 
-        // =========================
+        // ==================================
         // ✅ PREVENT DUPLICATE SAME-DAY SMS
-        // =========================
+        // ==================================
 
         if (req.lastSentAt) {
           const last = new Date(req.lastSentAt).toDateString();

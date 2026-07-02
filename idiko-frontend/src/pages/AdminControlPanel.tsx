@@ -323,10 +323,10 @@ if (loading) {
       <section style={{ marginTop: 30 }}>
         <h2>Overview </h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
-          <StatBox label="Total Stations" value={totalStations} />
-          <StatBox label="Total Uploaded IDs" value={stats.totalUploaded}/>
-          <StatBox label="Total Pending IDs" value={stats.pending}/>
-          <StatBox label="Total Paid IDs" value={stats.paid} />
+          <StatBox label="Stations" value={totalStations} />
+          <StatBox label="Uploaded IDs" value={stats.totalUploaded}/>
+          <StatBox label="Pending IDs" value={stats.pending}/>
+          <StatBox label="Paid IDs" value={stats.paid} />
           <StatBox label="Unmatched Notify Requests" value={stats.awaiting} />
           <StatBox label="Matched Notifications" value={stats.matched} />
         </div>

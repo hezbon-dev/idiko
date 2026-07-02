@@ -247,19 +247,6 @@ const loadTrash = async () => {
 
   loadNotifyRequests();
 
-  const interval = setInterval(() => {
-
-    refreshRecords();
-
-    loadTrash();
-
-  }, 3000);
-
-  return () => {
-
-    clearInterval(interval);
-
-  };
 
 }, [user, stationKey]);
 
@@ -387,6 +374,8 @@ const deleteRecord = async (
   await RecordService.deleteRecord(
     idNumber
   );
+
+  await refreshRecords();
 
   await loadTrash();
 
