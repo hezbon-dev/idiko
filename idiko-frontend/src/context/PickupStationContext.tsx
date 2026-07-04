@@ -56,34 +56,53 @@ useEffect(() => {
 
     try {
 
-      const token =
-        localStorage.getItem(
-          "idiko_admin_token"
-        );
+      const adminToken =
+  localStorage.getItem(
+    "idiko_admin_token"
+  );
 
-      let response;
+const staffToken =
+  localStorage.getItem(
+    "staffToken"
+  );
 
-      if (token) {
+let response;
 
-        response =
-          await fetch(
-            `${API_URL}/admin/pickup-stations`,
-            {
-              headers: {
-                Authorization:
-                  `Bearer ${token}`,
-              },
-            }
-          );
+if (adminToken) {
 
-      } else {
-
-        response =
-          await fetch(
-            `${API_URL}/admin/public-pickup-stations`
-          );
-
+  response =
+    await fetch(
+      `${API_URL}/admin/pickup-stations`,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${adminToken}`,
+        },
       }
+    );
+
+}
+
+else if (staffToken) {
+
+  response =
+    await fetch(
+      `${API_URL}/staff/pickup-stations`,
+      {
+        headers: {
+          Authorization:
+            `Bearer ${staffToken}`,
+        },
+      }
+    );
+
+}
+
+else {
+
+  return;
+
+}
 
       const data =
         await response.json();

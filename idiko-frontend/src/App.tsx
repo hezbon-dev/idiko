@@ -5,7 +5,6 @@ import React from "react";
 // Context Providers
 import { IDProvider } from "./context/IDContext";
 import { RecordProvider } from "./context/RecordContext";
-import { PickupStationProvider } from "./context/PickupStationContext";
 import { NotifyProvider } from "./context/NotifyContext";   
 import { AuthProvider } from "./context/AuthContext"; 
 import {MaintenanceProvider,useMaintenance,} from "./context/MaintenanceContext";
@@ -145,8 +144,7 @@ function AppContent() {
 
   if (maintenanceMode) {
   return (
-    <AuthProvider>
-  <PickupStationProvider>
+  <AuthProvider>
     <RecordProvider>
       <NotifyProvider>
         <IDProvider>
@@ -192,19 +190,17 @@ function AppContent() {
            </IDProvider>
              </NotifyProvider>
               </RecordProvider>
-                </PickupStationProvider>
-                  </AuthProvider>
+                </AuthProvider>
   );
 }
 
   return (
     <AuthProvider>
-      <PickupStationProvider>
-        <RecordProvider>
-          <NotifyProvider>
-           <IDProvider>
-              <Router>
-                <Routes>
+      <RecordProvider>
+        <NotifyProvider>
+          <IDProvider>
+            <Router>
+             <Routes>
 
                   {/* 🌍 Global Layout Wrapper */}
                   <Route element={<MainLayout />}>
@@ -331,7 +327,6 @@ function AppContent() {
             </IDProvider>
               </NotifyProvider>
                 </RecordProvider>
-                  </PickupStationProvider>
                     </AuthProvider>
   );
 }

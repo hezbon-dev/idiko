@@ -1,6 +1,6 @@
 // src/context/RecordContext.tsx
 
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { StorageService } from "../Services/StorageService";
 import { RecordService } from "../Services/RecordService";
@@ -77,14 +77,34 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
 
 
-  const trashIds = new Set(trash.map(t => t.idNumber));
-  const allRecords = records.filter(r => !trashIds.has(r.idNumber));
+const trashIds = useMemo(() => {
+  return new Set(
+    trash.map(t => t.idNumber)
+  );
+}, [trash]);
 
-  const recordsForStaff = !stationKey
-    ? allRecords
-    : allRecords.filter(
-        r => r.pickupStation?.trim().toLowerCase() === stationKey
-      );
+const allRecords = useMemo(() => {
+  return records.filter(
+    r => !trashIds.has(r.idNumber)
+  );
+}, [records, trashIds]);
+
+const recordsForStaff = useMemo(() => {
+
+  if (!stationKey) {
+
+    return allRecords;
+
+  }
+
+  return allRecords.filter(
+    r =>
+      r.pickupStation
+        ?.trim()
+        .toLowerCase() === stationKey
+  );
+
+}, [allRecords, stationKey]);
 
 useEffect(() => {
   const loadStation = async () => {

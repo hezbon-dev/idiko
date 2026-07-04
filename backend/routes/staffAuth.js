@@ -634,4 +634,72 @@ router.post(
   }
 );
 
+
+// =========================
+// GET STAFF PICKUP STATION
+// =========================
+
+router.get(
+  "/pickup-stations",
+  verifyStaffToken,
+  async (req, res) => {
+
+    try {
+
+      const db = admin.firestore();
+
+      const docSnap = await db
+        .collection("appStorage")
+        .doc("pickupStations")
+        .get();
+
+      if (!docSnap.exists) {
+
+        return res.json({
+          success: true,
+          stations: [],
+        });
+
+      }
+
+      const stations =
+        docSnap.data()?.value || [];
+
+      // Return ONLY the logged-in staff station
+      const station = stations.find(
+        s =>
+          s.id === req.staff.stationId
+      );
+
+      if (!station) {
+
+        return res.json({
+          success: true,
+          stations: [],
+        });
+
+      }
+
+      return res.json({
+        success: true,
+        stations: [station],
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Load staff pickup station failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load pickup station",
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;
