@@ -110,11 +110,6 @@ app.get("/", (req, res) => {
   res.json({ message: "IDiko backend is live" });
 });
 
-// ✅ GLOBAL LOCK (prevents duplicate SMS triggers)
-
-
-// ✅ COOLDOWN TIMER (NEW)
-
 
 // ✅ TRACK CURRENTLY PROCESSING IDS
 const processingMatches = new Set();
@@ -150,7 +145,7 @@ const safeName =
     ? firstName.trim()
     : "there";
 
-const message = `Good news ${safeName}, your ID is ready for collection. Visit idiko.co.ke under (Find My ID) to confirm, then visit your nearest Huduma Centre for collection. Thank you.`;
+const message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under (Search ID) to confirm,then visit Huduma Centre for collection.Thank you.`;
 
     console.log("📤 Sending SMS to:", phones);
 

@@ -1,10 +1,10 @@
 import {BrowserRouter as Router,Routes,Route,Navigate,useParams,} from "react-router-dom";
 import React from "react";
 
-
 // Context Providers
 import { IDProvider } from "./context/IDContext";
 import { RecordProvider } from "./context/RecordContext";
+import { PickupStationProvider } from "./context/PickupStationContext";
 import { NotifyProvider } from "./context/NotifyContext";   
 import { AuthProvider } from "./context/AuthContext"; 
 import {MaintenanceProvider,useMaintenance,} from "./context/MaintenanceContext";
@@ -144,7 +144,8 @@ function AppContent() {
 
   if (maintenanceMode) {
   return (
-  <AuthProvider>
+    <AuthProvider>
+  <PickupStationProvider>
     <RecordProvider>
       <NotifyProvider>
         <IDProvider>
@@ -190,17 +191,19 @@ function AppContent() {
            </IDProvider>
              </NotifyProvider>
               </RecordProvider>
-                </AuthProvider>
+                </PickupStationProvider>
+                  </AuthProvider>
   );
 }
 
   return (
     <AuthProvider>
-      <RecordProvider>
-        <NotifyProvider>
-          <IDProvider>
-            <Router>
-             <Routes>
+      <PickupStationProvider>
+        <RecordProvider>
+          <NotifyProvider>
+           <IDProvider>
+              <Router>
+                <Routes>
 
                   {/* 🌍 Global Layout Wrapper */}
                   <Route element={<MainLayout />}>
@@ -327,6 +330,7 @@ function AppContent() {
             </IDProvider>
               </NotifyProvider>
                 </RecordProvider>
+                  </PickupStationProvider>
                     </AuthProvider>
   );
 }

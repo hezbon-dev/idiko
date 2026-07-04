@@ -39,7 +39,7 @@ export default function Home() {
         Staff Login
       </Link>
       <Link to="/find-my-id" style={buttonStyle}>
-        Find My ID
+        Search ID
       </Link>
     </div>
   );
