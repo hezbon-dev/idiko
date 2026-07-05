@@ -177,4 +177,101 @@ router.get("/record/:idNumber", async (req, res) => {
 
 });
 
+// =========================
+// PUBLIC PICKUP STATION LOOKUP
+// =========================
+
+router.get(
+  "/public-pickup-station/:stationName",
+  async (req, res) => {
+
+    if (!db) {
+
+      return res.status(500).json({
+        success: false,
+        error: "Database unavailable",
+      });
+
+    }
+
+    try {
+
+      const stationName =
+        decodeURIComponent(req.params.stationName)
+          .trim()
+          .toLowerCase();
+
+      const docSnap =
+        await db
+          .collection("appStorage")
+          .doc("pickupStations")
+          .get();
+
+      if (!docSnap.exists) {
+
+        return res.status(404).json({
+          success: false,
+          error: "Pickup stations not found",
+        });
+
+      }
+
+      const stations =
+        docSnap.data()?.value || [];
+
+      const station =
+        stations.find(
+          s =>
+            (s.stationName || "")
+              .trim()
+              .toLowerCase() === stationName
+        );
+
+      if (!station) {
+
+        return res.status(404).json({
+          success: false,
+          error: "Pickup station not found",
+        });
+
+      }
+
+      return res.json({
+
+        success: true,
+
+        station: {
+
+          stationName: station.stationName,
+
+          location: station.location,
+
+          phone1: station.phone1,
+
+          phone2: station.phone2,
+
+          gps: station.gps,
+
+          enabled: station.enabled,
+
+        },
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Public pickup station lookup failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;
