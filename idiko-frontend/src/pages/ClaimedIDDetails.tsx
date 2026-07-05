@@ -2,7 +2,6 @@
 
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { usePickupStations } from "../context/PickupStationContext";
 
 // 🔹 more robust normalizeId helper
 function normalizeId(s?: string): string {
@@ -65,14 +64,15 @@ console.log(
   import.meta.env.VITE_API_URL
 );
 
-const { stations } =
-  usePickupStations();
 
 const [record, setRecord] =
   useState<any>(null);
 
 const [loading, setLoading] =
   useState(true);
+
+const [station, setStation] =
+  useState<any>(null);
 
 useEffect(() => {
 
@@ -115,16 +115,43 @@ console.log(
           data
         );
 
-        if (
-          data.success &&
-          data.record
-        ) {
+if (
+  data.success &&
+  data.record
+) {
 
-          setRecord(
-            data.record
-          );
+  setRecord(data.record);
 
-        }
+  try {
+
+    const stationResponse =
+      await fetch(
+        `${import.meta.env.VITE_API_URL}/api/public-pickup-station/${encodeURIComponent(
+          data.record.pickupStation
+        )}`
+      );
+
+    const stationData =
+      await stationResponse.json();
+
+    if (stationData.success) {
+
+      setStation(
+        stationData.station
+      );
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "Failed to load pickup station",
+      err
+    );
+
+  }
+
+}
 
       } catch (err) {
 
@@ -195,11 +222,7 @@ console.log(
 }
 
   // safe station lookup
-  const station = stations.find(
-    (s) =>
-      ((s.stationName || s.name || "").trim().toLowerCase()) ===
-      ((record?.pickupStation || "").trim().toLowerCase())
-  );
+
 
   if (!record) {
     return (
