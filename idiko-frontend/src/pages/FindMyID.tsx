@@ -258,7 +258,7 @@ try {
           <option value="Male">Male</option>
           <option value="Female">Female</option>
         </select>
-        <input type="text" name="district" placeholder="District of Birth" value={formData.district} onChange={handleChange} style={inputStyle} />
+        <input type="text" name="district" placeholder="Place / district of Birth" value={formData.district} onChange={handleChange} style={inputStyle} />
         {error && <p style={{ color: "red", fontSize: "14px" }}>{error}</p>}
         <button type="button" onClick={handleSearch} style={buttonStyle}>Search</button>
         <Link to="/" style={backLinkStyle}>&lt; Home</Link>

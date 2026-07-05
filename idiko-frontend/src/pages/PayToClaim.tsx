@@ -1,3 +1,5 @@
+// src/pages/PayToClaim.tsx
+
 import { useState, useRef } from "react";
 import axios from "axios";
 import { useLocation, Link, useNavigate } from "react-router-dom";

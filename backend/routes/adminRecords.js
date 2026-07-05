@@ -633,6 +633,104 @@ router.get(
 );
 
 // =========================
+// GET SINGLE PUBLIC PICKUP STATION
+// =========================
+
+router.get(
+  "/public-pickup-station/:stationName",
+  async (req, res) => {
+
+    try {
+
+      const { stationName } = req.params;
+
+      const db =
+        admin.firestore();
+
+      const docSnap =
+        await db
+          .collection("appStorage")
+          .doc("pickupStations")
+          .get();
+
+      const stations =
+        docSnap.exists
+          ? docSnap.data().value || []
+          : [];
+
+      const station =
+        stations.find(
+          s =>
+            (s.stationName || "")
+              .trim()
+              .toLowerCase() ===
+            stationName
+              .trim()
+              .toLowerCase()
+        );
+
+      if (!station) {
+
+        return res.status(404).json({
+
+          success: false,
+
+          error: "Pickup station not found",
+
+        });
+
+      }
+
+      return res.json({
+
+        success: true,
+
+        station: {
+
+          stationName:
+            station.stationName,
+
+          location:
+            station.location,
+
+          phone1:
+            station.phone1,
+
+          phone2:
+            station.phone2,
+
+          gps:
+            station.gps,
+
+          enabled:
+            station.enabled,
+
+        },
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Load single pickup station failed",
+        err
+      );
+
+      return res
+        .status(500)
+        .json({
+
+          success: false,
+
+        });
+
+    }
+
+  }
+);
+
+
+// =========================
 // GET PICKUP STATIONS
 // =========================
 
