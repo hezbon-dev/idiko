@@ -126,8 +126,7 @@ if (
 
     const stationResponse =
       await fetch(
-        `${import.meta.env.VITE_API_URL}/api/public-pickup-station/${encodeURIComponent(
-          data.record.pickupStation
+        `${import.meta.env.VITE_API_URL}/api/public-pickup-station/${encodeURIComponent(record.pickupStation
         )}`
       );
 
