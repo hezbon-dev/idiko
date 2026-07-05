@@ -1,4 +1,4 @@
-// src/pages/ClaimedIDDetails..tsx
+// src/pages/ClaimedIDDetails.tsx
 
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
