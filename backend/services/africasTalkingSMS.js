@@ -1,8 +1,6 @@
 // backend/services/africasTalkingSMS.js
 const Africastalking = require("africastalking");
 
-// ✅ MUST be strings
-// If you are using sandbox:
 const AT_USERNAME = "HEZBON";
 
 // ⚠️ API KEY MUST ALSO BE A STRING
