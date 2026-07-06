@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import axios from "axios";
 import { useLocation, Link, useNavigate } from "react-router-dom";
+import { useRecords } from "../context/RecordContext";
 
 interface PayToClaimProps {}
 
@@ -19,6 +20,8 @@ interface PayToClaimProps {}
 export default function PayToClaim({}: PayToClaimProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { markRecordPaidLocally } = useRecords();
+
 
   const state = location.state as {
     idNumber: string;
@@ -98,19 +101,21 @@ export default function PayToClaim({}: PayToClaimProps) {
 
           console.log("📡 Payment status:", statusResponse.data.status);
 
-          if (statusResponse.data.status === "paid") {
+if (statusResponse.data.status === "paid") {
 
-           clearInterval(pollInterval);
+  clearInterval(pollInterval);
 
-            if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
   }
+
+  markRecordPaidLocally(state.idNumber);
 
   setMessage("✅ Payment successful! Redirecting...");
 
-setTimeout(() => {
-  navigate(`/claimed/${state.idNumber}`);
-}, 1000);
+  setTimeout(() => {
+    navigate(`/claimed/${state.idNumber}`);
+  }, 1000);
 }
 
 
