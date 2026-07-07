@@ -30,6 +30,7 @@ import StaffDashboard from "./pages/StaffDashboard";
 import StaffUpload from "./pages/StaffUpload";
 import StaffManage from "./pages/StaffManage";
 import StaffTrash from "./pages/StaffTrash";
+import StaffHeartbeat from "./components/StaffHeartbeat";
 
 // Admin Pages
 import AdminDashboard from "./pages/AdminDashboard";
@@ -203,6 +204,9 @@ function AppContent() {
           <NotifyProvider>
            <IDProvider>
               <Router>
+
+                <StaffHeartbeat />
+
                 <Routes>
 
                   {/* 🌍 Global Layout Wrapper */}

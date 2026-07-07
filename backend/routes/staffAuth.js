@@ -181,15 +181,47 @@ router.post(
   verifyStaffToken,
   async (req, res) => {
 
-    console.log(
-  "🚪 Staff logout:",
-  req.staff.stationName
-);
+    try {
 
-    return res.json({
-      success: true,
-      message: "Logged out",
-    });
+      const { sessionId } = req.body;
+
+      if (sessionId) {
+
+        await admin
+          .firestore()
+          .collection("staffSessions")
+          .doc(sessionId)
+          .delete();
+
+        console.log(
+          "🗑 Deleted staff session:",
+          sessionId
+        );
+
+      }
+
+      console.log(
+        "🚪 Staff logout:",
+        req.staff.stationName
+      );
+
+      return res.json({
+        success: true,
+        message: "Logged out",
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Staff logout failed:",
+        err
+      );
+
+      return res.status(500).json({
+        success: false,
+      });
+
+    }
 
   }
 );

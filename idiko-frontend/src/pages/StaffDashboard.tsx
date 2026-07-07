@@ -40,110 +40,6 @@ const StaffDashboard = () => {
   navigate
 ]);
 
-  // ✅ Heartbeat system (updates every 10 seconds)
-   useEffect(() => {
-
-  let interval: ReturnType<
-    typeof setInterval
-  >;
-
-  const startHeartbeat =
-    async () => {
-
-      const staff =
-        await StorageService.get(
-          "currentStaff"
-        );
-
-      const sessionId =
-        await StorageService.get(
-          "sessionId"
-        );
-
-      const token =
-        await StorageService.get(
-          "staffToken"
-        );
-
-      if (
-        !staff ||
-        !sessionId ||
-        !token
-      ) {
-
-        console.error(
-          "Missing heartbeat data"
-        );
-
-        return;
-      }
-
-      const sendHeartbeat =
-        async () => {
-
-          try {
-
-            await fetch(
-              "https://idiko.onrender.com/staff/heartbeat",
-              {
-                method: "POST",
-
-                headers: {
-                  Authorization:
-                    `Bearer ${token}`,
-
-                  "Content-Type":
-                    "application/json",
-                },
-
-                body: JSON.stringify({
-                  sessionId,
-                  staffId:
-                    staff.id,
-
-                  stationName:
-                    staff.stationName ||
-                    "",
-                }),
-              }
-            );
-
-          } catch (err) {
-
-            console.error(
-              "Heartbeat error",
-              err
-            );
-
-          }
-
-        };
-
-      await sendHeartbeat();
-
-      interval =
-        setInterval(
-          sendHeartbeat,
-          10000
-        );
-
-    };
-
-  startHeartbeat();
-
-  return () => {
-
-    if (interval) {
-
-      clearInterval(
-        interval
-      );
-
-    }
-
-  };
-
-}, []);
   // ✅ Logout now only clears local storage
  const handleLogout = async () => {
 
@@ -152,17 +48,26 @@ const StaffDashboard = () => {
     const token =
      await StorageService.get("staffToken")
 
+    const sessionId =
+     await StorageService.get("sessionId");
+
     if (token) {
 
-      await fetch(
-        "https://idiko.onrender.com/staff/logout",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+  await fetch(
+  "https://idiko.onrender.com/staff/logout",
+  {
+    method: "POST",
+
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+
+    body: JSON.stringify({
+      sessionId,
+    }),
+  }
+);
 
     }
 
