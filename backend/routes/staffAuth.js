@@ -251,6 +251,12 @@ router.post(
   async (req, res) => {
 
     try {
+      
+    console.log(
+  "❤️ Heartbeat:",
+  req.body.sessionId,
+  new Date().toISOString()
+);
 
       const {
         sessionId,
