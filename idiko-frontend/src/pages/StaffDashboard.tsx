@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { StorageService } from "../Services/StorageService";
 
 const StaffDashboard = () => {
-  const { isAuthenticated, user } = useAuth();
+ const {isAuthenticated,user,logout,} = useAuth();
   const navigate = useNavigate();
 
   // 🔒 Prevent login bypass
@@ -86,6 +86,8 @@ await StorageService.remove("sessionId");
 await StorageService.remove(
   "staffToken"
 );
+
+logout();
 
 };
 
