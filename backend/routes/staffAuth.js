@@ -183,22 +183,37 @@ router.post(
 
     try {
 
+    console.log("========== LOGOUT ==========");
+    console.log("BODY:", req.body);
+    console.log("SESSION ID:", req.body.sessionId);
+    console.log("STAFF:", req.staff);
+    console.log("============================");
+
       const { sessionId } = req.body;
 
-      if (sessionId) {
+if (sessionId) {
 
-        await admin
-          .firestore()
-          .collection("staffSessions")
-          .doc(sessionId)
-          .delete();
+  console.log(
+    "Deleting Firestore session:",
+    sessionId
+  );
 
-        console.log(
-          "🗑 Deleted staff session:",
-          sessionId
-        );
+  await admin
+    .firestore()
+    .collection("staffSessions")
+    .doc(sessionId)
+    .delete();
 
-      }
+  console.log(
+    "Firestore delete complete."
+  );
+
+  console.log(
+    "🗑 Deleted staff session:",
+    sessionId
+  );
+
+}
 
       console.log(
         "🚪 Staff logout:",
