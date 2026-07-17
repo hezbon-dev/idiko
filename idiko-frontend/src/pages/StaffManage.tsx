@@ -110,7 +110,19 @@ const [stationKey, setStationKey] = useState<string | null>(null);
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
 if (!authChecked) {
-  return <div>Loading...</div>;
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        color: "white",
+      }}
+    >
+      Loading...
+    </div>
+  );
 }
 
   return (
@@ -120,8 +132,19 @@ if (!authChecked) {
         minHeight: "100vh",
         padding: "20px",
         overflow: "auto",
+        display: "flex",
+        justifyContent: "center",
       }}
     >
+
+    <div
+  style={{
+    width: "100%",
+    maxWidth: "1400px",
+  }}
+>
+
+
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
 
       {/* Search + Filter */}
@@ -161,14 +184,22 @@ if (!authChecked) {
       </div>
 
       {/* Table */}
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            minWidth: "1000px",
-            borderCollapse: "collapse",
-            textAlign: "left",
-          }}
-        >
+      <div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+  }}
+>
+<table
+  style={{
+    minWidth: "1000px",
+    width: "max-content",
+    borderCollapse: "collapse",
+    textAlign: "left",
+    margin: "0 auto",
+  }}
+>
           <thead>
             <tr>
               <th style={{ padding: "10px" }}>Front</th>
@@ -384,30 +415,32 @@ if (!authChecked) {
   </div>
 )}
 
+{zoomImage && (
+  <div
+    onClick={() => setZoomImage(null)}
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0,0,0,0.8)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 1000,
+    }}
+  >
+    <img
+      src={zoomImage}
+      alt="Zoomed ID"
+      style={{ maxWidth: "90%", maxHeight: "90%" }}
+    />
+  </div>
+  )}
+</div>
 
-      {zoomImage && (
-        <div
-          onClick={() => setZoomImage(null)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0,0,0,0.8)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-        >
-          <img
-            src={zoomImage}
-            alt="Zoomed ID"
-            style={{ maxWidth: "90%", maxHeight: "90%" }}
-          />
-        </div>
-      )}
-    </div>
-  );
+</div> 
+
+);
 }

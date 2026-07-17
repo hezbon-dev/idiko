@@ -142,7 +142,7 @@ if (loading) {
         textAlign: "center",
       }}
     >
-      Loading...
+      Searching...
     </div>
   );
 

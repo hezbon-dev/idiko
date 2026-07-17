@@ -30,6 +30,9 @@ export default function AdminLogin() {
     "",
   ]);
 
+  const [verifyingOtp, setVerifyingOtp] =
+    useState(false);
+
   const otp =
     otpArray.join("");
 
@@ -92,6 +95,15 @@ export default function AdminLogin() {
     color: "white",
     outline: "none",
   };
+
+  const spinnerStyle: React.CSSProperties = {
+  width: "18px",
+  height: "18px",
+  border: "2px solid rgba(255,255,255,0.25)",
+  borderTop: "2px solid #00ff99",
+  borderRadius: "50%",
+  animation: "otpSpin 0.8s linear infinite",
+};
 
   // =========================
   // ⏳ OTP COUNTDOWN EFFECT
@@ -303,6 +315,8 @@ export default function AdminLogin() {
 
     setError("");
 
+    setVerifyingOtp(true);
+
     try {
 
       console.log(
@@ -381,6 +395,8 @@ export default function AdminLogin() {
           "✅ Fingerprint verified"
         );
 
+        setVerifyingOtp(false);
+
         navigate(
           "/admin/dashboard"
         );
@@ -406,6 +422,8 @@ export default function AdminLogin() {
     );
   }
 
+   setVerifyingOtp(false);
+
   navigate(
     "/admin/dashboard"
   );
@@ -423,6 +441,8 @@ export default function AdminLogin() {
       );
 
     } catch (err: any) {
+
+    setVerifyingOtp(false);
 
       console.error(
         "❌ OTP Verification Error:",
@@ -463,6 +483,20 @@ export default function AdminLogin() {
 
   return (
     <div style={containerStyle}>
+
+    <style>
+  {`
+    @keyframes otpSpin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  `}
+</style>
+
       <h1></h1>
 
       {!otpRequired && (
@@ -510,38 +544,58 @@ export default function AdminLogin() {
           }}
         >
 
-          {otpArray.map(
-            (
-              digit,
-              index
-            ) => (
+{otpArray.map(
+  (
+    digit,
+    index
+  ) => (
 
-              <input
-                key={index}
-              ref={(el) => {
-                otpInputs.current[index] = el;
-            }}
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={digit}
-                onChange={(e) =>
-                  handleOtpChange(
-                    e.target.value,
-                    index
-                  )
-                }
-                onKeyDown={(e) =>
-                  handleOtpKeyDown(
-                    e,
-                    index
-                  )
-                }
-                style={otpBoxStyle}
-              />
+    verifyingOtp ? (
 
-            )
-          )}
+      <div
+        key={index}
+        style={{
+          ...otpBoxStyle,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: 0,
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={spinnerStyle} />
+      </div>
+
+    ) : (
+
+      <input
+        key={index}
+        ref={(el) => {
+          otpInputs.current[index] = el;
+        }}
+        type="text"
+        inputMode="numeric"
+        maxLength={6}
+        value={digit}
+        onChange={(e) =>
+          handleOtpChange(
+            e.target.value,
+            index
+          )
+        }
+        onKeyDown={(e) =>
+          handleOtpKeyDown(
+            e,
+            index
+          )
+        }
+        style={otpBoxStyle}
+      />
+
+    )
+
+  )
+)}
 
         </div>
 

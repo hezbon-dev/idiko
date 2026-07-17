@@ -151,30 +151,39 @@ const moveToTrash = async (
   const pendingCount = records.filter(r => r.status === "Pending").length;
 
 if (loading) {
-
   return (
     <div
       style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
         color: "white",
-        textAlign: "center",
-        marginTop: "50px",
       }}
     >
       Loading records...
     </div>
   );
-
 }
 
-  return (
-    <div
-      style={{
-        color: "white",
-        minHeight: "100vh",
-        padding: "20px",
-        overflow: "auto",
-      }}
-    >
+return (
+  <div
+    style={{
+      color: "white",
+      minHeight: "100vh",
+      padding: "20px",
+      overflow: "auto",
+      display: "flex",
+      justifyContent: "center",
+    }}
+  >
+
+<div
+  style={{
+    width: "100%",
+    maxWidth: "1400px",
+  }}
+>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
 
       {/* Search + Filter */}
@@ -213,14 +222,22 @@ if (loading) {
       </div>
 
       {/* Table */}
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            minWidth: "1000px",
-            borderCollapse: "collapse",
-            textAlign: "left",
-          }}
-        >
+      <div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+  }}
+>
+<table
+  style={{
+    minWidth: "1000px",
+    width: "max-content",
+    borderCollapse: "collapse",
+    textAlign: "left",
+    margin: "0 auto",
+  }}
+>
           <thead>
             <tr>
               <th style={{ padding: "10px" }}>Front</th>
@@ -466,6 +483,8 @@ if (loading) {
           />
         </div>
       )}
+    </div>
+
     </div>
   );
 }

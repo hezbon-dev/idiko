@@ -149,13 +149,35 @@ if (statusResponse.data.status === "paid") {
     }
   };
 
-  return (
-    <div style={{ padding: 20, color: "#fff", minHeight: "100vh" }}>
+return (
+  <div
+    style={{
+      padding: 20,
+      color: "#fff",
+      minHeight: "100vh",
+      display: "flex",
+      justifyContent: "center",
+    }}
+  >
+<div
+  style={{
+    width: "100%",
+    maxWidth: "700px",
+  }}
+>
+
       <h2 style={{ textAlign: "center", marginBottom: 20 }}>
         Pay to Claim Your ID
       </h2>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 20,
+  }}
+>
         {state.idImages.map((img, idx) => (
           <img
             key={idx}
@@ -166,7 +188,15 @@ if (statusResponse.data.status === "paid") {
         ))}
       </div>
 
-      <div style={{ marginTop: 30, maxWidth: 400 }}>
+      <div
+  style={{
+    marginTop: 30,
+    maxWidth: 400,
+    width: "100%",
+    marginLeft: "auto",
+    marginRight: "auto",
+  }}
+>
         <div style={{ marginBottom: 15 }}>
           <label>Amount (KES)</label>
           <input
@@ -217,7 +247,7 @@ if (statusResponse.data.status === "paid") {
           onClick={handlePay}
           disabled={loading}
           style={{
-            width: "105%",
+            width: "100%",
             padding: 6,
             background: "green",
             color: "#fff",
@@ -242,6 +272,10 @@ if (statusResponse.data.status === "paid") {
           &lt; Home
         </Link>
       </div>
+
     </div>
+
+  </div>
+
   );
 }

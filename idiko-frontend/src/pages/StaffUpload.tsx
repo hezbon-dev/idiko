@@ -79,6 +79,8 @@ useEffect(() => {
 
   // OCR loading state
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
 
   // ✅ Cropper states
   const [rotation, setRotation] = useState(0);
@@ -250,7 +252,7 @@ const handleCropSave = async () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setUploading(true);
     if (
       !frontPreview ||
       !backPreview ||
@@ -262,6 +264,7 @@ const handleCropSave = async () => {
       
     ) {
       alert("Please fill in all fields and upload both images.");
+      setUploading(false);
       return;
     }
 
@@ -321,15 +324,16 @@ const handleCropSave = async () => {
   const data =
     await response.json();
 
-  if (!data.success) {
+if (!data.success) {
 
-    alert(
-      data.error ||
-      "Upload failed"
-    );
+  alert(
+    data.error ||
+    "Upload failed"
+  );
 
-    return;
-  }
+  setUploading(false);
+  return;
+}
 
 await reloadRecords();
 
@@ -344,6 +348,8 @@ await reloadRecords();
   alert(
     "Failed to upload record"
   );
+
+  setUploading(false);
 
   return;
 }
@@ -366,6 +372,8 @@ await reloadRecords();
     if (currentStation) {
       setPickupStation(currentStation.stationName);
     }
+    setUploading(false);
+
   };
 
 if (!authChecked) {
@@ -558,7 +566,7 @@ if (!authChecked) {
             marginRight: "auto",
           }}
         >
-          Save & Upload
+           {uploading ? "Uploading..." : "Save & Upload"}
         </button>
       </form>
 

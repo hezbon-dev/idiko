@@ -392,17 +392,17 @@ router.post(
 
       };
 
-      await db
-        .collection("records")
-        .doc(normalizedId)
-        .set(record);
+await Promise.all([
+  db
+    .collection("records")
+    .doc(normalizedId)
+    .set(record),
 
-      await db
-        .collection(
-          "allHistoryRecords"
-        )
-        .doc(normalizedId)
-        .set(record);
+  db
+    .collection("allHistoryRecords")
+    .doc(normalizedId)
+    .set(record),
+]);
 
       return res.json({
         success: true,

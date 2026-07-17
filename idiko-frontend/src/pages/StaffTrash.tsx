@@ -111,18 +111,39 @@ stationKey === null
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
 if (!authChecked) {
-  return <div>Loading...</div>;
-}
-
   return (
     <div
       style={{
-        color: "white",
         minHeight: "100vh",
-        padding: "20px",
-        overflow: "auto",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        color: "white",
       }}
     >
+      Loading...
+    </div>
+  );
+}
+
+  return (
+<div
+  style={{
+    color: "white",
+    minHeight: "100vh",
+    padding: "20px",
+    overflow: "auto",
+    display: "flex",
+    justifyContent: "center",
+  }}
+>
+<div
+  style={{
+    width: "100%",
+    maxWidth: "1400px",
+  }}
+>
+
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
 
       {/* Search + Filter */}
@@ -162,14 +183,22 @@ if (!authChecked) {
       </div>
 
       {/* Table */}
-      <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            minWidth: "1000px",
-            borderCollapse: "collapse",
-            textAlign: "left",
-          }}
-        >
+      <div
+  style={{
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+  }}
+>
+<table
+  style={{
+    minWidth: "1000px",
+    width: "max-content",
+    borderCollapse: "collapse",
+    textAlign: "left",
+    margin: "0 auto",
+  }}
+>
           <thead>
             <tr>
               <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Front</th>
@@ -320,5 +349,8 @@ if (!authChecked) {
         </div>
       )}
     </div>
+
+    </div>
+    
   );
 }
