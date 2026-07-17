@@ -1,4 +1,4 @@
-// routes/staffAuth.js
+/ routes/staffAuth.js
 
 const express = require("express");
 const router = express.Router();
