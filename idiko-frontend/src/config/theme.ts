@@ -27,7 +27,7 @@ export const WEBSITE_BACKGROUND_VIDEO =
 // BACKGROUND MUSIC
 // =========================
 
-export const ENABLE_BACKGROUND_MUSIC = true;
+export const ENABLE_BACKGROUND_MUSIC = false;
 
 // Playlist order
 

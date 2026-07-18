@@ -268,7 +268,7 @@ let lastRunningLog = 0;
 // NOTIFY REQUEST CLEANUP SETTINGS
 // =======================================
 
-const NOTIFY_REQUEST_RETENTION_DAYS = 360;
+const NOTIFY_REQUEST_RETENTION_DAYS = 1;
 
 const NOTIFY_REQUEST_CLEANUP_INTERVAL =
   24 * 60 * 60 * 1000; // once every 24 hours
