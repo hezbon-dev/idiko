@@ -263,6 +263,18 @@ console.log("🧠 Starting Backend Matching & Notification Engine...");
 let schedulerRunning = false;
 let lastSchedulerLog = 0;
 let lastRunningLog = 0;
+
+// =======================================
+// NOTIFY REQUEST CLEANUP SETTINGS
+// =======================================
+
+const NOTIFY_REQUEST_RETENTION_DAYS = 360;
+
+const NOTIFY_REQUEST_CLEANUP_INTERVAL =
+  24 * 60 * 60 * 1000; // once every 24 hours
+
+let lastNotifyCleanupRun = 0;
+
 setInterval(async () => {
 
   if (schedulerRunning) {
@@ -307,6 +319,83 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
     console.warn("⚠️ Scheduler skipped — DB not available");
     return;
   }
+
+// =======================================
+// CLEAN OLD UNMATCHED NOTIFY REQUESTS
+// Runs once every 24 hours
+// =======================================
+
+if (
+  Date.now() - lastNotifyCleanupRun >=
+  NOTIFY_REQUEST_CLEANUP_INTERVAL
+) {
+
+  lastNotifyCleanupRun = Date.now();
+
+  try {
+
+    console.log(
+      "🧹 Running notify request cleanup..."
+    );
+
+    const cleanupSnapshot =
+      await db
+        .collection("notify_requests")
+        .get();
+
+    const now = Date.now();
+
+    for (const docSnap of cleanupSnapshot.docs) {
+
+      const req = docSnap.data();
+
+      if (req.matched === true) {
+        continue;
+      }
+
+      if (req.expired === true) {
+        continue;
+      }
+
+      if (!req.createdAt) {
+        continue;
+      }
+
+      const createdAt =
+        new Date(req.createdAt).getTime();
+
+      const daysSinceCreated =
+        Math.floor(
+          (now - createdAt) /
+          (1000 * 60 * 60 * 24)
+        );
+
+ if (
+  daysSinceCreated >=
+  NOTIFY_REQUEST_RETENTION_DAYS
+){
+
+        await docSnap.ref.delete();
+
+        console.log(
+          `🧹 Deleted expired notify request: ${req.idNumber}`
+        );
+
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "❌ Notify request cleanup failed:",
+      err
+    );
+
+  }
+
+}
+
 
   try {
    const notifySnapshot = await db
