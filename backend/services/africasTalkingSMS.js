@@ -58,8 +58,6 @@ async function sendSMS(phoneNumber, message) {
     const options = {
       to: [normalizePhone(phoneNumber)],
       message,
-      // ❗ Sender ID is NOT allowed in sandbox
-      // Do NOT add "from" here
     };
 
     console.log("📦 SMS PAYLOAD:");
