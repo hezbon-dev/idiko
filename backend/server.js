@@ -275,6 +275,18 @@ const NOTIFY_REQUEST_CLEANUP_INTERVAL =
 
 let lastNotifyCleanupRun = 0;
 
+
+// =======================================
+// RECORD CLEANUP SETTINGS
+// =======================================
+
+const RECORD_RETENTION_DAYS = 1;
+
+const RECORD_CLEANUP_INTERVAL =
+  24 * 60 * 60 * 1000; // once every 24 hours
+
+let lastRecordCleanupRun = 0;
+
 setInterval(async () => {
 
   if (schedulerRunning) {
@@ -294,6 +306,95 @@ const kenyaHour = new Date(
 ).getHours();
 
 const now = Date.now();
+
+// =======================================
+// CLEAN OLD UNPAID RECORDS
+// Runs once every 24 hours
+// =======================================
+
+if (
+  Date.now() - lastRecordCleanupRun >=
+  RECORD_CLEANUP_INTERVAL
+) {
+
+  lastRecordCleanupRun = Date.now();
+
+  try {
+
+    console.log(
+      "🧹 Running pending record cleanup..."
+    );
+
+    const cleanupSnapshot =
+      await db
+        .collection("records")
+        .get();
+
+    const now = Date.now();
+
+    for (const docSnap of cleanupSnapshot.docs) {
+
+      const record = docSnap.data();
+
+      // Keep paid records forever
+      if (
+        record.status === "Paid" ||
+        record.status === "paid"
+      ) {
+        continue;
+      }
+
+      // Ignore records without upload date
+      if (!record.uploadDate) {
+        continue;
+      }
+
+      const uploadedAt =
+        new Date(record.uploadDate).getTime();
+
+      const daysSinceUploaded =
+        Math.floor(
+          (now - uploadedAt) /
+          (1000 * 60 * 60 * 24)
+        );
+
+      if (
+        daysSinceUploaded >=
+        RECORD_RETENTION_DAYS
+      ) {
+
+        await Promise.all([
+
+          db
+            .collection("records")
+            .doc(docSnap.id)
+            .delete(),
+
+          db
+            .collection("allHistoryRecords")
+            .doc(docSnap.id)
+            .delete(),
+
+        ]);
+
+        console.log(
+          `🧹 Deleted expired pending record: ${record.idNumber}`
+        );
+
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "❌ Pending record cleanup failed:",
+      err
+    );
+
+  }
+
+}
 
 // Run only between 6AM and 6PM Kenya time
 if (kenyaHour < 6 || kenyaHour >= 18) {
