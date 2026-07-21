@@ -280,7 +280,7 @@ let lastNotifyCleanupRun = 0;
 // RECORD CLEANUP SETTINGS
 // =======================================
 
-const RECORD_RETENTION_DAYS = 1;
+const RECORD_RETENTION_DAYS = 364;
 
 const RECORD_CLEANUP_INTERVAL =
   24 * 60 * 60 * 1000; // once every 24 hours
