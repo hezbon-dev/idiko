@@ -24,7 +24,7 @@ export default function ClaimedIDDetails() {
     );
   }
 
-  // pickupStation might be a string or an object in future — handle both
+// pickupStation might be a string or an object in future — handle both
   const pickup =
     typeof record.pickupStation === "string"
       ? { name: record.pickupStation }

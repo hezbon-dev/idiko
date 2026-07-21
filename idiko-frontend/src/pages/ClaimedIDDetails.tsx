@@ -13,7 +13,7 @@ function normalizeDate(dob?: string): string {
   if (!dob) return "";
   dob = dob.trim();
 
-  // Try parsing as Date first
+// Try parsing as Date first
   const parsed = new Date(dob);
   if (!isNaN(parsed.getTime())) {
     const normalized = parsed.toISOString().split("T")[0];
@@ -21,7 +21,7 @@ function normalizeDate(dob?: string): string {
     return normalized;
   }
 
-  // fallback: split manually
+// fallback: split manually
   let parts = dob.includes("/") ? dob.split("/") : dob.split("-");
   if (parts.length !== 3) {
     console.log("normalizeDate invalid format:", dob); // 🔹 debug
@@ -169,7 +169,7 @@ if (
 
 }, [idNumber]);
 
-  // 🔹 DEBUG: field-by-field mismatch logging
+// 🔹 DEBUG: field-by-field mismatch logging
   if (record) {
     const mismatches = [];
 

@@ -22,14 +22,14 @@ async function stkPush(req, res) {
   }
 
   try {
-    // 1️⃣ Get access token
+// 1️⃣ Get access token
     const accessToken = await getMpesaAccessToken();
 
-    // 2️⃣ Generate timestamp & password
+// 2️⃣ Generate timestamp & password
     const timestamp = generateTimestamp();
     const password = generatePassword(timestamp);
 
-    // 3️⃣ Build request payload
+// 3️⃣ Build request payload
     const payload = {
       BusinessShortCode: process.env.MPESA_SHORTCODE,
       Password: password,
@@ -46,7 +46,7 @@ async function stkPush(req, res) {
 
     console.log("📤 STK PUSH PAYLOAD:", payload);
 
-    // 4️⃣ Send request
+// 4️⃣ Send request
     const response = await axios.post(
       "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
       payload,
@@ -60,10 +60,10 @@ async function stkPush(req, res) {
 
     console.log("✅ STK PUSH RESPONSE:", response.data);
 
-    // ✅ SAVE PAYMENT MAPPING LOCALLY
+// ✅ SAVE PAYMENT MAPPING LOCALLY
     const FILE_PATH = path.join(__dirname, "payments.json");
 
-    // ✅ ENSURE FILE EXISTS
+// ✅ ENSURE FILE EXISTS
     if (!fs.existsSync(FILE_PATH)) {
       fs.writeFileSync(FILE_PATH, "[]");
       console.log("📂 payments.json created");
@@ -90,7 +90,7 @@ async function stkPush(req, res) {
 
     console.log("📦 Existing payments:", payments);
 
-    // 🔥 CLOSE ANY OLD PENDING PAYMENTS FOR SAME ID
+// 🔥 CLOSE ANY OLD PENDING PAYMENTS FOR SAME ID
 
 payments.forEach((payment) => {
   if (

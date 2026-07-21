@@ -17,7 +17,7 @@ export const idFoundMessage = (
 
   const baseMessage = `Good news ${firstName},your ID is ready for collection.Visit idiko.co.ke under (Search ID) to confirm,then visit Huduma Centre for collection.Thank you.`;
 
-  // You can slightly adjust wording per channel later if needed
+// You can slightly adjust wording per channel later if needed
   switch (channel) {
     case "SMS":
       return baseMessage;

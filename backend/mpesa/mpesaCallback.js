@@ -19,7 +19,7 @@ const PAID_RETENTION_MS =
 
   return payments.filter(payment => {
 
-    // Remove failed records older than 24 hours
+// Remove failed records older than 24 hours
 
     if (
       payment.status === "failed" &&
@@ -32,7 +32,7 @@ const PAID_RETENTION_MS =
       return age < FAILED_RETENTION_MS;
     }
 
-    // Remove paid records older than 30 days
+// Remove paid records older than 30 days
 
     if (
       payment.status === "paid" &&
@@ -45,7 +45,7 @@ const PAID_RETENTION_MS =
       return age < PAID_RETENTION_MS;
     }
 
-    // Keep pending records
+// Keep pending records
 
     return true;
   });
@@ -59,7 +59,7 @@ async function updatePaymentStatus(
 ) {
   const FILE_PATH = path.join(__dirname, "payments.json");
 
-  // ✅ ENSURE FILE EXISTS
+// ✅ ENSURE FILE EXISTS
   if (!fs.existsSync(FILE_PATH)) {
     fs.writeFileSync(FILE_PATH, "[]");
     console.log("📂 payments.json created");
@@ -92,7 +92,7 @@ console.log(
   "🧹 OLD PAYMENT RECORDS CLEANED"
 );
 
-  // Update or add the payment
+// Update or add the payment
   const existingIndex = payments.findIndex(
     p => p.checkoutRequestID === checkoutRequestID
   );
@@ -255,8 +255,8 @@ function mpesaCallback(req, res) {
     console.log("📌 ResultDesc:", ResultDesc);
     console.log("📌 CheckoutRequestID:", CheckoutRequestID);
 
-    // ❌ Payment cancelled or failed
-if (ResultCode !== 0) {
+// ❌ Payment cancelled or failed
+   if (ResultCode !== 0) {
 
   console.warn("❌ PAYMENT FAILED OR CANCELLED");
 
@@ -310,7 +310,7 @@ if (ResultCode !== 0) {
   return res.status(200).json({ ResultCode: 0 });
 }
 
-    // ✅ Payment successful
+// ✅ Payment successful
     console.log("✅ PAYMENT SUCCESSFUL");
 
     let paymentData = {};
@@ -332,10 +332,10 @@ if (ResultCode !== 0) {
     console.log("➡️ Phone:", paymentData.PhoneNumber);
     console.log("➡️ TransactionDate:", paymentData.TransactionDate);
 
-    // ✅ Find existing payment and preserve accountReference
+// ✅ Find existing payment and preserve accountReference
     const FILE_PATH = path.join(__dirname, "payments.json");
 
-    // ✅ ENSURE FILE EXISTS
+// ✅ ENSURE FILE EXISTS
     if (!fs.existsSync(FILE_PATH)) {
       fs.writeFileSync(FILE_PATH, "[]");
       console.log("📂 payments.json created");
@@ -393,12 +393,12 @@ if (ResultCode !== 0) {
 }
 
 // Extra route to allow frontend polling
-function getPaymentStatus(req, res) {
+  function getPaymentStatus(req, res) {
   const { checkoutRequestID } = req.params;
 
   const FILE_PATH = path.join(__dirname, "payments.json");
 
-  // ✅ ENSURE FILE EXISTS
+// ✅ ENSURE FILE EXISTS
   if (!fs.existsSync(FILE_PATH)) {
     fs.writeFileSync(FILE_PATH, "[]");
     console.log("📂 payments.json created");

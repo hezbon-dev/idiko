@@ -9,7 +9,7 @@ async function getMpesaAccessToken() {
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
 
 
-    // 🔍 DEBUG CHECK (ADD THESE TWO LINES)
+// 🔍 DEBUG CHECK (ADD THESE TWO LINES)
     console.log("MPESA KEY:", consumerKey ? "LOADED" : "MISSING");
     console.log("MPESA SECRET:", consumerSecret ? "LOADED" : "MISSING");
     

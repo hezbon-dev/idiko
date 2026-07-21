@@ -11,7 +11,7 @@ import { useRecords } from "../context/RecordContext";
   const navigate = useNavigate();
   const { reloadRecords } = useRecords();
 
-  // 🔒 Prevent login bypass
+// 🔒 Prevent login bypass
   const [authChecked, setAuthChecked] =
   useState(false);
 
@@ -73,16 +73,16 @@ useEffect(() => {
   const [backPreview, setBackPreview] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  // ✅ NEW: store compressed images separately for saving
+// ✅ NEW: store compressed images separately for saving
   const [frontImageCompressed, setFrontImageCompressed] = useState<string | null>(null);
   const [backImageCompressed, setBackImageCompressed] = useState<string | null>(null);
 
-  // OCR loading state
+// OCR loading state
   const [ocrLoading, setOcrLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
 
-  // ✅ Cropper states
+// ✅ Cropper states
   const [rotation, setRotation] = useState(0);
 
   const [croppingImage, setCroppingImage] = useState<string | null>(null);
@@ -97,7 +97,7 @@ useEffect(() => {
 
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  // Form fields
+// Form fields
   const [fullName, setFullName] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [dob, setDob] = useState("");
@@ -107,14 +107,14 @@ useEffect(() => {
 
   const { currentStation } = usePickupStations();
 
-  // ✅ Auto-fill pickup station from logged-in station
+// ✅ Auto-fill pickup station from logged-in station
   useEffect(() => {
     if (currentStation) {
       setPickupStation(currentStation.stationName);
     }
   }, [currentStation]);
 
-  // OCR function to call backend
+// OCR function to call backend
   const callOCR = async (imageBase64: string) => {
     try {
       setOcrLoading(true);
@@ -132,7 +132,7 @@ useEffect(() => {
       if (data.success) {
         const { fullName, idNumber, dob, sex, district } = data.data;
 
-        // ✅ Auto-fill the form in lowercase
+// ✅ Auto-fill the form in lowercase
           setFullName(fullName ? fullName.toLowerCase() : "");
           setIdNumber(idNumber || "");
           setDob(dob ? dob.split("/").reverse().join("-") : "");
@@ -148,7 +148,7 @@ useEffect(() => {
     }
   };
 
-  // ✅ Create cropped image
+// ✅ Create cropped image
   const getCroppedImg = async (): Promise<string | null> => {
     if (!imgRef.current || !completedCrop) return null;
 
@@ -187,20 +187,20 @@ useEffect(() => {
     return canvas.toDataURL("image/jpeg", 0.8);
   };
 
-  // ✅ Rotate image
+// ✅ Rotate image
   const rotateImage = () => {
     setRotation((prev) => (prev + 90) % 360);
   };
 
-  // ✅ Save cropped image
-const handleCropSave = async () => {
-  if (!currentImageType) return;
+// ✅ Save cropped image
+  const handleCropSave = async () => {
+    if (!currentImageType) return;
 
   const croppedImage = await getCroppedImg();
 
   if (!croppedImage) return;
 
-  // ✅ Close cropper immediately
+// ✅ Close cropper immediately
   setShowCropper(false);
   setCroppingImage(null);
 
@@ -243,7 +243,7 @@ const handleCropSave = async () => {
     }
   };
 
-  // ✅ FIXED: Convert yyyy-mm-dd → dd/mm/yyyy safely (no month/day swap)
+// ✅ FIXED: Convert yyyy-mm-dd → dd/mm/yyyy safely (no month/day swap)
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
     const [year, month, day] = dateStr.split("-");
@@ -354,11 +354,11 @@ await reloadRecords();
   return;
 }
 
-    // Reset except pickupStation
+// Reset except pickupStation
     setFrontPreview(null);
     setBackPreview(null);
 
-    // ✅ Reset compressed images too
+// ✅ Reset compressed images too
     setFrontImageCompressed(null);
     setBackImageCompressed(null);
 
@@ -368,7 +368,7 @@ await reloadRecords();
     setSex("");
     setDistrict("");
 
-    // Keep auto-fill
+// Keep auto-fill
     if (currentStation) {
       setPickupStation(currentStation.stationName);
     }

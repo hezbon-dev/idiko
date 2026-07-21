@@ -16,7 +16,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   return <div>Loading...</div>;
 }
 
-  // ✅ ONLY rely on AuthContext (Firebase-backed)
+// ✅ ONLY rely on AuthContext (Firebase-backed)
   const effectiveUser = user;
   const effectiveAuth = effectiveUser === "admin" || effectiveUser === "staff";
 

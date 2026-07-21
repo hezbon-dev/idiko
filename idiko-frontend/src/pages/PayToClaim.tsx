@@ -7,16 +7,6 @@ import { useRecords } from "../context/RecordContext";
 
 interface PayToClaimProps {}
 
-/**
- * Expected location.state:
- * {
- *   idNumber: string;
- *   fullName: string;
- *   idImages: string[];
- *   amount: number;
- *   accountReference: string;
- * }
- */
 export default function PayToClaim({}: PayToClaimProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -99,7 +89,7 @@ export default function PayToClaim({}: PayToClaimProps) {
   `https://idiko.onrender.com/mpesa/status/${state.accountReference}`
 );
 
-          console.log("📡 Payment status:", statusResponse.data.status);
+  console.log("📡 Payment status:", statusResponse.data.status);
 
 if (statusResponse.data.status === "paid") {
 
@@ -119,7 +109,7 @@ if (statusResponse.data.status === "paid") {
 }
 
 
-          if (statusResponse.data.status === "failed") {
+  if (statusResponse.data.status === "failed") {
 
   clearInterval(pollInterval);
 

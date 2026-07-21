@@ -83,20 +83,20 @@ const [stationKey, setStationKey] = useState<string | null>(null);
     loadStation();
   }, []);
 
-  // ✅ hides trashed rows instantly (UI only)
+// ✅ hides trashed rows instantly (UI only)
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
 
-  // ✅ Visible records only for this staff/station and not hidden
+// ✅ Visible records only for this staff/station and not hidden
   const visibleRecords = recordsForStaff
     .filter(r => !stationKey || r.pickupStation?.trim().toLowerCase() === stationKey)
     .filter(r => !hiddenIds.includes(r.idNumber));
 
-  // ✅ counts only for visible records
+// ✅ counts only for visible records
   const allCount = visibleRecords.length;
   const paidCount = visibleRecords.filter(r => r.status === "Paid").length;
   const pendingCount = visibleRecords.filter(r => r.status === "Pending").length;
 
-  // Filter + search (existing logic)
+// Filter + search (existing logic)
   const filteredRecords = visibleRecords
     .filter((r) => {
       const matchesSearch =

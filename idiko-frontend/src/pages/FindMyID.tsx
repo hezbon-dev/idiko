@@ -18,10 +18,10 @@ function normalizeDate(dob?: string): string {
 
   dob = dob.trim();
 
-  // remove all spaces
+// remove all spaces
   dob = dob.replace(/\s+/g, "");
 
-  // split by ANY non-digit (/, -, ., etc)
+// split by ANY non-digit (/, -, ., etc)
   const parts = dob.split(/\D+/);
 
   if (parts.length !== 3) {
@@ -31,7 +31,7 @@ function normalizeDate(dob?: string): string {
 
   let day: string, month: string, year: string;
 
-  // detect year position automatically
+// detect year position automatically
   if (parts[0].length === 4) {
     // YYYY MM DD
     [year, month, day] = parts;
@@ -76,17 +76,18 @@ export default function FindMyID() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
   const { name, value } = e.target;
 
-  // ✅ Auto-format DOB as DD/MM/YYYY
+// ✅ Auto-format DOB as DD/MM/YYYY
   if (name === "dob") {
-    // remove all non-digits
+
+// remove all non-digits
     let cleaned = value.replace(/\D/g, "");
 
-    // limit to 8 digits
+// limit to 8 digits
     cleaned = cleaned.substring(0, 8);
 
     let formatted = cleaned;
 
-    // add slashes automatically
+// add slashes automatically
     if (cleaned.length > 2 && cleaned.length <= 4) {
       formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
     } else if (cleaned.length > 4) {
@@ -114,7 +115,7 @@ export default function FindMyID() {
 
     setError("");
 
-    // ✅ DEBUG: log normalized input
+// ✅ DEBUG: log normalized input
     console.log("Searching for normalized input:", {
       fullName: normalizeText(formData.fullName),
       idNumber: normalizeId(formData.idNumber),
@@ -123,7 +124,7 @@ export default function FindMyID() {
       district: normalizeText(formData.district),
     });
 
-    // ✅ DEBUG: check each record for mismatches
+// ✅ DEBUG: check each record for mismatches
 try {
 
   const response =

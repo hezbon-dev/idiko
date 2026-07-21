@@ -7,7 +7,7 @@ const StaffDashboard = () => {
  const {isAuthenticated,user,logout,} = useAuth();
   const navigate = useNavigate();
 
-  // 🔒 Prevent login bypass
+// 🔒 Prevent login bypass
   useEffect(() => {
 
   const verifySession = async () => {
@@ -40,7 +40,7 @@ const StaffDashboard = () => {
   navigate
 ]);
 
-  // ✅ Logout now only clears local storage
+// ✅ Logout now only clears local storage
  const handleLogout = async () => {
 
   try {

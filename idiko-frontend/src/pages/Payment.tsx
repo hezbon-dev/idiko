@@ -9,9 +9,6 @@ const [record, setRecord] = useState<any>(null);
 const [loading, setLoading] = useState(true);
 const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  // ⚠️ IMPORTANT:
-  // Frontend no longer decides if payment is done.
-  // Any "already paid" redirect MUST be handled by backend-protected routes.
  useEffect(() => {
 
   async function loadRecord() {

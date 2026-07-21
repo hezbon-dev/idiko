@@ -11,10 +11,10 @@ export default function AdminTrash() {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [loading, setLoading] =useState(true);
 
-  // ✅ NEW: bulk selection state
+// ✅ NEW: bulk selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // ✅ FIRST: search only
+// ✅ FIRST: search only
   const searchedRecords = trash.filter((r) => {
     const term = search.toLowerCase();
 
@@ -26,7 +26,7 @@ export default function AdminTrash() {
     );
   });
 
-  // Filter + search
+// Filter + search
   const filteredRecords = searchedRecords
     .filter((r) => {
       const matchesFilter = filter === "All" || r.status === filter;
@@ -34,7 +34,7 @@ export default function AdminTrash() {
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName));
 
-  // ✅ UPDATED: counts now respect search results
+// ✅ UPDATED: counts now respect search results
   const allCount = searchedRecords.length;
   const paidCount = searchedRecords.filter(r => r.status === "Paid").length;
   const pendingCount = searchedRecords.filter(r => r.status === "Pending").length;
@@ -196,12 +196,12 @@ const deleteTrashRecord = async (
 
 };
 
-  // ✅ NEW: clear selection when filter/search changes
+// ✅ NEW: clear selection when filter/search changes
   useEffect(() => {
     setSelectedIds([]);
   }, [search, filter]);
 
-  // ✅ NEW: select all toggle
+// ✅ NEW: select all toggle
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedIds(filteredRecords.map(r => r.idNumber));

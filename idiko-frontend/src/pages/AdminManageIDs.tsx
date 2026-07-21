@@ -11,7 +11,7 @@ export default function AdminManageIDs() {
   const [zoomImage, setZoomImage] = useState<string | null>(null);
   const [recordToTrash, setRecordToTrash] = useState<any | null>(null);
 
-  // Real-time listener for records from backend
+// Real-time listener for records from backend
 useEffect(() => {
 
   const loadRecords = async () => {

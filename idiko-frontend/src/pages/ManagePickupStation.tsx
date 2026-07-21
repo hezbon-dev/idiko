@@ -11,7 +11,7 @@ import bcrypt from "bcryptjs";
   const navigate = useNavigate();
   const API_URL =import.meta.env.VITE_API_URL ||"https://idiko.onrender.com";
 
-  // Warn before leaving page with unsaved changes
+// Warn before leaving page with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (Object.keys(editedStations).length > 0) {

@@ -8,7 +8,7 @@ export default function StaffTrash() {
   const { trash, restoreRecord } = useRecords();
   const navigate = useNavigate();
 
-  // 🔒 Prevent login bypass
+// 🔒 Prevent login bypass
   const [authChecked, setAuthChecked] =
   useState(false);
 
@@ -83,7 +83,7 @@ useEffect(() => {
     loadStation();
   }, []);
 
-  // ✅ Filter visible records for this staff/station only
+// ✅ Filter visible records for this staff/station only
  const visibleRecords =
 stationKey === null
     ? []
@@ -92,7 +92,7 @@ stationKey === null
           r.pickupStation?.trim().toLowerCase() === stationKey
       );
 
-  // ✅ Count records for visible records only
+// ✅ Count records for visible records only
   const allCount = visibleRecords.length;
   const paidCount = visibleRecords.filter(r => r.status === "Paid").length;
   const pendingCount = visibleRecords.filter(r => r.status === "Pending").length;
