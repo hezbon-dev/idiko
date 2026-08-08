@@ -333,10 +333,10 @@ if (loading) {
       </section>
 
 <section style={{ marginTop: 40 }}>
-  <AlertBox 
-    title="Active Staff Sessions" 
-    items={activeStaffNames} 
-  />
+<AlertBox
+  title={`Active Staff Sessions (${activeStaffNames.length} / ${totalStations})`}
+  items={activeStaffNames}
+/>
 </section>
 
 <section

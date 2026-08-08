@@ -145,7 +145,7 @@ const safeName =
     ? firstName.trim()
     : "there";
 
-const message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under (Search ID) to confirm,then visit Huduma Centre for collection.Thank you.`;
+const message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under(Search ID)to confirm,then visit Huduma Centre for collection.Thank you.`;
 
     console.log("📤 Sending SMS to:", phones);
 
@@ -287,6 +287,17 @@ const RECORD_CLEANUP_INTERVAL =
 
 let lastRecordCleanupRun = 0;
 
+// =======================================
+// PAID RECORD CLEANUP SETTINGS
+// =======================================
+
+const PAID_RECORD_RETENTION_DAYS = 1;
+
+const PAID_RECORD_CLEANUP_INTERVAL =
+  24 * 60 * 60 * 1000; // once every 24 hours
+
+let lastPaidRecordCleanupRun = 0;
+
 setInterval(async () => {
 
   if (schedulerRunning) {
@@ -420,6 +431,128 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
     console.warn("⚠️ Scheduler skipped — DB not available");
     return;
   }
+
+
+// =======================================
+// CLEAN OLD PAID RECORDS
+// Runs once every 24 hours
+// Deletes from records + notify_requests ONLY
+// =======================================
+
+if (
+  Date.now() - lastPaidRecordCleanupRun >=
+  PAID_RECORD_CLEANUP_INTERVAL
+) {
+
+  lastPaidRecordCleanupRun = Date.now();
+
+  try {
+
+    console.log(
+      "🧹 Running paid record cleanup..."
+    );
+
+    const cleanupSnapshot =
+      await db
+        .collection("records")
+        .get();
+
+    const now = Date.now();
+
+    for (const docSnap of cleanupSnapshot.docs) {
+
+      const record = docSnap.data();
+
+      // Only process PAID records
+      if (
+        record.status !== "Paid" &&
+        record.status !== "paid"
+      ) {
+        continue;
+      }
+
+      // Do not delete anything without a valid paidAt date
+      if (!record.paidAt) {
+        continue;
+      }
+
+      const paidAt =
+        new Date(record.paidAt).getTime();
+
+      // Ignore invalid paidAt values
+      if (Number.isNaN(paidAt)) {
+        continue;
+      }
+
+      const daysSincePaid =
+        Math.floor(
+          (now - paidAt) /
+          (1000 * 60 * 60 * 24)
+        );
+
+      if (
+        daysSincePaid >=
+        PAID_RECORD_RETENTION_DAYS
+      ) {
+
+        // =======================================
+        // DELETE FROM records
+        // =======================================
+
+        await db
+          .collection("records")
+          .doc(docSnap.id)
+          .delete();
+
+        console.log(
+          `🧹 Deleted expired PAID record: ${record.idNumber}`
+        );
+
+
+        // =======================================
+        // DELETE CORRESPONDING NOTIFY REQUEST(S)
+        // =======================================
+
+        if (record.idNumber) {
+
+          const notifySnapshot =
+            await db
+              .collection("notify_requests")
+              .where(
+                "idNumber",
+                "==",
+                record.idNumber
+              )
+              .get();
+
+          for (
+            const notifyDoc
+            of notifySnapshot.docs
+          ) {
+
+            await notifyDoc.ref.delete();
+
+            console.log(
+              `🧹 Deleted corresponding notify request: ${record.idNumber}`
+            );
+
+          }
+
+        }
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "❌ Paid record cleanup failed:",
+      err
+    );
+
+  }
+
+}
 
 // =======================================
 // CLEAN OLD UNMATCHED NOTIFY REQUESTS

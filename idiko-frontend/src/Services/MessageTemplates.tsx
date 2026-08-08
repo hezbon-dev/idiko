@@ -15,7 +15,7 @@ export const idFoundMessage = (
 ): string => {
   const firstName = getFirstName(fullName);
 
-  const baseMessage = `Good news ${firstName},your ID is ready for collection.Visit idiko.co.ke under (Search ID) to confirm,then visit Huduma Centre for collection.Thank you.`;
+  const baseMessage = `Good news ${firstName},your ID is ready for collection.Visit idiko.co.ke under(Search ID)to confirm,then visit Huduma Centre for collection.Thank you.`;
 
 // You can slightly adjust wording per channel later if needed
   switch (channel) {
@@ -34,5 +34,5 @@ export function getNotificationMessage(firstName: string): string {
       ? firstName.trim()
       : "there";
 
-  return `Good news ${safeName},your ID is ready for collection.Visit idiko.co.ke under (Search ID) to confirm, then visit Huduma Centre for collection.Thank you.`;
+  return `Good news ${safeName},your ID is ready for collection.Visit idiko.co.ke under(Search ID)to confirm, then visit Huduma Centre for collection.Thank you.`;
 }
