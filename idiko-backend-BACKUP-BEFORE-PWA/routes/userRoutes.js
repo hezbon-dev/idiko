@@ -27,7 +27,6 @@ router.post(
 
       if (
         !fullName ||
-        !idNumber ||
         !dob ||
         !sex ||
         !district ||
@@ -41,20 +40,22 @@ router.post(
 
       const db = admin.firestore();
 
-      const existing =
-        await db
-          .collection("notify_requests")
-          .where("idNumber", "==", idNumber)
-          .limit(1)
-          .get();
+      if (idNumber) {
+  const existing =
+    await db
+      .collection("notify_requests")
+      .where("idNumber", "==", idNumber)
+      .limit(1)
+      .get();
 
-      if (!existing.empty) {
-        return res.status(409).json({
-          success: false,
-          error:
-            "You already requested notification for this ID.",
-        });
-      }
+  if (!existing.empty) {
+    return res.status(409).json({
+      success: false,
+      error:
+        "You already requested notification for this ID.",
+    });
+  }
+}
 
       await db
         .collection("notify_requests")

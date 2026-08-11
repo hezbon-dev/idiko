@@ -108,7 +108,7 @@ export default function FindMyID() {
   });
 };
   const handleSearch = async () => {
-    if (!formData.fullName || !formData.idNumber || !formData.dob || !formData.sex || !formData.district) {
+    if (!formData.fullName || !formData.dob || !formData.sex || !formData.district) {
       setError("⚠️ Please fill in all fields before searching.");
       return;
     }
@@ -252,7 +252,7 @@ try {
       <h1></h1>
       <form style={formStyle} onSubmit={(e) => e.preventDefault()}>
         <input type="text" name="fullName" placeholder="Full Names (Given names + Surname)" value={formData.fullName} onChange={handleChange} style={inputStyle} />
-        <input type="text" name="idNumber" placeholder="ID Number" value={formData.idNumber} onChange={handleChange} style={inputStyle} />
+        <input type="text" name="idNumber" placeholder="ID Number (optional if not available)" value={formData.idNumber} onChange={handleChange} style={inputStyle} />
         <input type="text" name="dob" placeholder="Date of Birth (dd/mm/yyyy)" value={formData.dob} onChange={handleChange} style={inputStyle} />
         <select name="sex" value={formData.sex} onChange={handleChange} style={inputStyle}>
           <option value=""> Sex</option>

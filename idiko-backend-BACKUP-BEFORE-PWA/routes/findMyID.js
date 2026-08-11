@@ -75,6 +75,15 @@ router.post("/find-id", async (req, res) => {
       district,
     } = req.body;
 
+    const normalizedIdNumber = normalizeId(idNumber);
+
+if (!normalizedIdNumber) {
+  return res.json({
+    success: false,
+    found: false,
+  });
+}
+
     const snapshot =
       await db.collection("records").get();
 
