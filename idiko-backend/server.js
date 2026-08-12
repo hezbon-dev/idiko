@@ -291,7 +291,7 @@ let lastRecordCleanupRun = 0;
 // PAID RECORD CLEANUP SETTINGS
 // =======================================
 
-const PAID_RECORD_RETENTION_DAYS = 1;
+const PAID_RECORD_RETENTION_DAYS = 364;
 
 const PAID_RECORD_CLEANUP_INTERVAL =
   24 * 60 * 60 * 1000; // once every 24 hours
