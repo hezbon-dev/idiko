@@ -7,6 +7,236 @@ const admin = require("firebase-admin");
 const verifyAdminToken = require("../middleware/verifyAdminToken");
 
 // =========================
+// DASHBOARD PERIOD HELPERS
+// =========================
+
+const DASHBOARD_TIME_ZONE = "Africa/Nairobi";
+
+const getDatePartsInNairobi = (date = new Date()) => {
+
+  const formatter =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:
+          DASHBOARD_TIME_ZONE,
+
+        year: "numeric",
+
+        month: "2-digit",
+
+        day: "2-digit",
+      }
+    );
+
+  const parts =
+    formatter.formatToParts(date);
+
+  const values = {};
+
+  for (const part of parts) {
+
+    if (
+      part.type !== "literal"
+    ) {
+
+      values[part.type] =
+        part.value;
+
+    }
+
+  }
+
+  return values;
+
+};
+
+const getNairobiDateString = (
+  date = new Date()
+) => {
+
+  const {
+    year,
+    month,
+    day,
+  } =
+    getDatePartsInNairobi(
+      date
+    );
+
+  return `${year}-${month}-${day}`;
+
+};
+
+const getNairobiDateRange = (
+  period,
+  from,
+  to
+) => {
+
+  const now =
+    new Date();
+
+  const todayString =
+    getNairobiDateString(
+      now
+    );
+
+  if (
+    period === "All"
+  ) {
+
+    return null;
+
+  }
+
+  if (
+    period === "Custom"
+  ) {
+
+    if (
+      !from ||
+      !to ||
+      from > to
+    ) {
+
+      return null;
+
+    }
+
+    return {
+      from,
+      to,
+    };
+
+  }
+
+  if (
+    period === "Yesterday"
+  ) {
+
+    const todayParts =
+      getDatePartsInNairobi(
+        now
+      );
+
+    const todayAtMidnightUTC =
+      new Date(
+        Date.UTC(
+          Number(todayParts.year),
+          Number(todayParts.month) - 1,
+          Number(todayParts.day)
+        )
+      );
+
+    todayAtMidnightUTC.setUTCDate(
+      todayAtMidnightUTC.getUTCDate() - 1
+    );
+
+    const yesterday =
+      todayAtMidnightUTC
+        .toISOString()
+        .slice(0, 10);
+
+    return {
+      from: yesterday,
+      to: yesterday,
+    };
+
+  }
+
+  if (
+    period === "LastMonth"
+  ) {
+
+    const todayParts =
+      getDatePartsInNairobi(
+        now
+      );
+
+    const year =
+      Number(todayParts.year);
+
+    const month =
+      Number(todayParts.month);
+
+    const firstDayCurrentMonth =
+      new Date(
+        Date.UTC(
+          year,
+          month - 1,
+          1
+        )
+      );
+
+    const lastMonthDate =
+      new Date(
+        firstDayCurrentMonth
+      );
+
+    lastMonthDate.setUTCMonth(
+      lastMonthDate.getUTCMonth() - 1
+    );
+
+    const firstDayLastMonth =
+      new Date(
+        Date.UTC(
+          lastMonthDate.getUTCFullYear(),
+          lastMonthDate.getUTCMonth(),
+          1
+        )
+      );
+
+    const lastDayLastMonth =
+      new Date(
+        Date.UTC(
+          year,
+          month - 1,
+          0
+        )
+      );
+
+    return {
+      from:
+        firstDayLastMonth
+          .toISOString()
+          .slice(0, 10),
+
+      to:
+        lastDayLastMonth
+          .toISOString()
+          .slice(0, 10),
+    };
+
+  }
+
+  if (
+    period === "LastYear"
+  ) {
+
+    const todayParts =
+      getDatePartsInNairobi(
+        now
+      );
+
+    const year =
+      Number(todayParts.year);
+
+    return {
+      from:
+        `${year - 1}-01-01`,
+
+      to:
+        `${year - 1}-12-31`,
+    };
+
+  }
+
+  return null;
+
+};
+
+// =========================
 // GET ALL RECORDS
 // =========================
 
@@ -393,83 +623,241 @@ router.get(
       const db =
         admin.firestore();
 
-      const recordsSnap =
-        await db
-          .collection("records")
-          .get();
+      // =========================
+      // READ PERIOD PARAMETERS
+      // =========================
+
+      const {
+        period = "All",
+        from,
+        to,
+      } = req.query;
+
+      const dateRange =
+        getNairobiDateRange(
+          period,
+          from,
+          to
+        );
+
+      // =========================
+      // LOAD PERMANENT HISTORY
+      // =========================
 
       const historySnap =
         await db
-          .collection("allHistoryRecords")
+          .collection(
+            "allHistoryRecords"
+          )
           .get();
-
-      const notifySnap =
-        await db
-          .collection("notify_requests")
-          .get();
-
-      const records =
-        recordsSnap.docs.map(
-          doc => doc.data()
-        );
 
       const history =
         historySnap.docs.map(
-          doc => doc.data()
+          doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })
         );
+
+      // =========================
+      // UPLOADED IDs
+      // =========================
+      //
+      // Uploaded IDs are counted
+      // from allHistoryRecords.uploadDate.
+      //
+      // Period filtering applies here.
+      // =========================
+
+      let uploadedRecords =
+        history;
+
+      if (dateRange) {
+
+        uploadedRecords =
+          history.filter(
+            record => {
+
+              if (
+                !record.uploadDate
+              ) {
+
+                return false;
+
+              }
+
+              const uploadDate =
+                record.uploadDate
+                  .toDate
+                  ? record.uploadDate.toDate()
+                  : new Date(
+                      record.uploadDate
+                    );
+
+              if (
+                Number.isNaN(
+                  uploadDate.getTime()
+                )
+              ) {
+
+                return false;
+
+              }
+
+              const uploadDateString =
+                getNairobiDateString(
+                  uploadDate
+                );
+
+              return (
+                uploadDateString >=
+                  dateRange.from &&
+                uploadDateString <=
+                  dateRange.to
+              );
+
+            }
+          );
+
+      }
+
+      // =========================
+      // PAID IDs
+      // =========================
+      //
+      // Paid IDs are counted
+      // from allHistoryRecords.paidAt.
+      //
+      // Period filtering applies here.
+      // =========================
+
+      let paidRecords =
+        history.filter(
+          record =>
+            record.status ===
+            "Paid"
+        );
+
+      if (dateRange) {
+
+        paidRecords =
+          paidRecords.filter(
+            record => {
+
+              if (
+                !record.paidAt
+              ) {
+
+                return false;
+
+              }
+
+              const paidDate =
+                record.paidAt
+                  .toDate
+                  ? record.paidAt.toDate()
+                  : new Date(
+                      record.paidAt
+                    );
+
+              if (
+                Number.isNaN(
+                  paidDate.getTime()
+                )
+              ) {
+
+                return false;
+
+              }
+
+              const paidDateString =
+                getNairobiDateString(
+                  paidDate
+                );
+
+              return (
+                paidDateString >=
+                  dateRange.from &&
+                paidDateString <=
+                  dateRange.to
+              );
+
+            }
+          );
+
+      }
+
+      // =========================
+      // PENDING IDs
+      // =========================
+      //
+      // Pending IDs ALWAYS show ALL.
+      //
+      // They are deliberately NOT
+      // affected by the dashboard period.
+      // =========================
+
+      const pending =
+        history.filter(
+          record =>
+            record.status ===
+            "Pending"
+        ).length;
+
+      // =========================
+      // NOTIFY REQUESTS
+      // =========================
+      //
+      // Notify requests are temporary.
+      //
+      // They ALWAYS show ALL.
+      //
+      // No period filtering is applied.
+      // =========================
+
+      const notifySnap =
+        await db
+          .collection(
+            "notify_requests"
+          )
+          .get();
 
       const notify =
         notifySnap.docs.map(
           doc => doc.data()
         );
 
-      const merged =
-        [...records, ...history];
+      const awaiting =
+        notify.filter(
+          request =>
+            !request.matched
+        ).length;
 
-      const unique =
-        Array.from(
-          new Map(
-            merged.map(
-              r => [
-                r.idNumber,
-                r,
-              ]
-            )
-          ).values()
-        );
+      const matched =
+        notify.filter(
+          request =>
+            request.matched
+        ).length;
+
+      // =========================
+      // RESPONSE
+      // =========================
 
       return res.json({
 
         success: true,
 
         totalUploaded:
-          unique.length,
+          uploadedRecords.length,
 
-        pending:
-          unique.filter(
-            r =>
-              r.status ===
-              "Pending"
-          ).length,
+        pending,
 
         paid:
-          unique.filter(
-            r =>
-              r.status ===
-              "Paid"
-          ).length,
+          paidRecords.length,
 
-        awaiting:
-          notify.filter(
-            n =>
-              !n.matched
-          ).length,
+        awaiting,
 
-        matched:
-          notify.filter(
-            n =>
-              n.matched
-          ).length,
+        matched,
 
       });
 

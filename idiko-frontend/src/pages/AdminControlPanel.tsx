@@ -14,12 +14,13 @@ export default function AdminControlPanel() {
 
   const totalStations = stations.length;
 
-  const [period, setPeriod] = useState<PeriodOption>("All");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
+  const [period, setPeriod] =
+  useState<PeriodOption>("All");
 
-  const [loading, setLoading] =
-  useState(true);
+const [customFrom, setCustomFrom] =useState("");
+const [customTo, setCustomTo] =useState("");
+const customDateRangeInvalid =period === "Custom" &&(!customFrom ||!customTo ||customFrom > customTo);
+const [loading, setLoading] =useState(true);
 
   const [stats, setStats] =
   useState({
@@ -204,9 +205,35 @@ useEffect(() => {
             "idiko_admin_token"
           );
 
+        const params =
+          new URLSearchParams();
+
+        params.set(
+          "period",
+          period
+        );
+
+        if (period === "Custom") {
+
+          if (customDateRangeInvalid) {
+            return;
+          }
+
+          params.set(
+            "from",
+            customFrom
+          );
+
+          params.set(
+            "to",
+            customTo
+          );
+
+        }
+
         const response =
           await fetch(
-            `${API_URL}/admin/dashboard-stats`,
+            `${API_URL}/admin/dashboard-stats?${params.toString()}`,
             {
               headers: {
                 Authorization:
@@ -269,8 +296,13 @@ useEffect(() => {
       interval
     );
 
-}, [API_URL]);
-
+}, [
+  API_URL,
+  period,
+  customFrom,
+  customTo,
+  customDateRangeInvalid,
+]);
  
 if (loading) {
 
@@ -291,34 +323,94 @@ if (loading) {
     <div style={{ color: "#fff", minHeight: "100vh", padding: "20px" }}>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
 
-      <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-        <div>
-          <label>Period</label>
-          <select
-            value={period}
-            onChange={e => setPeriod(e.target.value as PeriodOption)}
-            style={{ padding: 8, color: "#fff", borderRadius: 6 }}
-          >
-            <option value="All">All</option>
-            <option value="Custom">Custom</option>
-            <option value="Yesterday">Yesterday</option>
-            <option value="LastMonth">Last Month</option>
-            <option value="LastYear">Last Year</option>
-          </select>
-        </div>
-        {period === "Custom" && (
-          <>
-            <div>
-              <label>From</label>
-              <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ padding: 8, color: "#fff", borderRadius: 6 }} />
-            </div>
-            <div>
-              <label>To</label>
-              <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ padding: 8, color: "#fff", borderRadius: 6 }} />
-            </div>
-          </>
-        )}
+      <div
+  style={{
+    display: "flex",
+    gap: "12px",
+    justifyContent: "center",
+    flexWrap: "wrap",
+  }}
+>
+  <div>
+    <label>Period</label>
+
+    <select
+      value={period}
+      onChange={e =>
+        setPeriod(
+          e.target.value as PeriodOption
+        )
+      }
+      style={{
+        padding: 8,
+        color: "#fff",
+        borderRadius: 6,
+      }}
+    >
+      <option value="All">
+        All
+      </option>
+
+      <option value="Custom">
+        Custom
+      </option>
+
+      <option value="Yesterday">
+        Yesterday
+      </option>
+
+      <option value="LastMonth">
+        Last Month
+      </option>
+
+      <option value="LastYear">
+        Last Year
+      </option>
+    </select>
+  </div>
+
+  {period === "Custom" && (
+    <>
+      <div>
+        <label>From</label>
+
+        <input
+          type="date"
+          value={customFrom}
+          onChange={e =>
+            setCustomFrom(
+              e.target.value
+            )
+          }
+          style={{
+            padding: 8,
+            color: "#fff",
+            borderRadius: 6,
+          }}
+        />
       </div>
+
+      <div>
+        <label>To</label>
+
+        <input
+          type="date"
+          value={customTo}
+          onChange={e =>
+            setCustomTo(
+              e.target.value
+            )
+          }
+          style={{
+            padding: 8,
+            color: "#fff",
+            borderRadius: 6,
+          }}
+        />
+      </div>
+    </>
+  )}
+</div>
 
       <section style={{ marginTop: 30 }}>
         <h2>Overview </h2>
