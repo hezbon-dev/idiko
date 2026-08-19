@@ -662,12 +662,6 @@ router.get(
       // =========================
       // UPLOADED IDs
       // =========================
-      //
-      // Uploaded IDs are counted
-      // from allHistoryRecords.uploadDate.
-      //
-      // Period filtering applies here.
-      // =========================
 
       let uploadedRecords =
         history;
@@ -723,12 +717,6 @@ router.get(
 
       // =========================
       // PAID IDs
-      // =========================
-      //
-      // Paid IDs are counted
-      // from allHistoryRecords.paidAt.
-      //
-      // Period filtering applies here.
       // =========================
 
       let paidRecords =
@@ -790,13 +778,7 @@ router.get(
       // =========================
       // PENDING IDs
       // =========================
-      //
-      // Pending IDs ALWAYS show ALL.
-      //
-      // They are deliberately NOT
-      // affected by the dashboard period.
-      // =========================
-
+      
       const pending =
         history.filter(
           record =>
@@ -807,14 +789,7 @@ router.get(
       // =========================
       // NOTIFY REQUESTS
       // =========================
-      //
-      // Notify requests are temporary.
-      //
-      // They ALWAYS show ALL.
-      //
-      // No period filtering is applied.
-      // =========================
-
+      
       const notifySnap =
         await db
           .collection(

@@ -114,7 +114,7 @@ const [zoomImage, setZoomImage] = useState<string | null>(null);
     textAlign: "center",
   };
 
-  // ✅ SECURE: Redirect to PayToClaim (no unlocking here)
+// ✅ SECURE: Redirect to PayToClaim (no unlocking here)
   const handlePayment = () => {
     if (!record) return;
 

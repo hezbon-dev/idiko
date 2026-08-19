@@ -303,7 +303,7 @@ router.post(
 
     console.log("📌 OTP Received:", otp);
 
-    // =========================
+// =========================
 // ✅ BASIC VALIDATION
 // =========================
 

@@ -15,9 +15,9 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // =========================
-  // ✅ OTP STATE
-  // =========================
+// =========================
+// ✅ OTP STATE
+// =========================
 
   const [otpRequired, setOtpRequired] = useState(false);
 
@@ -42,9 +42,9 @@ export default function AdminLogin() {
   const [pendingUsername, setPendingUsername] =
     useState("");
 
-  // =========================
-  // ⏳ OTP COUNTDOWN
-  // =========================
+// =========================
+// ⏳ OTP COUNTDOWN
+// =========================
 
   const [otpCountdown, setOtpCountdown] =
     useState(30);
@@ -79,9 +79,9 @@ export default function AdminLogin() {
     color: "white",
   };
 
-  // =========================
-  // ✅ OTP BOX STYLE
-  // =========================
+// =========================
+// ✅ OTP BOX STYLE
+// =========================
 
   const otpBoxStyle: React.CSSProperties = {
     width: "45px",
@@ -105,9 +105,9 @@ export default function AdminLogin() {
   animation: "otpSpin 0.8s linear infinite",
 };
 
-  // =========================
-  // ⏳ OTP COUNTDOWN EFFECT
-  // =========================
+// =========================
+// ⏳ OTP COUNTDOWN EFFECT
+// =========================
 
   useEffect(() => {
 
@@ -149,9 +149,9 @@ export default function AdminLogin() {
 
   }, [otpRequired, otpCountdown]);
 
-  // =========================
-  // ✅ AUTO VERIFY OTP
-  // =========================
+// =========================
+// ✅ AUTO VERIFY OTP
+// =========================
 
   useEffect(() => {
 
@@ -163,9 +163,9 @@ export default function AdminLogin() {
 
   }, [otp]);
 
-  // =========================
-  // ✅ HANDLE OTP INPUT
-  // =========================
+// =========================
+// ✅ HANDLE OTP INPUT
+// =========================
 
   const handleOtpChange = (
     value: string,
@@ -177,9 +177,9 @@ export default function AdminLogin() {
     const updatedOtp =
       [...otpArray];
 
-    // =========================
-    // ✅ HANDLE PASTE
-    // =========================
+// =========================
+// ✅ HANDLE PASTE
+// =========================
 
     if (value.length > 1) {
 
@@ -206,9 +206,9 @@ export default function AdminLogin() {
 
     setOtpArray(updatedOtp);
 
-    // =========================
-    // ✅ AUTO MOVE
-    // =========================
+// =========================
+// ✅ AUTO MOVE
+// =========================
 
     if (
       value &&
@@ -221,9 +221,9 @@ export default function AdminLogin() {
     }
   };
 
-  // =========================
-  // ✅ BACKSPACE SUPPORT
-  // =========================
+// =========================
+// ✅ BACKSPACE SUPPORT
+// =========================
 
   const handleOtpKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -272,9 +272,9 @@ export default function AdminLogin() {
         return;
       }
 
-      // =========================
-      // ✅ OTP REQUIRED
-      // =========================
+// =========================
+// ✅ OTP REQUIRED
+// =========================
 
       if (res.data.otpRequired) {
 
@@ -307,9 +307,9 @@ export default function AdminLogin() {
     }
   };
 
-  // =========================
-  // ✅ VERIFY OTP
-  // =========================
+// =========================
+// ✅ VERIFY OTP
+// =========================
 
   const handleVerifyOTP = async () => {
 
@@ -343,9 +343,9 @@ export default function AdminLogin() {
 
       login("admin");
 
-      // =========================
-      // ✅ BIOMETRIC REGISTRATION
-      // =========================
+// =========================
+// ✅ BIOMETRIC REGISTRATION
+// =========================
 
       const alreadyEnabled =
         localStorage.getItem(
@@ -380,9 +380,9 @@ export default function AdminLogin() {
         }
       }
 
-      // =========================
-      // ✅ VERIFY BIOMETRIC
-      // =========================
+// =========================
+// ✅ VERIFY BIOMETRIC
+// =========================
 
       const biometricCheck =
         await verifyBiometric();

@@ -201,10 +201,10 @@ const loadTrash = async () => {
   /* ================= FIRESTORE LISTENERS ================= */
   useEffect(() => {
 
-  // ==========================
-  // Don't load anything until
-  // a user is authenticated.
-  // ==========================
+// ==========================
+// Don't load anything until
+// a user is authenticated.
+// ==========================
 
   if (!user) {
 

@@ -8,7 +8,7 @@ export default function AdminUpload() {
   const [backPreview, setBackPreview] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  // Form fields
+// Form fields
   const [fullName, setFullName] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [dob, setDob] = useState("");
@@ -32,7 +32,7 @@ export default function AdminUpload() {
     }
   };
 
-  // ✅ Convert yyyy-mm-dd → dd/mm/yyyy
+// ✅ Convert yyyy-mm-dd → dd/mm/yyyy
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
     const [year, month, day] = dateStr.split("-");
@@ -56,7 +56,7 @@ export default function AdminUpload() {
       return;
     }
 
-    // ✅ Save record (only appears in AdminManageIDs page)
+// ✅ Save record (only appears in AdminManageIDs page)
     addRecord({
       frontImage: frontPreview,
       backImage: backPreview,

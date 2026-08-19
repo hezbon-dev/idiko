@@ -36,17 +36,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
 
-  // =========================
-  // ✅ STATE
-  // =========================
+// =========================
+// ✅ STATE
+// =========================
 
   const [user, setUser] = useState<AuthType>(null);
 
   const [loading, setLoading] = useState(true);
 
-  // =========================
-  // ✅ TOKEN VERIFICATION
-  // =========================
+// =========================
+// ✅ TOKEN VERIFICATION
+// =========================
 
   useEffect(() => {
 
@@ -56,9 +56,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         const token = localStorage.getItem("idiko_admin_token");
 
-        // =========================
-        // ❌ NO TOKEN FOUND
-        // =========================
+// =========================
+// ❌ NO TOKEN FOUND
+// =========================
 
         if (!token) {
 
@@ -69,9 +69,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
 
-        // =========================
-        // ✅ VERIFY TOKEN WITH BACKEND
-        // =========================
+// =========================
+// ✅ VERIFY TOKEN WITH BACKEND
+// =========================
 
         const res = await axios.get(
           `${import.meta.env.VITE_API_URL}/admin/verify`,
@@ -82,9 +82,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           }
         );
 
-        // =========================
-        // ✅ TOKEN VERIFIED
-        // =========================
+// =========================
+// ✅ TOKEN VERIFIED
+// =========================
 
         if (res.data.success) {
 
@@ -94,9 +94,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
         } else {
 
-          // =========================
-          // ❌ INVALID TOKEN
-          // =========================
+// =========================
+// ❌ INVALID TOKEN
+// =========================
 
           localStorage.removeItem("idiko_admin_token");
 
@@ -107,9 +107,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
       } catch (err) {
 
-        // =========================
-        // ❌ TOKEN VERIFICATION FAILED
-        // =========================
+// =========================
+// ❌ TOKEN VERIFICATION FAILED
+// =========================
 
         console.log("❌ Token verification failed");
 
@@ -125,18 +125,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   }, []);
 
-  // =========================
-  // ✅ LOGIN
-  // =========================
+// =========================
+// ✅ LOGIN
+// =========================
 
   const login = (role: AuthType) => {
 
     setUser(role);
   };
 
-  // =========================
-  // ✅ LOGOUT
-  // =========================
+// =========================
+// ✅ LOGOUT
+// =========================
 
   const logout = () => {
 
@@ -145,16 +145,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     setUser(null);
   };
 
-  // =========================
-  // ✅ AUTH STATUS
-  // =========================
+// =========================
+// ✅ AUTH STATUS
+// =========================
 
   const isAuthenticated =
     user === "admin" || user === "staff";
 
-  // =========================
-  // ✅ PROVIDER
-  // =========================
+// =========================
+// ✅ PROVIDER
+// =========================
 
   return (
     <AuthContext.Provider

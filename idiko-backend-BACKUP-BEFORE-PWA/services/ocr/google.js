@@ -72,9 +72,9 @@ async function googleOCR(imageBase64) {
 
     console.log("✅ Base64 image cleaned");
 
-    // ==============================
-    // ✅ GOOGLE OCR REQUEST
-    // ==============================
+// ==============================
+// ✅ GOOGLE OCR REQUEST
+// ==============================
 
     const [result] = await client.textDetection({
       image: {
@@ -84,18 +84,18 @@ async function googleOCR(imageBase64) {
 
     console.log("✅ Google Vision OCR completed");
 
-    // ==============================
-    // ✅ EXTRACT RAW TEXT
-    // ==============================
+// ==============================
+// ✅ EXTRACT RAW TEXT
+// ==============================
 
     const text =
       result.fullTextAnnotation?.text || "";
 
     console.log("🧾 RAW GOOGLE OCR TEXT:\n", text);
 
-    // ==============================
-    // ✅ PARSE KENYAN ID
-    // ==============================
+// ==============================
+// ✅ PARSE KENYAN ID
+// ==============================
 
     const parsedData = parseKenyanID(text);
 
@@ -103,9 +103,9 @@ async function googleOCR(imageBase64) {
       "✅ Google OCR parsed successfully"
     );
 
-    // ==============================
-    // ✅ RETURN RESULT
-    // ==============================
+// ==============================
+// ✅ RETURN RESULT
+// ==============================
 
     return {
       rawText: text,

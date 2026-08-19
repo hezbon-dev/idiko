@@ -1,7 +1,7 @@
 function parseKenyanID(text) {
   console.log("🧠 Starting Kenyan ID parser...");
 
-  // ✅ Normalize OCR text globally
+// ✅ Normalize OCR text globally
   const normalizedText = text
     .replace(/[|]/g, "I")
     .replace(/[‘’`]/g, "'")
@@ -10,7 +10,7 @@ function parseKenyanID(text) {
     .replace(/\t/g, " ")
     .replace(/\s+/g, " ");
 
-  // ✅ Split and clean lines properly
+// ✅ Split and clean lines properly
   const lines = text
     .split("\n")
     .map((line) =>
@@ -26,7 +26,7 @@ function parseKenyanID(text) {
   let sex = "";
   let district = "";
 
-  // ✅ Common invalid/header words
+// ✅ Common invalid/header words
   const invalidNameWords = [
   "REPUBLIC",
   "KENYA",
@@ -46,7 +46,7 @@ function parseKenyanID(text) {
   "ISSUE",
   "SEX",
 
-  // Maisha Card words
+// Maisha Card words
   "KITAMBULISHO",
   "TAIFA",
   "NATIONAL",
@@ -58,9 +58,9 @@ function parseKenyanID(text) {
   "NATIONALITY",
 ];
 
-  // =========================
-  // ✅ HELPERS
-  // =========================
+// =========================
+// ✅ HELPERS
+// =========================
 
   function getNextValidLine(startIndex) {
     for (let i = startIndex + 1; i < lines.length; i++) {
@@ -101,7 +101,7 @@ function parseKenyanID(text) {
     return "";
   }
 
-  // =========================
+// =========================
 // ✅ MAISHA CARD NAME EXTRACTION
 // =========================
 
@@ -146,7 +146,7 @@ if (
   }
 }
 
-  // 🔍 Loop through lines
+    // 🔍 Loop through lines
   lines.forEach((line, index) => {
     const clean = line.toUpperCase();
 
@@ -163,9 +163,9 @@ if (
       .replace(/\s+/g, " ")
       .trim();
 
-    // =========================
-    // ✅ FULL NAME EXTRACTION
-    // =========================
+// =========================
+// ✅ FULL NAME EXTRACTION
+// =========================
 
     if (
       !fullName &&
@@ -207,7 +207,7 @@ if (
       }
     }
 
-    // =========================
+// =========================
 // ✅ ID NUMBER EXTRACTION
 // =========================
 
@@ -250,9 +250,9 @@ if (
   }
 }
   
-    // =========================
-    // ✅ DATE OF BIRTH EXTRACTION
-    // =========================
+// =========================
+// ✅ DATE OF BIRTH EXTRACTION
+// =========================
 
     if (
       !dob &&
@@ -283,9 +283,9 @@ if (
       }
     }
 
-    // =========================
-    // ✅ SEX EXTRACTION
-    // =========================
+// =========================
+// ✅ SEX EXTRACTION
+// =========================
 
     if (
       !sex &&
@@ -324,7 +324,7 @@ if (
       }
     }
 
-    // =========================
+// =========================
 // ✅ DISTRICT / COUNTY EXTRACTION
 // =========================
 
@@ -372,9 +372,9 @@ if (
   }
 }
 
-    // =========================
-    // ✅ FALLBACK SEX EXTRACTION
-    // =========================
+// =========================
+// ✅ FALLBACK SEX EXTRACTION
+// =========================
 
     if (!sex) {
       const compact = clean.replace(/\s+/g, "");
@@ -404,9 +404,9 @@ if (
       }
     }
 
-    // =========================
-    // ✅ FALLBACK DOB EXTRACTION
-    // =========================
+// =========================
+// ✅ FALLBACK DOB EXTRACTION
+// =========================
 
     if (!dob) {
      const dateMatch = clean.match(
@@ -427,9 +427,9 @@ if (
       }
     }
 
-    // =========================
-    // ✅ FALLBACK FULL NAME EXTRACTION
-    // =========================
+// =========================
+// ✅ FALLBACK FULL NAME EXTRACTION
+// =========================
 
     if (!fullName) {
       const words = nameClean
@@ -464,8 +464,8 @@ if (
   });
 
 // =========================
-  // ✅ FINAL FALLBACK ID EXTRACTION
-  // =========================
+// ✅ FINAL FALLBACK ID EXTRACTION
+// =========================
 
   if (!idNumber) {
 
@@ -498,9 +498,9 @@ if (
   }
 
 
-  // =========================
-  // ✅ CONFIDENCE SCORING
-  // =========================
+// =========================
+// ✅ CONFIDENCE SCORING
+// =========================
 
   const confidence = calculateConfidence({
     fullName,
@@ -512,9 +512,9 @@ if (
 
   console.log("📊 OCR Confidence:", confidence);
 
-  // =========================
-  // ✅ FINAL STRUCTURED RESULT
-  // =========================
+// =========================
+// ✅ FINAL STRUCTURED RESULT
+// =========================
 
   const result = {
     fullName,

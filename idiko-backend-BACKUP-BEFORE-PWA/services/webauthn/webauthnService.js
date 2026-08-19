@@ -37,9 +37,9 @@ const generateWebAuthnRegistration = (
     },
   });
 
-  // =========================
-  // ✅ STORE CHALLENGE
-  // =========================
+// =========================
+// ✅ STORE CHALLENGE
+// =========================
 
   challenges[username] =
     options.challenge;

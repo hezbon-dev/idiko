@@ -47,9 +47,9 @@ router.post(
 
     console.log("📌 Username Received:", username);
 
-    // =========================
-    // ✅ BASIC VALIDATION
-    // =========================
+// =========================
+// ✅ BASIC VALIDATION
+// =========================
 
     if (!username || !password) {
 
@@ -61,9 +61,9 @@ router.post(
       });
     }
 
-    // =========================
-    // ✅ FIRESTORE LOOKUP
-    // =========================
+// =========================
+// ✅ FIRESTORE LOOKUP
+// =========================
 
     const db = admin.firestore();
 
@@ -137,9 +137,9 @@ if (!passwordValid) {
 
   console.log("❌ Invalid password");
 
-  // =========================
-  // ✅ TRACK FAILED LOGIN
-  // =========================
+// =========================
+// ✅ TRACK FAILED LOGIN
+// =========================
 
   const record = incrementAttempts(
     userData.username
@@ -150,9 +150,9 @@ if (!passwordValid) {
     record.attempts
   );
 
-  // =========================
-  // 🚫 TEMP LOCK ACCOUNT
-  // =========================
+// =========================
+// 🚫 TEMP LOCK ACCOUNT
+// =========================
 
   if (record.attempts >= 3) {
 
@@ -213,9 +213,9 @@ await sendOTPEmail(
 
 console.log("📨 OTP email dispatched");
 
-    // =========================
-    // ✅ ROLE VALIDATION
-    // =========================
+// =========================
+// ✅ ROLE VALIDATION
+// =========================
 
     if (userData.role !== "admin") {
 
@@ -227,9 +227,9 @@ console.log("📨 OTP email dispatched");
       });
     }
 
-    // =========================
-    // ✅ EMAIL CHECK
-    // =========================
+// =========================
+// ✅ EMAIL CHECK
+// =========================
 
     if (!userData.email) {
 
@@ -241,11 +241,7 @@ console.log("📨 OTP email dispatched");
       });
     }
 
-    // =========================
-    // ✅ SUCCESS RESPONSE
-    // =========================
-   
-   // =========================
+// =========================
 // ✅ OTP REQUIRED
 // =========================
 
@@ -303,7 +299,7 @@ router.post(
 
     console.log("📌 OTP Received:", otp);
 
-    // =========================
+// =========================
 // ✅ BASIC VALIDATION
 // =========================
 
@@ -385,16 +381,16 @@ if (storedOTP.otp !== otp) {
 
   console.log("❌ Invalid OTP");
 
-  // =========================
-  // ✅ TRACK OTP ATTEMPTS
-  // =========================
+// =========================
+// ✅ TRACK OTP ATTEMPTS
+// =========================
 
   const attempts =
     incrementOTPAttempts(username);
 
-  // =========================
-  // 🔒 MAX ATTEMPTS REACHED
-  // =========================
+// =========================
+// 🔒 MAX ATTEMPTS REACHED
+// =========================
 
   if (attempts >= MAX_OTP_ATTEMPTS) {
 
@@ -556,9 +552,9 @@ router.post(
         username
       );
 
-      // =========================
-      // ✅ VERIFY REGISTRATION
-      // =========================
+// =========================
+// ✅ VERIFY REGISTRATION
+// =========================
 
       const verification =
         verifyWebAuthnRegistration(
@@ -578,9 +574,9 @@ router.post(
         });
       }
 
-      // =========================
-      // ✅ SAVE CREDENTIAL
-      // =========================
+// =========================
+// ✅ SAVE CREDENTIAL
+// =========================
 
       const db = admin.firestore();
 

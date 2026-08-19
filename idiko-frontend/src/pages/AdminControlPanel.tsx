@@ -1,5 +1,5 @@
 // src/pages/AdminControlPanel.tsx
-import { useState, useEffect } from "react";
+import {useState,useEffect,useRef,type ReactNode,} from "react";
 import { Link } from "react-router-dom";
 import { usePickupStations } from "../context/PickupStationContext";
 import { useMaintenance } from "../context/MaintenanceContext";
@@ -17,10 +17,39 @@ export default function AdminControlPanel() {
   const [period, setPeriod] =
   useState<PeriodOption>("All");
 
-const [customFrom, setCustomFrom] =useState("");
-const [customTo, setCustomTo] =useState("");
-const customDateRangeInvalid =period === "Custom" &&(!customFrom ||!customTo ||customFrom > customTo);
-const [loading, setLoading] =useState(true);
+const [customFrom, setCustomFrom] =
+  useState("");
+
+const [customTo, setCustomTo] =
+  useState("");
+
+const customDateRangeInvalid =
+  period === "Custom" &&
+  (
+    !customFrom ||
+    !customTo ||
+    customFrom > customTo
+  );
+
+const [loading, setLoading] =
+  useState(true);
+
+const [periodLoading, setPeriodLoading] =
+  useState(false);
+
+const currentFilterKey =
+  period === "Custom"
+    ? customDateRangeInvalid
+      ? null
+      : `${period}:${customFrom}:${customTo}`
+    : period;
+
+const previousFilterKey =
+  useRef<string | null>(
+    currentFilterKey
+  );
+
+
 
   const [stats, setStats] =
   useState({
@@ -195,6 +224,32 @@ const toggleMaintenanceMode =
 
 useEffect(() => {
 
+  if (
+    currentFilterKey === null
+  ) {
+
+    previousFilterKey.current =
+      currentFilterKey;
+
+    setPeriodLoading(false);
+
+    return;
+
+  }
+
+  const filterChanged =
+    previousFilterKey.current !==
+    currentFilterKey;
+
+  if (filterChanged) {
+
+    previousFilterKey.current =
+      currentFilterKey;
+
+    setPeriodLoading(true);
+
+  }
+
   const loadStats =
     async () => {
 
@@ -215,7 +270,9 @@ useEffect(() => {
 
         if (period === "Custom") {
 
-          if (customDateRangeInvalid) {
+          if (
+            customDateRangeInvalid
+          ) {
             return;
           }
 
@@ -279,6 +336,12 @@ useEffect(() => {
 
         setLoading(false);
 
+        if (filterChanged) {
+
+          setPeriodLoading(false);
+
+        }
+
       }
 
     };
@@ -302,6 +365,7 @@ useEffect(() => {
   customFrom,
   customTo,
   customDateRangeInvalid,
+  currentFilterKey,
 ]);
  
 if (loading) {
@@ -416,9 +480,9 @@ if (loading) {
         <h2>Overview </h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
           <StatBox label="Stations" value={totalStations} />
-          <StatBox label="Uploaded IDs" value={stats.totalUploaded}/>
-          <StatBox label="Pending IDs" value={stats.pending}/>
-          <StatBox label="Paid IDs" value={stats.paid} />
+          <StatBox label="Uploaded IDs"value={periodLoading? <PeriodSpinner />: stats.totalUploaded}/>
+          <StatBox label="Pending IDs"value={stats.pending}/>
+          <StatBox label="Paid IDs"value={periodLoading? <PeriodSpinner />: stats.paid}/>
           <StatBox label="Unmatched Notify Requests" value={stats.awaiting} />
           <StatBox label="Matched Notifications" value={stats.matched} />
         </div>
@@ -476,7 +540,39 @@ if (loading) {
   );
 }
 
-const StatBox = ({ label, value }: { label: string; value: number }) => (
+const PeriodSpinner = () => (
+  <>
+    <style>
+      {`
+        @keyframes periodSpinnerRotate {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}
+    </style>
+
+    <div
+      role="status"
+      aria-label="Loading"
+      style={{
+        width: "24px",
+        height: "24px",
+        border: "4px solid rgba(255,255,255,0.18)",
+        borderTopColor: "rgba(255,255,255,0.95)",
+        borderRightColor: "rgba(255,255,255,0.65)",
+        borderRadius: "50%",
+        animation:
+          "periodSpinnerRotate 0.8s linear infinite",
+        margin: "0 auto",
+        boxSizing: "border-box",
+      }}
+    />
+  </>
+);
+
+
+const StatBox = ({label,value,}: {label: string;value: ReactNode;}) => (
   <div style={{ padding: 20, borderRadius: 10, minWidth: 180, textAlign: "center", boxShadow: "0 4px 10px rgba(0,0,0,0.4)" }}>
     <div style={{ fontSize: 28, fontWeight: "bold" }}>{value}</div>
     <div style={{ marginTop: 6 }}>{label}</div>

@@ -6,9 +6,9 @@ import {BACKGROUND_TYPE,WEBSITE_BACKGROUND,WEBSITE_BACKGROUND_VIDEO,} from "../c
 
 export default function MainLayout() {
 
-  // =========================
-  // LAYOUT
-  // =========================
+// =========================
+// LAYOUT
+// =========================
 
   const layoutStyle: React.CSSProperties = {
 

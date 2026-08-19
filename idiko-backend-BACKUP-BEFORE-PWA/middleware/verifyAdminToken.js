@@ -4,9 +4,9 @@ const verifyAdminToken = (req, res, next) => {
 
   try {
 
-    // =========================
-    // ✅ GET AUTH HEADER
-    // =========================
+// =========================
+// ✅ GET AUTH HEADER
+// =========================
 
     const authHeader = req.headers.authorization;
 
@@ -20,9 +20,9 @@ const verifyAdminToken = (req, res, next) => {
       });
     }
 
-    // =========================
-    // ✅ EXTRACT TOKEN
-    // =========================
+// =========================
+// ✅ EXTRACT TOKEN
+// =========================
 
     const token = authHeader.split(" ")[1];
 
@@ -36,9 +36,9 @@ const verifyAdminToken = (req, res, next) => {
       });
     }
 
-    // =========================
-    // ✅ VERIFY TOKEN
-    // =========================
+// =========================
+// ✅ VERIFY TOKEN
+// =========================
 
    const decoded = jwt.verify(
   token,

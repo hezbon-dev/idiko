@@ -111,14 +111,14 @@ try {
     setCurrentStation(station);
     await StorageService.set("currentStaff", station);
 
-    // ✅ CREATE UNIQUE SESSION ID 
+// ✅ CREATE UNIQUE SESSION ID 
 const sessionId = `${station.id}_${Date.now()}`;
 
 // store locally (used everywhere else)
 await StorageService.set("sessionId", sessionId);
 await StorageService.set("currentStaff", station);
 
-    // ✅ END SESSION CREATION
+// ✅ END SESSION CREATION
 
     login("staff");
 

@@ -164,7 +164,7 @@ const message = `Good news ${safeName}, your ID is ready for collection.Visit id
 app.post("/start-notification", async (req, res) => {
   console.log("🚀 START NOTIFICATION TRIGGERED");
 
-  // ✅ FIX: guard BEFORE using db
+// ✅ FIX: guard BEFORE using db
   if (!db) {
     return res.status(500).json({
       success: false,
@@ -495,9 +495,9 @@ if (
         PAID_RECORD_RETENTION_DAYS
       ) {
 
-        // =======================================
-        // DELETE FROM records
-        // =======================================
+// =======================================
+// DELETE FROM records
+// =======================================
 
         await db
           .collection("records")
@@ -509,9 +509,9 @@ if (
         );
 
 
-        // =======================================
-        // DELETE CORRESPONDING NOTIFY REQUEST(S)
-        // =======================================
+// =======================================
+// DELETE CORRESPONDING NOTIFY REQUEST(S)
+// =======================================
 
         if (record.idNumber) {
 
@@ -662,9 +662,9 @@ if (
 
       try {
 
-        // =========================
-        // ✅ MATCHING ENGINE
-        // =========================
+// =========================
+// ✅ MATCHING ENGINE
+// =========================
 
         if (!req.matched || !req.lastSentAt) {
 
@@ -701,9 +701,9 @@ if (
           continue;
         }
 
-        // =========================
-        // ✅ STOP IF PAID
-        // =========================
+// =========================
+// ✅ STOP IF PAID
+// =========================
 
            if (
            req.status === "Paid" ||
@@ -722,9 +722,9 @@ if (
        continue;
       }
 
-        // =========================
-        // ✅ REQUIRE startedAt
-        // =========================
+// =========================
+// ✅ REQUIRE startedAt
+// =========================
 
         if (!req.startedAt) {
           await docRef.update({
@@ -734,9 +734,9 @@ if (
           continue;
       }
 
-        // =========================
-        // ✅ STOP AFTER 14 DAYS
-        // =========================
+// =========================
+// ✅ STOP AFTER 14 DAYS
+// =========================
 
         const startedAt = new Date(req.startedAt).getTime();
 
@@ -761,9 +761,9 @@ if (
   continue;
      }
 
-        // ==================================
-        // ✅ PREVENT DUPLICATE SAME-DAY SMS
-        // ==================================
+// ==================================
+// ✅ PREVENT DUPLICATE SAME-DAY SMS
+// ==================================
 
         if (req.lastSentAt) {
           const last = new Date(req.lastSentAt).toDateString();
@@ -774,9 +774,9 @@ if (
      }
         }
 
-        // =========================
-        // ✅ SEND DAILY SMS
-        // =========================
+// =========================
+// ✅ SEND DAILY SMS
+// =========================
 
         await sendSMSNotification(req);
 
