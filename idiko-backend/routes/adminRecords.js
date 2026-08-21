@@ -420,7 +420,10 @@ router.post(
       await db
         .collection("trash")
         .doc(record.idNumber)
-        .set(record);
+      .set({
+        ...record,
+        trashedAt:new Date().toISOString()
+      });
 
       // Remove from records
 
