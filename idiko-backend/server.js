@@ -296,6 +296,17 @@ const PAID_RECORD_CLEANUP_INTERVAL =
 
 let lastPaidRecordCleanupRun = 0;
 
+// =======================================
+// TRASH RECORD CLEANUP SETTINGS
+// =======================================
+
+const TRASH_RECORD_RETENTION_DAYS = 1;
+
+const TRASH_RECORD_CLEANUP_INTERVAL =
+  24 * 60 * 60 * 1000; // once every 24 hours
+
+let lastTrashRecordCleanupRun = 0;
+
 setInterval(async () => {
 
   if (schedulerRunning) {
@@ -398,6 +409,85 @@ if (
 
     console.error(
       "❌ Pending record cleanup failed:",
+      err
+    );
+
+  }
+
+}
+
+// =======================================
+// CLEAN OLD TRASH RECORDS
+// Runs once every 24 hours
+// Deletes permanently from trash
+// =======================================
+
+if (
+  Date.now() - lastTrashRecordCleanupRun >=
+  TRASH_RECORD_CLEANUP_INTERVAL
+) {
+
+  lastTrashRecordCleanupRun = Date.now();
+
+  try {
+
+    console.log(
+      "🧹 Running trash record cleanup..."
+    );
+
+    const cleanupSnapshot =
+      await db
+        .collection("trash")
+        .get();
+
+    const now = Date.now();
+
+    for (const docSnap of cleanupSnapshot.docs) {
+
+      const record = docSnap.data();
+
+      // DO NOT DELETE legacy Trash records
+      // that do not have a trashedAt date
+      if (!record.trashedAt) {
+        continue;
+      }
+
+      const trashedAt =
+        new Date(record.trashedAt).getTime();
+
+      // Ignore invalid trashedAt values
+      if (Number.isNaN(trashedAt)) {
+        continue;
+      }
+
+      const daysSinceTrashed =
+        Math.floor(
+          (now - trashedAt) /
+          (1000 * 60 * 60 * 24)
+        );
+
+      if (
+        daysSinceTrashed >=
+        TRASH_RECORD_RETENTION_DAYS
+      ) {
+
+        await db
+          .collection("trash")
+          .doc(docSnap.id)
+          .delete();
+
+        console.log(
+          `🧹 Permanently deleted expired Trash record: ${record.idNumber}`
+        );
+
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "❌ Trash record cleanup failed:",
       err
     );
 
