@@ -300,7 +300,7 @@ let lastPaidRecordCleanupRun = 0;
 // TRASH RECORD CLEANUP SETTINGS
 // =======================================
 
-const TRASH_RECORD_RETENTION_DAYS = 1;
+const TRASH_RECORD_RETENTION_DAYS = 364;
 
 const TRASH_RECORD_CLEANUP_INTERVAL =
   24 * 60 * 60 * 1000; // once every 24 hours
@@ -495,7 +495,7 @@ if (
 
 }
 
-// Run only between 6AM and 6PM Kenya time
+// Run only between 6AM and 8PM Kenya time
 if (kenyaHour < 6 || kenyaHour >= 20) {
 
   // Log sleeping status only once every 2 hours
