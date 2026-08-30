@@ -82,6 +82,7 @@ app.use(
     origin: [
       "https://idiko.co.ke",
       "https://idiko-81906.web.app",
+      "https://www.idiko.co.ke"
     ],
     credentials: true,
   })
