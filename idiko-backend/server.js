@@ -725,13 +725,9 @@ if (
   .collection("notify_requests")
   .get();
 
-    const recordsSnapshot = await db.collection("records").get();
+        const notifyRequests = notifySnapshot.docs;
 
-    const notifyRequests = notifySnapshot.docs;
-
-    const records = recordsSnapshot.docs.map(doc => doc.data());
-
-    const now = Date.now();
+        const now = Date.now();
 
     for (const docSnap of notifyRequests) {
       const req = docSnap.data();
@@ -755,11 +751,19 @@ if (
         // ✅ MATCHING ENGINE
         // =========================
 
-        if (!req.matched || !req.lastSentAt) {
+                if (!req.matched || !req.lastSentAt) {
 
-          const found = records.find(r =>
-            normalizeId(r.idNumber) === normalizeId(req.idNumber)
-          );
+          const normalizedRequestId = normalizeId(req.idNumber);
+
+          const recordsSnapshot = await db
+            .collection("records")
+            .where("idNumber", "==", normalizedRequestId)
+            .limit(1)
+            .get();
+
+          const found = recordsSnapshot.empty
+            ? null
+            : recordsSnapshot.docs[0].data();
 
           if (found) {
             console.log(`✅ MATCH FOUND → ${req.idNumber}`);
