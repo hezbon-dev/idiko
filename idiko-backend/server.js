@@ -270,7 +270,7 @@ let lastRunningLog = 0;
 const NOTIFY_REQUEST_RETENTION_DAYS = 364;
 
 const NOTIFY_REQUEST_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+   180 * 24 * 60 * 60 * 1000; // approximately every 6 months
 
 let lastNotifyCleanupRun = 0;
 
@@ -282,7 +282,7 @@ let lastNotifyCleanupRun = 0;
 const RECORD_RETENTION_DAYS = 364;
 
 const RECORD_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+  180 * 24 * 60 * 60 * 1000; // approximately every 6 months
 
 let lastRecordCleanupRun = 0;
 
@@ -293,7 +293,7 @@ let lastRecordCleanupRun = 0;
 const PAID_RECORD_RETENTION_DAYS = 364;
 
 const PAID_RECORD_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+  180 * 24 * 60 * 60 * 1000; // approximately every 6 months
 
 let lastPaidRecordCleanupRun = 0;
 
@@ -304,7 +304,7 @@ let lastPaidRecordCleanupRun = 0;
 const TRASH_RECORD_RETENTION_DAYS = 364;
 
 const TRASH_RECORD_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+  180 * 24 * 60 * 60 * 1000; // approximately every 6 months
 
 let lastTrashRecordCleanupRun = 0;
 
