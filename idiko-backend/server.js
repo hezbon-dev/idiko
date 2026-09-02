@@ -346,9 +346,16 @@ if (
       "🧹 Running pending record cleanup..."
     );
 
+       const expirationCutoff =
+      new Date(
+        Date.now() -
+        RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("records")
+        .where("uploadDate", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -436,9 +443,16 @@ if (
       "🧹 Running trash record cleanup..."
     );
 
+    const expirationCutoff =
+      new Date(
+        Date.now() -
+        TRASH_RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("trash")
+        .where("trashedAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -541,9 +555,16 @@ if (
       "🧹 Running paid record cleanup..."
     );
 
+    const expirationCutoff =
+      new Date(
+        Date.now() -
+        PAID_RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("records")
+        .where("paidAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -661,9 +682,16 @@ if (
       "🧹 Running notify request cleanup..."
     );
 
+    const expirationCutoff =
+      new Date(
+        Date.now() -
+        NOTIFY_REQUEST_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("notify_requests")
+        .where("createdAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
