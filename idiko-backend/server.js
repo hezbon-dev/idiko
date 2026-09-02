@@ -770,9 +770,9 @@ if (
 
   try {
 
-    // =======================================
-    // GET ONLY ACTIVE NOTIFY REQUESTS
-    // =======================================
+  // =======================================
+  // GET ONLY RELEVANT NOTIFY REQUESTS
+  // =======================================
 
     const [
       unmatchedSnapshot,
@@ -785,14 +785,15 @@ if (
         .where("matched", "==", false)
         .get(),
 
-      // Already matched requests that are still active
-      // Only pending, non-expired requests need processing
-      db
-        .collection("notify_requests")
-        .where("matched", "==", true)
-        .where("expired", "==", false)
-        .where("status", "==", "pending")
-        .get(),
+// Already matched requests that are due for notification
+// Only pending, non-expired requests whose next notification is due
+db
+  .collection("notify_requests")
+  .where("matched", "==", true)
+  .where("expired", "==", false)
+  .where("status", "==", "pending")
+  .where("nextNotificationAt", "<=", new Date().toISOString())
+  .get(),
 
     ]);
 
