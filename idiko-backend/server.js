@@ -311,26 +311,36 @@ let lastTrashRecordCleanupRun = 0;
 setInterval(async () => {
 
   if (schedulerRunning) {
-   if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
-  console.log("⏭ Scheduler already running...");
-  lastRunningLog = Date.now();
-}
+    if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
+      console.log("⏭ Scheduler already running...");
+      lastRunningLog = Date.now();
+    }
     return;
   }
 
   schedulerRunning = true;
 
-const kenyaHour = new Date(
-  new Date().toLocaleString("en-US", {
-    timeZone: "Africa/Nairobi",
-  })
-).getHours();
+  // =======================================
+  // FIRESTORE AVAILABILITY CHECK
+  // =======================================
 
-const now = Date.now();
+  if (!db) {
+    console.warn("⚠️ Scheduler skipped — DB not available");
+    schedulerRunning = false;
+    return;
+  }
+
+  const kenyaHour = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "Africa/Nairobi",
+    })
+  ).getHours();
+
+  const now = Date.now();
 
 // =======================================
 // CLEAN OLD UNPAID RECORDS
-// Runs once every 24 hours
+// Runs once every 6 months
 // =======================================
 
 if (
@@ -426,7 +436,7 @@ if (
 
 // =======================================
 // CLEAN OLD TRASH RECORDS
-// Runs once every 24 hours
+// Runs once every 6 months
 // Deletes permanently from trash
 // =======================================
 
@@ -529,16 +539,9 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
   lastSchedulerLog = now;
 }
 
-  // ✅ HARD STOP if db is not available
-  if (!db) {
-    console.warn("⚠️ Scheduler skipped — DB not available");
-    return;
-  }
-
-
 // =======================================
 // CLEAN OLD PAID RECORDS
-// Runs once every 24 hours
+// Runs once every 6 months
 // Deletes from records + notify_requests ONLY
 // =======================================
 
@@ -666,7 +669,7 @@ if (
 
 // =======================================
 // CLEAN OLD UNMATCHED NOTIFY REQUESTS
-// Runs once every 24 hours
+// Runs once every 6 months
 // =======================================
 
 if (
