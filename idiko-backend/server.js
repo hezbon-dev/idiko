@@ -316,13 +316,9 @@ const getNextNotificationAt = (
   date = new Date()
 ) => {
 
-  const next = new Date(date);
-
-  next.setDate(
-    next.getDate() + 1
-  );
-
-  return next.toISOString();
+  return new Date(
+    date.getTime() + 24 * 60 * 60 * 1000
+  ).toISOString();
 
 };
 
@@ -827,7 +823,7 @@ db
         // ✅ MATCHING ENGINE
         // =========================
 
-                if (!req.matched || !req.lastSentAt) {
+        if (!req.matched) {
 
           const normalizedRequestId = normalizeId(req.idNumber);
 
