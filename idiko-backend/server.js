@@ -772,6 +772,7 @@ if (
 
     const [
       unmatchedSnapshot,
+      firstSMSnapshot,
       matchedSnapshot
     ] = await Promise.all([
 
@@ -781,20 +782,29 @@ if (
         .where("matched", "==", false)
         .get(),
 
-// Already matched requests that are due for notification
-// Only pending, non-expired requests whose next notification is due
-db
-  .collection("notify_requests")
-  .where("matched", "==", true)
-  .where("expired", "==", false)
-  .where("status", "==", "pending")
-  .where("nextNotificationAt", "<=", new Date().toISOString())
-  .get(),
+      // Requests that have just matched an ID
+      // but have NOT received their first SMS yet
+      db
+        .collection("notify_requests")
+        .where("matched", "==", true)
+        .where("expired", "==", false)
+        .where("status", "==", "matched")
+        .get(),
+
+      // Already matched requests whose next notification is due
+      db
+        .collection("notify_requests")
+        .where("matched", "==", true)
+        .where("expired", "==", false)
+        .where("status", "==", "pending")
+        .where("nextNotificationAt", "<=", new Date().toISOString())
+        .get(),
 
     ]);
 
     const notifyRequests = [
       ...unmatchedSnapshot.docs,
+      ...firstSMSnapshot.docs,
       ...matchedSnapshot.docs,
     ];
 
@@ -823,7 +833,7 @@ db
         // ✅ MATCHING ENGINE
         // =========================
 
-        if (!req.matched) {
+        if (!req.matched || !req.lastSentAt) {
 
           const normalizedRequestId = normalizeId(req.idNumber);
 
@@ -855,12 +865,13 @@ db
               matched: true,
             });
 
-          await docRef.update({
-           lastSentAt: matchedDate,
+            await docRef.update({
+            status: "pending",
+            lastSentAt: matchedDate,
             nextNotificationAt: getNextNotificationAt(
-               new Date(matchedDate)
-              ),
-                sentCount: admin.firestore.FieldValue.increment(1),
+              new Date(matchedDate)
+            ),
+            sentCount: admin.firestore.FieldValue.increment(1),
           });
 
             console.log("✅ FIRST SMS SENT:", req.idNumber);
