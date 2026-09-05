@@ -719,17 +719,43 @@ if (
 
 }
 
-
   try {
-   const notifySnapshot = await db
-  .collection("notify_requests")
-  .get();
 
-    const notifyRequests = notifySnapshot.docs;
+    // =======================================
+    // GET ONLY ACTIVE NOTIFY REQUESTS
+    // =======================================
+
+    const [
+      unmatchedSnapshot,
+      matchedSnapshot
+    ] = await Promise.all([
+
+      // New requests that have not matched an ID yet
+      db
+        .collection("notify_requests")
+        .where("matched", "==", false)
+        .get(),
+
+      // Already matched requests that are still active
+      // Only pending, non-expired requests need processing
+      db
+        .collection("notify_requests")
+        .where("matched", "==", true)
+        .where("expired", "==", false)
+        .where("status", "==", "pending")
+        .get(),
+
+    ]);
+
+    const notifyRequests = [
+      ...unmatchedSnapshot.docs,
+      ...matchedSnapshot.docs,
+    ];
 
     const now = Date.now();
 
     for (const docSnap of notifyRequests) {
+
       const req = docSnap.data();
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
