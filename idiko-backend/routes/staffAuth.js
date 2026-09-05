@@ -407,16 +407,16 @@ await Promise.all([
 // MATCH PENDING NOTIFY REQUEST
 // =========================
 
-const notifySnapshot =
-  await db
-    .collection("notify_requests")
-    .where("idNumber", "==", "")
-    .get();
-
 const normalizeText = (value = "") =>
   String(value).trim().toLowerCase();
 
+const normalizeId = (value = "") =>
+  String(value)
+    .replace(/\s+/g, "")
+    .trim();
+
 const normalizeDate = (value = "") => {
+
   const parts = String(value)
     .trim()
     .split(/\D+/);
@@ -430,9 +430,13 @@ const normalizeDate = (value = "") => {
   let year;
 
   if (parts[0].length === 4) {
+
     [year, month, day] = parts;
+
   } else {
+
     [day, month, year] = parts;
+
   }
 
   return `${year.padStart(4, "0")}-${month.padStart(
@@ -442,7 +446,11 @@ const normalizeDate = (value = "") => {
 };
 
 const normalizeSex = (value = "") => {
-  const v = String(value).trim().toLowerCase();
+
+  const v =
+    String(value)
+      .trim()
+      .toLowerCase();
 
   if (v === "m" || v === "male") {
     return "male";
@@ -455,11 +463,60 @@ const normalizeSex = (value = "") => {
   return v;
 };
 
+
+// =======================================
+// LOAD NOTIFY REQUESTS
+// =======================================
+
+const notifySnapshot =
+  await db
+    .collection("notify_requests")
+    .get();
+
+
+// =======================================
+// FIND MATCHING NOTIFY REQUEST
+// =======================================
+
 const matchingNotifyRequest =
   notifySnapshot.docs.find(doc => {
+
     const request = doc.data();
 
+    // Skip requests already matched
+    if (request.matched === true) {
+      return false;
+    }
+
+    // Skip expired requests
+    if (request.expired === true) {
+      return false;
+    }
+
+
+    // =======================================
+    // CASE 1 — NOTIFY REQUEST HAS ID NUMBER
+    // =======================================
+
+    if (
+      request.idNumber &&
+      normalizeId(request.idNumber) !== ""
+    ) {
+
+      return (
+        normalizeId(request.idNumber) ===
+        normalizeId(record.idNumber)
+      );
+
+    }
+
+
+    // =======================================
+    // CASE 2 — NOTIFY REQUEST HAS NO ID NUMBER
+    // =======================================
+
     return (
+
       normalizeText(request.fullName) ===
         normalizeText(record.fullName) &&
 
@@ -471,25 +528,38 @@ const matchingNotifyRequest =
 
       normalizeText(request.district) ===
         normalizeText(record.district)
+
     );
+
   });
+
+
+// =======================================
+// MATCH FOUND
+// =======================================
 
 if (matchingNotifyRequest) {
 
-  const matchedAt = new Date().toISOString();
+  const matchedAt =
+    new Date().toISOString();
 
   await matchingNotifyRequest.ref.update({
+
+    // Make sure the uploaded ID is stored
     idNumber: normalizedId,
+
+    // Activate scheduler
     matched: true,
 
-// =======================================
-// INITIAL NOTIFICATION SCHEDULE STATE
-// =======================================
-
+    // Start notification schedule
     startedAt: matchedAt,
+
     nextNotificationAt: matchedAt,
+
     sentCount: 0,
+
     status: "pending",
+
   });
 
   console.log(
@@ -503,6 +573,14 @@ if (matchingNotifyRequest) {
     "📅 Notification schedule initialized:",
     normalizedId
   );
+
+} else {
+
+  console.log(
+    "ℹ️ No matching notify request found for:",
+    normalizedId
+  );
+
 }
 
 return res.json({
