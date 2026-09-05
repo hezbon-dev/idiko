@@ -311,22 +311,32 @@ let lastTrashRecordCleanupRun = 0;
 setInterval(async () => {
 
   if (schedulerRunning) {
-   if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
-  console.log("⏭ Scheduler already running...");
-  lastRunningLog = Date.now();
-}
+    if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
+      console.log("⏭ Scheduler already running...");
+      lastRunningLog = Date.now();
+    }
     return;
   }
 
   schedulerRunning = true;
 
-const kenyaHour = new Date(
-  new Date().toLocaleString("en-US", {
-    timeZone: "Africa/Nairobi",
-  })
-).getHours();
+  // =======================================
+  // FIRESTORE AVAILABILITY CHECK
+  // =======================================
 
-const now = Date.now();
+  if (!db) {
+    console.warn("⚠️ Scheduler skipped — DB not available");
+    schedulerRunning = false;
+    return;
+  }
+
+  const kenyaHour = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "Africa/Nairobi",
+    })
+  ).getHours();
+
+  const now = Date.now();
 
 // =======================================
 // CLEAN OLD UNPAID RECORDS
@@ -528,13 +538,6 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
   console.log("🟢 Scheduler active");
   lastSchedulerLog = now;
 }
-
-  // ✅ HARD STOP if db is not available
-  if (!db) {
-    console.warn("⚠️ Scheduler skipped — DB not available");
-    return;
-  }
-
 
 // =======================================
 // CLEAN OLD PAID RECORDS
