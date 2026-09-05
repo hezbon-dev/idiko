@@ -316,13 +316,9 @@ const getNextNotificationAt = (
   date = new Date()
 ) => {
 
-  const next = new Date(date);
-
-  next.setDate(
-    next.getDate() + 1
-  );
-
-  return next.toISOString();
+  return new Date(
+    date.getTime() + 24 * 60 * 60 * 1000
+  ).toISOString();
 
 };
 
@@ -814,34 +810,52 @@ if (
             ? null
             : recordsSnapshot.docs[0].data();
 
-          if (found) {
-            console.log(`✅ MATCH FOUND → ${req.idNumber}`);
+if (found) {
+  console.log(`✅ MATCH FOUND → ${req.idNumber}`);
 
-            const matchedDate = new Date().toISOString();
+  const matchedDate = new Date().toISOString();
 
-            await docRef.update({
-              matched: true,
-              matchedID: found.idNumber,
-              matchedDate,
-              startedAt: matchedDate,
-            });
+  // =======================================
+  // MARK REQUEST AS MATCHED
+  // =======================================
 
-            // ✅ send FIRST SMS immediately ONLY ONCE
-            await sendSMSNotification({
-              ...req,
-              matched: true,
-            });
+  await docRef.update({
+    matched: true,
+    matchedID: found.idNumber,
+    matchedDate,
+    startedAt: matchedDate,
+  });
 
-          await docRef.update({
-  lastSentAt: matchedDate,
-  nextNotificationAt: getNextNotificationAt(
-    new Date(matchedDate)
-  ),
-  sentCount: admin.firestore.FieldValue.increment(1),
-});
+  // =======================================
+  // SEND FIRST SMS IMMEDIATELY
+  // =======================================
 
-            console.log("✅ FIRST SMS SENT:", req.idNumber);
-          }
+  await sendSMSNotification({
+    ...req,
+    matched: true,
+  });
+
+  // =======================================
+  // INITIALIZE NOTIFICATION SCHEDULE
+  // =======================================
+
+  const firstSmsSentAt = new Date().toISOString();
+
+  await docRef.update({
+    lastSentAt: firstSmsSentAt,
+
+    nextNotificationAt: getNextNotificationAt(
+      new Date(firstSmsSentAt)
+    ),
+
+    sentCount: admin.firestore.FieldValue.increment(1),
+  });
+
+  console.log(
+    "✅ FIRST SMS SENT + NEXT NOTIFICATION SCHEDULED:",
+    req.idNumber
+  );
+}
 
           continue;
         }

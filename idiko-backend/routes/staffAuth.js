@@ -476,16 +476,31 @@ const matchingNotifyRequest =
 
 if (matchingNotifyRequest) {
 
+  const matchedAt = new Date().toISOString();
+
   await matchingNotifyRequest.ref.update({
     idNumber: normalizedId,
     matched: true,
     status: "matched",
+
+    // =======================================
+    // INITIAL NOTIFICATION SCHEDULE STATE
+    // =======================================
+
+    startedAt: matchedAt,
+    nextNotificationAt: matchedAt,
+    sentCount: 0,
   });
 
   console.log(
     "✅ Notify request matched:",
     matchingNotifyRequest.id,
     "→",
+    normalizedId
+  );
+
+  console.log(
+    "📅 Notification schedule initialized:",
     normalizedId
   );
 }
