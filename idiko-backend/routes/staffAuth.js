@@ -481,7 +481,6 @@ if (matchingNotifyRequest) {
   await matchingNotifyRequest.ref.update({
     idNumber: normalizedId,
     matched: true,
-    status: "matched",
 
     // =======================================
     // INITIAL NOTIFICATION SCHEDULE STATE
