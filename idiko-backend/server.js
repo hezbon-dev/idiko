@@ -270,7 +270,7 @@ let lastRunningLog = 0;
 const NOTIFY_REQUEST_RETENTION_DAYS = 364;
 
 const NOTIFY_REQUEST_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+   180 * 24 * 60 * 60 * 1000; // every 6 months
 
 let lastNotifyCleanupRun = 0;
 
@@ -282,7 +282,7 @@ let lastNotifyCleanupRun = 0;
 const RECORD_RETENTION_DAYS = 364;
 
 const RECORD_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+  180 * 24 * 60 * 60 * 1000; // every 6 months
 
 let lastRecordCleanupRun = 0;
 
@@ -293,7 +293,7 @@ let lastRecordCleanupRun = 0;
 const PAID_RECORD_RETENTION_DAYS = 364;
 
 const PAID_RECORD_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+  180 * 24 * 60 * 60 * 1000; // every 6 months
 
 let lastPaidRecordCleanupRun = 0;
 
@@ -304,7 +304,7 @@ let lastPaidRecordCleanupRun = 0;
 const TRASH_RECORD_RETENTION_DAYS = 364;
 
 const TRASH_RECORD_CLEANUP_INTERVAL =
-  24 * 60 * 60 * 1000; // once every 24 hours
+  180 * 24 * 60 * 60 * 1000; // every 6 months
 
 let lastTrashRecordCleanupRun = 0;
 
@@ -330,7 +330,7 @@ const now = Date.now();
 
 // =======================================
 // CLEAN OLD UNPAID RECORDS
-// Runs once every 24 hours
+// Runs once every 6 months
 // =======================================
 
 if (
@@ -346,9 +346,16 @@ if (
       "🧹 Running pending record cleanup..."
     );
 
+      const expirationCutoff =
+      new Date(
+        Date.now() -
+        RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("records")
+        .where("uploadDate", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -419,7 +426,7 @@ if (
 
 // =======================================
 // CLEAN OLD TRASH RECORDS
-// Runs once every 24 hours
+// Runs once every 6 months
 // Deletes permanently from trash
 // =======================================
 
@@ -436,9 +443,16 @@ if (
       "🧹 Running trash record cleanup..."
     );
 
+      const expirationCutoff =
+      new Date(
+        Date.now() -
+        TRASH_RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("trash")
+        .where("trashedAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -524,7 +538,7 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
 
 // =======================================
 // CLEAN OLD PAID RECORDS
-// Runs once every 24 hours
+// Runs once every 6 months
 // Deletes from records + notify_requests ONLY
 // =======================================
 
@@ -541,9 +555,16 @@ if (
       "🧹 Running paid record cleanup..."
     );
 
+      const expirationCutoff =
+      new Date(
+        Date.now() -
+        PAID_RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("records")
+        .where("paidAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -661,9 +682,16 @@ if (
       "🧹 Running notify request cleanup..."
     );
 
+      const expirationCutoff =
+      new Date(
+        Date.now() -
+        NOTIFY_REQUEST_RETENTION_DAYS * 24 * 60 * 60 * 1000
+      ).toISOString();
+
     const cleanupSnapshot =
       await db
         .collection("notify_requests")
+        .where("createdAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -719,43 +747,17 @@ if (
 
 }
 
+
   try {
+   const notifySnapshot = await db
+  .collection("notify_requests")
+  .get();
 
-    // =======================================
-    // GET ONLY ACTIVE NOTIFY REQUESTS
-    // =======================================
-
-    const [
-      unmatchedSnapshot,
-      matchedSnapshot
-    ] = await Promise.all([
-
-      // New requests that have not matched an ID yet
-      db
-        .collection("notify_requests")
-        .where("matched", "==", false)
-        .get(),
-
-      // Already matched requests that are still active
-      // Only pending, non-expired requests need processing
-      db
-        .collection("notify_requests")
-        .where("matched", "==", true)
-        .where("expired", "==", false)
-        .where("status", "==", "pending")
-        .get(),
-
-    ]);
-
-    const notifyRequests = [
-      ...unmatchedSnapshot.docs,
-      ...matchedSnapshot.docs,
-    ];
+    const notifyRequests = notifySnapshot.docs;
 
     const now = Date.now();
 
     for (const docSnap of notifyRequests) {
-
       const req = docSnap.data();
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
