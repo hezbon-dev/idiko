@@ -308,6 +308,24 @@ const TRASH_RECORD_CLEANUP_INTERVAL =
 
 let lastTrashRecordCleanupRun = 0;
 
+// =======================================
+// PHASE 4 — NEXT NOTIFICATION SCHEDULING
+// =======================================
+
+const getNextNotificationAt = (
+  date = new Date()
+) => {
+
+  const next = new Date(date);
+
+  next.setDate(
+    next.getDate() + 1
+  );
+
+  return next.toISOString();
+
+};
+
 setInterval(async () => {
 
   if (schedulerRunning) {
@@ -814,10 +832,13 @@ if (
               matched: true,
             });
 
-            await docRef.update({
-              lastSentAt: matchedDate,
-              sentCount: admin.firestore.FieldValue.increment(1),
-            });
+          await docRef.update({
+  lastSentAt: matchedDate,
+  nextNotificationAt: getNextNotificationAt(
+    new Date(matchedDate)
+  ),
+  sentCount: admin.firestore.FieldValue.increment(1),
+});
 
             console.log("✅ FIRST SMS SENT:", req.idNumber);
           }
@@ -898,18 +919,24 @@ if (
      }
         }
 
-        // =========================
-        // ✅ SEND DAILY SMS
-        // =========================
+// =========================
+// ✅ SEND DAILY SMS
+// =========================
 
-        await sendSMSNotification(req);
+await sendSMSNotification(req);
 
-        await docRef.update({
-          lastSentAt: new Date().toISOString(),
-          sentCount: admin.firestore.FieldValue.increment(1),
-        });
+const dailySentAt =
+  new Date().toISOString();
 
-        console.log("✅ DAILY SMS SENT:", req.idNumber);
+await docRef.update({
+  lastSentAt: dailySentAt,
+  nextNotificationAt: getNextNotificationAt(
+    new Date(dailySentAt)
+  ),
+  sentCount: admin.firestore.FieldValue.increment(1),
+});
+
+console.log("✅ DAILY SMS SENT:", req.idNumber);
 
       } finally {
         processingMatches.delete(docSnap.id);
