@@ -807,16 +807,50 @@ try {
 
       try {
 
+      // =========================
+// ✅ STOP IF PAID
+// =========================
+//
+// IMPORTANT:
+// Check PAID BEFORE FIRST SMS.
+//
+// This guarantees that a request that
+// is already paid can NEVER receive
+// a first notification.
+//
+
+if (
+  req.status === "Paid" ||
+  req.status === "paid"
+) {
+
+  if (!req.expired) {
+
+    console.log(
+      "🛑 Notifications stopped (PAID):",
+      req.idNumber
+    );
+
+    await docRef.update({
+      expired: true,
+      paidAt: new Date().toISOString(),
+    });
+
+  }
+
+  continue;
+}
+
+
 // =========================
 // FIRST SMS
 // =========================
 //
 // A newly matched request gets
 // nextNotificationAt = now.
-// Therefore it enters this scheduler.
 //
-// lastSentAt being missing means
-// the first SMS has not yet been sent.
+// If lastSentAt does not exist,
+// this is the first SMS.
 //
 
 if (!req.lastSentAt) {
@@ -827,6 +861,7 @@ if (!req.lastSentAt) {
   await sendSMSNotification(req);
 
   await docRef.update({
+
     lastSentAt: firstSentAt,
 
     nextNotificationAt:
@@ -836,6 +871,7 @@ if (!req.lastSentAt) {
 
     sentCount:
       admin.firestore.FieldValue.increment(1),
+
   });
 
   console.log(
@@ -845,27 +881,6 @@ if (!req.lastSentAt) {
 
   continue;
 }
-
-        // =========================
-        // ✅ STOP IF PAID
-        // =========================
-
-           if (
-           req.status === "Paid" ||
-           req.status === "paid"
-          ) {
-
-        if (!req.expired) {
-        console.log("🛑 Notifications stopped (PAID):", req.idNumber);
-
-         await docRef.update({
-      expired: true,
-      paidAt: new Date().toISOString(),
-      });
-      }
-
-       continue;
-      }
 
         // =========================
         // ✅ REQUIRE startedAt
@@ -889,11 +904,11 @@ if (!req.lastSentAt) {
           (now - startedAt) / (1000 * 60 * 60 * 24)
       );
 
-        if (daysPassed >= 14) {
+        if (daysPassed >= 2) {
 
         if (!req.expired) {
         console.log(
-        "🛑 Notifications stopped (14 DAY LIMIT REACHED):",
+        "🛑 Notifications stopped (2 DAY LIMIT REACHED):",
         req.idNumber
       );
 
