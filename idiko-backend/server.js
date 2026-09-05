@@ -192,12 +192,17 @@ app.post("/start-notification", async (req, res) => {
 
     const docRef = snapshot.docs[0].ref;
 
-    await docRef.update({
-      matched: true,
-      startedAt: new Date().toISOString(),
-      primaryPhone,
-      secondaryPhone,
-    });
+const startedAt =
+  new Date().toISOString();
+
+await docRef.update({
+  matched: true,
+  startedAt,
+  nextNotificationAt: startedAt,
+  sentCount: 0,
+  primaryPhone,
+  secondaryPhone,
+});
 
     console.log("✅ Notification schedule started for:", idNumber);
 
@@ -765,16 +770,26 @@ if (
 }
 
 
-  try {
-   const notifySnapshot = await db
-  .collection("notify_requests")
-  .get();
+try {
 
-    const notifyRequests = notifySnapshot.docs;
+  const now = Date.now();
 
-    const now = Date.now();
+  const nowISOString =
+    new Date(now).toISOString();
 
-    for (const docSnap of notifyRequests) {
+  // =======================================
+  // ONLY LOAD NOTIFICATIONS THAT ARE DUE
+  // =======================================
+
+  const notifySnapshot = await db
+    .collection("notify_requests")
+    .where("matched", "==", true)
+    .where("nextNotificationAt", "<=", nowISOString)
+    .get();
+
+  const notifyRequests = notifySnapshot.docs;
+
+  for (const docSnap of notifyRequests) {
       const req = docSnap.data();
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
@@ -792,73 +807,44 @@ if (
 
       try {
 
-        // =========================
-        // ✅ MATCHING ENGINE
-        // =========================
+// =========================
+// FIRST SMS
+// =========================
+//
+// A newly matched request gets
+// nextNotificationAt = now.
+// Therefore it enters this scheduler.
+//
+// lastSentAt being missing means
+// the first SMS has not yet been sent.
+//
 
-         if (!req.matched || !req.lastSentAt) {
+if (!req.lastSentAt) {
 
-          const normalizedRequestId = normalizeId(req.idNumber);
+  const firstSentAt =
+    new Date().toISOString();
 
-          const recordsSnapshot = await db
-            .collection("records")
-            .where("idNumber", "==", normalizedRequestId)
-            .limit(1)
-            .get();
-
-          const found = recordsSnapshot.empty
-            ? null
-            : recordsSnapshot.docs[0].data();
-
-if (found) {
-  console.log(`✅ MATCH FOUND → ${req.idNumber}`);
-
-  const matchedDate = new Date().toISOString();
-
-  // =======================================
-  // MARK REQUEST AS MATCHED
-  // =======================================
+  await sendSMSNotification(req);
 
   await docRef.update({
-    matched: true,
-    matchedID: found.idNumber,
-    matchedDate,
-    startedAt: matchedDate,
-  });
+    lastSentAt: firstSentAt,
 
-  // =======================================
-  // SEND FIRST SMS IMMEDIATELY
-  // =======================================
+    nextNotificationAt:
+      getNextNotificationAt(
+        new Date(firstSentAt)
+      ),
 
-  await sendSMSNotification({
-    ...req,
-    matched: true,
-  });
-
-  // =======================================
-  // INITIALIZE NOTIFICATION SCHEDULE
-  // =======================================
-
-  const firstSmsSentAt = new Date().toISOString();
-
-  await docRef.update({
-    lastSentAt: firstSmsSentAt,
-
-    nextNotificationAt: getNextNotificationAt(
-      new Date(firstSmsSentAt)
-    ),
-
-    sentCount: admin.firestore.FieldValue.increment(1),
+    sentCount:
+      admin.firestore.FieldValue.increment(1),
   });
 
   console.log(
-    "✅ FIRST SMS SENT + NEXT NOTIFICATION SCHEDULED:",
+    "✅ FIRST SMS SENT:",
     req.idNumber
   );
-}
 
-          continue;
-        }
+  continue;
+}
 
         // =========================
         // ✅ STOP IF PAID

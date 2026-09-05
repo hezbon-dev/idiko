@@ -482,13 +482,14 @@ if (matchingNotifyRequest) {
     idNumber: normalizedId,
     matched: true,
 
-    // =======================================
-    // INITIAL NOTIFICATION SCHEDULE STATE
-    // =======================================
+// =======================================
+// INITIAL NOTIFICATION SCHEDULE STATE
+// =======================================
 
     startedAt: matchedAt,
     nextNotificationAt: matchedAt,
     sentCount: 0,
+    status: "pending",
   });
 
   console.log(
