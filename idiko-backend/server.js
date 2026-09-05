@@ -270,7 +270,7 @@ let lastRunningLog = 0;
 const NOTIFY_REQUEST_RETENTION_DAYS = 364;
 
 const NOTIFY_REQUEST_CLEANUP_INTERVAL =
-   180 * 24 * 60 * 60 * 1000; // approximately every 6 months
+  24 * 60 * 60 * 1000; // once every 24 hours
 
 let lastNotifyCleanupRun = 0;
 
@@ -282,7 +282,7 @@ let lastNotifyCleanupRun = 0;
 const RECORD_RETENTION_DAYS = 364;
 
 const RECORD_CLEANUP_INTERVAL =
-  180 * 24 * 60 * 60 * 1000; // approximately every 6 months
+  24 * 60 * 60 * 1000; // once every 24 hours
 
 let lastRecordCleanupRun = 0;
 
@@ -293,7 +293,7 @@ let lastRecordCleanupRun = 0;
 const PAID_RECORD_RETENTION_DAYS = 364;
 
 const PAID_RECORD_CLEANUP_INTERVAL =
-  180 * 24 * 60 * 60 * 1000; // approximately every 6 months
+  24 * 60 * 60 * 1000; // once every 24 hours
 
 let lastPaidRecordCleanupRun = 0;
 
@@ -304,57 +304,33 @@ let lastPaidRecordCleanupRun = 0;
 const TRASH_RECORD_RETENTION_DAYS = 364;
 
 const TRASH_RECORD_CLEANUP_INTERVAL =
-  180 * 24 * 60 * 60 * 1000; // approximately every 6 months
+  24 * 60 * 60 * 1000; // once every 24 hours
 
 let lastTrashRecordCleanupRun = 0;
-
-// =======================================
-// NEXT NOTIFICATION SCHEDULING
-// =======================================
-
-const getNextNotificationAt = (
-  date = new Date()
-) => {
-
-  return new Date(
-    date.getTime() + 24 * 60 * 60 * 1000
-  ).toISOString();
-
-};
 
 setInterval(async () => {
 
   if (schedulerRunning) {
-    if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
-      console.log("⏭ Scheduler already running...");
-      lastRunningLog = Date.now();
-    }
+   if (Date.now() - lastRunningLog > 60 * 60 * 1000) {
+  console.log("⏭ Scheduler already running...");
+  lastRunningLog = Date.now();
+}
     return;
   }
 
   schedulerRunning = true;
 
-  // =======================================
-  // FIRESTORE AVAILABILITY CHECK
-  // =======================================
+const kenyaHour = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Africa/Nairobi",
+  })
+).getHours();
 
-  if (!db) {
-    console.warn("⚠️ Scheduler skipped — DB not available");
-    schedulerRunning = false;
-    return;
-  }
-
-  const kenyaHour = new Date(
-    new Date().toLocaleString("en-US", {
-      timeZone: "Africa/Nairobi",
-    })
-  ).getHours();
-
-  const now = Date.now();
+const now = Date.now();
 
 // =======================================
 // CLEAN OLD UNPAID RECORDS
-// Runs once every 6 months
+// Runs once every 24 hours
 // =======================================
 
 if (
@@ -370,16 +346,9 @@ if (
       "🧹 Running pending record cleanup..."
     );
 
-       const expirationCutoff =
-      new Date(
-        Date.now() -
-        RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
-      ).toISOString();
-
     const cleanupSnapshot =
       await db
         .collection("records")
-        .where("uploadDate", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -450,7 +419,7 @@ if (
 
 // =======================================
 // CLEAN OLD TRASH RECORDS
-// Runs once every 6 months
+// Runs once every 24 hours
 // Deletes permanently from trash
 // =======================================
 
@@ -467,16 +436,9 @@ if (
       "🧹 Running trash record cleanup..."
     );
 
-    const expirationCutoff =
-      new Date(
-        Date.now() -
-        TRASH_RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
-      ).toISOString();
-
     const cleanupSnapshot =
       await db
         .collection("trash")
-        .where("trashedAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -553,9 +515,16 @@ if (now - lastSchedulerLog > 30 * 60 * 1000) {
   lastSchedulerLog = now;
 }
 
+  // ✅ HARD STOP if db is not available
+  if (!db) {
+    console.warn("⚠️ Scheduler skipped — DB not available");
+    return;
+  }
+
+
 // =======================================
 // CLEAN OLD PAID RECORDS
-// Runs once every 6 months
+// Runs once every 24 hours
 // Deletes from records + notify_requests ONLY
 // =======================================
 
@@ -572,16 +541,9 @@ if (
       "🧹 Running paid record cleanup..."
     );
 
-    const expirationCutoff =
-      new Date(
-        Date.now() -
-        PAID_RECORD_RETENTION_DAYS * 24 * 60 * 60 * 1000
-      ).toISOString();
-
     const cleanupSnapshot =
       await db
         .collection("records")
-        .where("paidAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -683,7 +645,7 @@ if (
 
 // =======================================
 // CLEAN OLD UNMATCHED NOTIFY REQUESTS
-// Runs once every 6 months
+// Runs once every 24 hours
 // =======================================
 
 if (
@@ -699,16 +661,9 @@ if (
       "🧹 Running notify request cleanup..."
     );
 
-    const expirationCutoff =
-      new Date(
-        Date.now() -
-        NOTIFY_REQUEST_RETENTION_DAYS * 24 * 60 * 60 * 1000
-      ).toISOString();
-
     const cleanupSnapshot =
       await db
         .collection("notify_requests")
-        .where("createdAt", "<=", expirationCutoff)
         .get();
 
     const now = Date.now();
@@ -764,54 +719,17 @@ if (
 
 }
 
+
   try {
+   const notifySnapshot = await db
+  .collection("notify_requests")
+  .get();
 
-  // =======================================
-  // GET ONLY RELEVANT NOTIFY REQUESTS
-  // =======================================
-
-    const [
-      unmatchedSnapshot,
-      firstSMSnapshot,
-      matchedSnapshot
-    ] = await Promise.all([
-
-      // New requests that have not matched an ID yet
-      db
-        .collection("notify_requests")
-        .where("matched", "==", false)
-        .get(),
-
-      // Requests that have just matched an ID
-      // but have NOT received their first SMS yet
-      db
-        .collection("notify_requests")
-        .where("matched", "==", true)
-        .where("expired", "==", false)
-        .where("status", "==", "matched")
-        .get(),
-
-      // Already matched requests whose next notification is due
-      db
-        .collection("notify_requests")
-        .where("matched", "==", true)
-        .where("expired", "==", false)
-        .where("status", "==", "pending")
-        .where("nextNotificationAt", "<=", new Date().toISOString())
-        .get(),
-
-    ]);
-
-    const notifyRequests = [
-      ...unmatchedSnapshot.docs,
-      ...firstSMSnapshot.docs,
-      ...matchedSnapshot.docs,
-    ];
+    const notifyRequests = notifySnapshot.docs;
 
     const now = Date.now();
 
     for (const docSnap of notifyRequests) {
-
       const req = docSnap.data();
       const docRef = db.collection("notify_requests").doc(docSnap.id);
 
@@ -833,7 +751,7 @@ if (
         // ✅ MATCHING ENGINE
         // =========================
 
-        if (!req.matched || !req.lastSentAt) {
+         if (!req.matched || !req.lastSentAt) {
 
           const normalizedRequestId = normalizeId(req.idNumber);
 
@@ -866,13 +784,9 @@ if (
             });
 
             await docRef.update({
-            status: "pending",
-            lastSentAt: matchedDate,
-            nextNotificationAt: getNextNotificationAt(
-              new Date(matchedDate)
-            ),
-            sentCount: admin.firestore.FieldValue.increment(1),
-          });
+              lastSentAt: matchedDate,
+              sentCount: admin.firestore.FieldValue.increment(1),
+            });
 
             console.log("✅ FIRST SMS SENT:", req.idNumber);
           }
@@ -953,24 +867,18 @@ if (
      }
         }
 
-// =========================
-// ✅ SEND DAILY SMS
-// =========================
+        // =========================
+        // ✅ SEND DAILY SMS
+        // =========================
 
-await sendSMSNotification(req);
+        await sendSMSNotification(req);
 
-const dailySentAt =
-  new Date().toISOString();
+        await docRef.update({
+          lastSentAt: new Date().toISOString(),
+          sentCount: admin.firestore.FieldValue.increment(1),
+        });
 
-await docRef.update({
-  lastSentAt: dailySentAt,
-  nextNotificationAt: getNextNotificationAt(
-    new Date(dailySentAt)
-  ),
-  sentCount: admin.firestore.FieldValue.increment(1),
-});
-
-console.log("✅ DAILY SMS SENT:", req.idNumber);
+        console.log("✅ DAILY SMS SENT:", req.idNumber);
 
       } finally {
         processingMatches.delete(docSnap.id);

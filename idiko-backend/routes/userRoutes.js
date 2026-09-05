@@ -141,25 +141,31 @@ if (!idNumber) {
   }
 }
 
-      await db
-        .collection("notify_requests")
-        .doc(id)
-        .set({
-          id,
-          createdAt,
-          matched,
-          status,
+await db
+  .collection("notify_requests")
+  .doc(id)
+  .set({
+    id,
+    createdAt,
+    matched,
+    status,
 
-          fullName,
-          idNumber,
-          dob,
-          sex,
-          district,
+    fullName,
+    idNumber,
+    dob,
+    sex,
+    district,
 
-          primaryPhone,
-          secondaryPhone,
-          email,
-        });
+    primaryPhone,
+    secondaryPhone,
+    email,
+
+    // Normalized identity fields used only for efficient matching
+    normalizedFullName: normalizeText(fullName),
+    normalizedDob: normalizeDate(dob),
+    normalizedSex: normalizeSex(sex),
+    normalizedDistrict: normalizeText(district),
+  });
 
       return res.json({
         success: true,
