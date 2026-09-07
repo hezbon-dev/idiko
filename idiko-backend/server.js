@@ -539,8 +539,8 @@ if (
 
 }
 
-// Run only between 6AM and 8PM Kenya time
-if (kenyaHour < 6 || kenyaHour >= 23) {
+// Run only between 6AM and 7PM Kenya time
+if (kenyaHour < 6 || kenyaHour >= 7) {
 
   // Log sleeping status only once every 2 hours
   if (now - lastSchedulerLog > 2 * 60 * 60 * 1000) {
@@ -807,7 +807,7 @@ try {
 
       try {
 
-      // =========================
+// =========================
 // ✅ STOP IF PAID
 // =========================
 //
