@@ -51,6 +51,24 @@ function normalizeSex(value = "") {
   return v;
 }
 
+// =======================================
+// CREATE NORMALIZED MATCH KEY
+// =======================================
+
+function createMatchKey(
+  fullName = "",
+  dob = "",
+  sex = "",
+  district = ""
+) {
+  return [
+    normalizeText(fullName),
+    normalizeDate(dob),
+    normalizeSex(sex),
+    normalizeText(district),
+  ].join("|");
+}
+
 router.post(
   "/notify-request",
   async (req, res) => {
@@ -165,6 +183,14 @@ await db
     normalizedDob: normalizeDate(dob),
     normalizedSex: normalizeSex(sex),
     normalizedDistrict: normalizeText(district),
+
+    // Deterministic key used later for targeted ID-less matching
+    matchKey: createMatchKey(
+      fullName,
+      dob,
+      sex,
+      district
+    ),
   });
 
       return res.json({
