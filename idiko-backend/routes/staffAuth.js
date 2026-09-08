@@ -463,6 +463,112 @@ const normalizeSex = (value = "") => {
   return v;
 };
 
+const createMatchKey = (
+  fullName = "",
+  dob = "",
+  sex = "",
+  district = ""
+) => {
+  return [
+    normalizeText(fullName),
+    normalizeDate(dob),
+    normalizeSex(sex),
+    normalizeText(district),
+  ].join("|");
+};
+
+const recordMatchKey = createMatchKey(
+  record.fullName,
+  record.dob,
+  record.sex,
+  record.district
+);
+
+console.log(
+  "🔑 Upload record matchKey:",
+  recordMatchKey
+);
+
+// =======================================
+// PHASE 4 — NEW TARGETED LOOKUPS
+// SHADOW / VERIFICATION MODE
+// =======================================
+
+let targetedIdMatch = null;
+let targetedIdlessMatch = null;
+
+// ---------------------------------------
+// LOOKUP 1 — REQUEST ALREADY HAS ID
+// ---------------------------------------
+
+const idMatchSnapshot =
+  await db
+    .collection("notify_requests")
+    .where("idNumber", "==", normalizedId)
+    .get();
+
+const idMatchDoc =
+  idMatchSnapshot.docs.find(doc => {
+
+    const request = doc.data();
+
+    return (
+      request.matched !== true &&
+      request.expired !== true
+    );
+
+  });
+
+if (idMatchDoc) {
+
+  targetedIdMatch = {
+    id: idMatchDoc.id,
+    data: idMatchDoc.data(),
+  };
+
+}
+
+// ---------------------------------------
+// LOOKUP 2 — ID-LESS REQUEST
+// ---------------------------------------
+
+const matchKeySnapshot =
+  await db
+    .collection("notify_requests")
+    .where("matchKey", "==", recordMatchKey)
+    .get();
+
+const matchKeyDoc =
+  matchKeySnapshot.docs.find(doc => {
+
+    const request = doc.data();
+
+    return (
+      !request.idNumber &&
+      request.matched !== true &&
+      request.expired !== true
+    );
+
+  });
+
+if (matchKeyDoc) {
+
+  targetedIdlessMatch = {
+    id: matchKeyDoc.id,
+    data: matchKeyDoc.data(),
+  };
+
+}
+
+console.log(
+  "🔎 PHASE 4 TARGETED LOOKUP:",
+  {
+    uploadedId: normalizedId,
+    matchKey: recordMatchKey,
+    idMatch: targetedIdMatch?.id || null,
+    idlessMatch: targetedIdlessMatch?.id || null,
+  }
+);
 
 // =======================================
 // LOAD NOTIFY REQUESTS
@@ -533,6 +639,55 @@ const matchingNotifyRequest =
 
   });
 
+
+// =======================================
+// PHASE 4 — COMPARE NEW LOOKUP
+// AGAINST EXISTING MATCHING ENGINE
+// =======================================
+
+const targetedMatch =
+  targetedIdMatch ||
+  targetedIdlessMatch ||
+  null;
+
+console.log(
+  "🧪 PHASE 4 MATCH VERIFICATION:",
+  {
+    oldMatcher:
+      matchingNotifyRequest?.id || null,
+
+    newMatcher:
+      targetedMatch?.id || null,
+
+    sameResult:
+      (matchingNotifyRequest?.id || null) ===
+      (targetedMatch?.id || null),
+  }
+);
+
+if (
+  matchingNotifyRequest?.id !==
+  targetedMatch?.id
+) {
+
+  console.error(
+    "🚨 PHASE 4 MATCH MISMATCH!",
+    {
+      oldMatcher:
+        matchingNotifyRequest?.id || null,
+
+      newMatcher:
+        targetedMatch?.id || null,
+
+      uploadedId:
+        normalizedId,
+
+      matchKey:
+        recordMatchKey,
+    }
+  );
+
+}
 
 // =======================================
 // MATCH FOUND
