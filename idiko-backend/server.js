@@ -904,11 +904,11 @@ if (!req.lastSentAt) {
           (now - startedAt) / (1000 * 60 * 60 * 24)
       );
 
-        if (daysPassed >= 2) {
+        if (daysPassed >= 14) {
 
         if (!req.expired) {
         console.log(
-        "🛑 Notifications stopped (2 DAY LIMIT REACHED):",
+        "🛑 Notifications stopped (14 DAY LIMIT REACHED):",
         req.idNumber
       );
 
