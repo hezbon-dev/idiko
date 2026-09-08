@@ -490,14 +490,14 @@ console.log(
 );
 
 // =======================================
-// PHASE 4 — NEW TARGETED LOOKUP
-// SHADOW / VERIFICATION MODE
+// PHASE 4 — TARGETED NOTIFY REQUEST LOOKUP
+// PRODUCTION MATCHING ENGINE
 // =======================================
 
-let targetedMatch = null;
+let matchingNotifyRequest = null;
 
 // ---------------------------------------
-// TARGETED LOOKUP USING MATCH KEY
+// LOOKUP USING MATCH KEY
 // ---------------------------------------
 
 const matchKeySnapshot =
@@ -506,81 +506,8 @@ const matchKeySnapshot =
     .where("matchKey", "==", recordMatchKey)
     .get();
 
-const targetedMatchDoc =
+const matchingNotifyDoc =
   matchKeySnapshot.docs.find(doc => {
-
-    const request = doc.data();
-
-    // Skip already matched requests
-    if (request.matched === true) {
-      return false;
-    }
-
-    // Skip expired requests
-    if (request.expired === true) {
-      return false;
-    }
-
-    // ---------------------------------------
-    // CASE 1 — REQUEST HAS AN ID
-    // ---------------------------------------
-
-    if (
-      request.idNumber &&
-      normalizeId(request.idNumber) !== ""
-    ) {
-
-      return (
-        normalizeId(request.idNumber) ===
-        normalizeId(record.idNumber)
-      );
-
-    }
-
-    // ---------------------------------------
-    // CASE 2 — REQUEST HAS NO ID
-    // ---------------------------------------
-
-    return true;
-
-  });
-
-if (targetedMatchDoc) {
-
-  targetedMatch = {
-    id: targetedMatchDoc.id,
-    data: targetedMatchDoc.data(),
-  };
-
-}
-
-console.log(
-  "🔎 PHASE 4 TARGETED LOOKUP:",
-  {
-    uploadedId: normalizedId,
-    matchKey: recordMatchKey,
-    targetedMatch:
-      targetedMatch?.id || null,
-  }
-);
-
-// =======================================
-// LOAD NOTIFY REQUESTS
-// =======================================
-
-const notifySnapshot =
-  await db
-    .collection("notify_requests")
-    .get();
-
-
-// =======================================
-// FIND MATCHING NOTIFY REQUEST
-// EXISTING MATCHING ENGINE
-// =======================================
-
-const matchingNotifyRequest =
-  notifySnapshot.docs.find(doc => {
 
     const request = doc.data();
 
@@ -594,30 +521,10 @@ const matchingNotifyRequest =
       return false;
     }
 
-    // =======================================
-    // ALL IDENTITY FIELDS MUST MATCH
-    // =======================================
-
-    const identityMatches =
-      normalizeText(request.fullName) ===
-        normalizeText(record.fullName) &&
-
-      normalizeDate(request.dob) ===
-        normalizeDate(record.dob) &&
-
-      normalizeSex(request.sex) ===
-        normalizeSex(record.sex) &&
-
-      normalizeText(request.district) ===
-        normalizeText(record.district);
-
-    if (!identityMatches) {
-      return false;
-    }
-
-    // =======================================
-    // IF REQUEST HAS ID, ID MUST ALSO MATCH
-    // =======================================
+    // ---------------------------------------
+    // IF REQUEST HAS AN ID,
+    // THE ID MUST ALSO MATCH
+    // ---------------------------------------
 
     if (
       request.idNumber &&
@@ -626,63 +533,38 @@ const matchingNotifyRequest =
 
       return (
         normalizeId(request.idNumber) ===
-        normalizeId(record.idNumber)
+        normalizedId
       );
 
     }
 
-    // =======================================
+    // ---------------------------------------
     // ID-LESS REQUEST
-    // =======================================
+    // ---------------------------------------
 
     return true;
 
   });
 
+if (matchingNotifyDoc) {
 
-// =======================================
-// PHASE 4 — COMPARE NEW LOOKUP
-// AGAINST EXISTING MATCHING ENGINE
-// =======================================
-
-console.log(
-  "🧪 PHASE 4 MATCH VERIFICATION:",
-  {
-    oldMatcher:
-      matchingNotifyRequest?.id || null,
-
-    newMatcher:
-      targetedMatch?.id || null,
-
-    sameResult:
-      (matchingNotifyRequest?.id || null) ===
-      (targetedMatch?.id || null),
-  }
-);
-
-if (
-  matchingNotifyRequest?.id !==
-  targetedMatch?.id
-) {
-
-  console.error(
-    "🚨 PHASE 4 MATCH MISMATCH!",
-    {
-      oldMatcher:
-        matchingNotifyRequest?.id || null,
-
-      newMatcher:
-        targetedMatch?.id || null,
-
-      uploadedId:
-        normalizedId,
-
-      matchKey:
-        recordMatchKey,
-    }
-  );
+  matchingNotifyRequest = {
+    id: matchingNotifyDoc.id,
+    ref: matchingNotifyDoc.ref,
+    data: matchingNotifyDoc.data(),
+  };
 
 }
+
+console.log(
+  "🔎 TARGETED NOTIFY LOOKUP:",
+  {
+    uploadedId: normalizedId,
+    matchKey: recordMatchKey,
+    matchedRequest:
+      matchingNotifyRequest?.id || null,
+  }
+);
 
 // =======================================
 // MATCH FOUND
