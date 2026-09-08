@@ -490,46 +490,14 @@ console.log(
 );
 
 // =======================================
-// PHASE 4 — NEW TARGETED LOOKUPS
+// PHASE 4 — NEW TARGETED LOOKUP
 // SHADOW / VERIFICATION MODE
 // =======================================
 
-let targetedIdMatch = null;
-let targetedIdlessMatch = null;
+let targetedMatch = null;
 
 // ---------------------------------------
-// LOOKUP 1 — REQUEST ALREADY HAS ID
-// ---------------------------------------
-
-const idMatchSnapshot =
-  await db
-    .collection("notify_requests")
-    .where("idNumber", "==", normalizedId)
-    .get();
-
-const idMatchDoc =
-  idMatchSnapshot.docs.find(doc => {
-
-    const request = doc.data();
-
-    return (
-      request.matched !== true &&
-      request.expired !== true
-    );
-
-  });
-
-if (idMatchDoc) {
-
-  targetedIdMatch = {
-    id: idMatchDoc.id,
-    data: idMatchDoc.data(),
-  };
-
-}
-
-// ---------------------------------------
-// LOOKUP 2 — ID-LESS REQUEST
+// TARGETED LOOKUP USING MATCH KEY
 // ---------------------------------------
 
 const matchKeySnapshot =
@@ -538,24 +506,50 @@ const matchKeySnapshot =
     .where("matchKey", "==", recordMatchKey)
     .get();
 
-const matchKeyDoc =
+const targetedMatchDoc =
   matchKeySnapshot.docs.find(doc => {
 
     const request = doc.data();
 
-    return (
-      !request.idNumber &&
-      request.matched !== true &&
-      request.expired !== true
-    );
+    // Skip already matched requests
+    if (request.matched === true) {
+      return false;
+    }
+
+    // Skip expired requests
+    if (request.expired === true) {
+      return false;
+    }
+
+    // ---------------------------------------
+    // CASE 1 — REQUEST HAS AN ID
+    // ---------------------------------------
+
+    if (
+      request.idNumber &&
+      normalizeId(request.idNumber) !== ""
+    ) {
+
+      return (
+        normalizeId(request.idNumber) ===
+        normalizeId(record.idNumber)
+      );
+
+    }
+
+    // ---------------------------------------
+    // CASE 2 — REQUEST HAS NO ID
+    // ---------------------------------------
+
+    return true;
 
   });
 
-if (matchKeyDoc) {
+if (targetedMatchDoc) {
 
-  targetedIdlessMatch = {
-    id: matchKeyDoc.id,
-    data: matchKeyDoc.data(),
+  targetedMatch = {
+    id: targetedMatchDoc.id,
+    data: targetedMatchDoc.data(),
   };
 
 }
@@ -565,8 +559,8 @@ console.log(
   {
     uploadedId: normalizedId,
     matchKey: recordMatchKey,
-    idMatch: targetedIdMatch?.id || null,
-    idlessMatch: targetedIdlessMatch?.id || null,
+    targetedMatch:
+      targetedMatch?.id || null,
   }
 );
 
@@ -582,6 +576,7 @@ const notifySnapshot =
 
 // =======================================
 // FIND MATCHING NOTIFY REQUEST
+// EXISTING MATCHING ENGINE
 // =======================================
 
 const matchingNotifyRequest =
@@ -599,9 +594,29 @@ const matchingNotifyRequest =
       return false;
     }
 
+    // =======================================
+    // ALL IDENTITY FIELDS MUST MATCH
+    // =======================================
+
+    const identityMatches =
+      normalizeText(request.fullName) ===
+        normalizeText(record.fullName) &&
+
+      normalizeDate(request.dob) ===
+        normalizeDate(record.dob) &&
+
+      normalizeSex(request.sex) ===
+        normalizeSex(record.sex) &&
+
+      normalizeText(request.district) ===
+        normalizeText(record.district);
+
+    if (!identityMatches) {
+      return false;
+    }
 
     // =======================================
-    // CASE 1 — NOTIFY REQUEST HAS ID NUMBER
+    // IF REQUEST HAS ID, ID MUST ALSO MATCH
     // =======================================
 
     if (
@@ -616,26 +631,11 @@ const matchingNotifyRequest =
 
     }
 
-
     // =======================================
-    // CASE 2 — NOTIFY REQUEST HAS NO ID NUMBER
+    // ID-LESS REQUEST
     // =======================================
 
-    return (
-
-      normalizeText(request.fullName) ===
-        normalizeText(record.fullName) &&
-
-      normalizeDate(request.dob) ===
-        normalizeDate(record.dob) &&
-
-      normalizeSex(request.sex) ===
-        normalizeSex(record.sex) &&
-
-      normalizeText(request.district) ===
-        normalizeText(record.district)
-
-    );
+    return true;
 
   });
 
@@ -644,11 +644,6 @@ const matchingNotifyRequest =
 // PHASE 4 — COMPARE NEW LOOKUP
 // AGAINST EXISTING MATCHING ENGINE
 // =======================================
-
-const targetedMatch =
-  targetedIdMatch ||
-  targetedIdlessMatch ||
-  null;
 
 console.log(
   "🧪 PHASE 4 MATCH VERIFICATION:",
