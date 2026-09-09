@@ -167,19 +167,30 @@ router.get("/record/:idNumber", async (req, res) => {
     const requestedId =
       normalizeId(req.params.idNumber);
 
-    const snapshot =
-      await db.collection("records").get();
+    const docSnap =
+      await db
+        .collection("records")
+        .doc(requestedId)
+        .get();
 
-    const records =
-      snapshot.docs.map(doc => doc.data());
+    if (!docSnap.exists) {
 
-    const record =
-      records.find(r =>
-        normalizeId(r.idNumber) ===
-        requestedId
-      );
+      return res.json({
+        success: false,
+        found: false,
+      });
 
-    if (!record) {
+    }
+
+    const record = docSnap.data();
+
+    // Safety check:
+    // Make sure the stored ID actually matches
+    // the normalized ID requested by the user.
+    if (
+      normalizeId(record.idNumber) !==
+      requestedId
+    ) {
 
       return res.json({
         success: false,
