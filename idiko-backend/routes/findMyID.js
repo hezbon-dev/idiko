@@ -75,24 +75,56 @@ router.post("/find-id", async (req, res) => {
       district,
     } = req.body;
 
-    const snapshot =
-      await db.collection("records").get();
+    // =======================================
+    // TARGETED RECORD LOOKUP
+    // =======================================
 
-    const records =
-      snapshot.docs.map(doc => doc.data());
+    const normalizedRequestedId =
+      normalizeId(idNumber);
 
-    const found = records.find(record =>
+    if (!normalizedRequestedId) {
+      return res.json({
+        success: false,
+        found: false,
+      });
+    }
+
+    // Look up ONLY the record belonging to this ID.
+    const recordDoc =
+      await db
+        .collection("records")
+        .doc(normalizedRequestedId)
+        .get();
+
+    if (!recordDoc.exists) {
+      return res.json({
+        success: false,
+        found: false,
+      });
+    }
+
+    const record =
+      recordDoc.data();
+
+    // =======================================
+    // PRESERVE EXISTING MATCHING LOGIC
+    // =======================================
+
+    const found =
       normalizeText(record.fullName) ===
         normalizeText(fullName) &&
+
       normalizeId(record.idNumber) ===
-        normalizeId(idNumber) &&
+        normalizedRequestedId &&
+
       normalizeDate(record.dob) ===
         normalizeDate(dob) &&
+
       normalizeSex(record.sex) ===
         normalizeSex(sex) &&
+
       normalizeText(record.district) ===
-        normalizeText(district)
-    );
+        normalizeText(district);
 
     if (!found) {
       return res.json({
@@ -104,8 +136,8 @@ router.post("/find-id", async (req, res) => {
     return res.json({
       success: true,
       found: true,
-      idNumber: found.idNumber,
-      status: found.status,
+      idNumber: record.idNumber,
+      status: record.status,
     });
 
   } catch (err) {
