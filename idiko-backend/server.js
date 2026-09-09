@@ -159,61 +159,6 @@ const message = `Good news ${safeName}, your ID is ready for collection.Visit id
   }
 }
 
-// 🔥 ✅ NEW ROUTE (FIXED)
-app.post("/start-notification", async (req, res) => {
-  console.log("🚀 START NOTIFICATION TRIGGERED");
-
-  // ✅ FIX: guard BEFORE using db
-  if (!db) {
-    return res.status(500).json({
-      success: false,
-      error: "Database not configured",
-    });
-  }
-
-  const { idNumber, fullName, primaryPhone, secondaryPhone } = req.body;
-
-  console.log("📌 DATA:", { idNumber, fullName, primaryPhone, secondaryPhone });
-
-  try {
-    // ✅ FIX: update EXISTING notify request instead of creating new document
-    const snapshot = await db
-      .collection("notify_requests")
-      .where("idNumber", "==", idNumber)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({
-        success: false,
-        error: "Notify request not found",
-      });
-    }
-
-    const docRef = snapshot.docs[0].ref;
-
-const startedAt =
-  new Date().toISOString();
-
-await docRef.update({
-  matched: true,
-  startedAt,
-  nextNotificationAt: startedAt,
-  sentCount: 0,
-  primaryPhone,
-  secondaryPhone,
-});
-
-    console.log("✅ Notification schedule started for:", idNumber);
-
-    res.json({ success: true });
-
-  } catch (err) {
-    console.error("❌ Failed to start notification:", err);
-    res.status(500).json({ success: false });
-  }
-});
-
 // 🔵 MPESA STK PUSH
 app.post("/mpesa/stkpush", stkPush);
 
