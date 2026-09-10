@@ -1406,8 +1406,8 @@ router.get(
       const now =
         Date.now();
 
-      const tenSecondsAgo =
-        now - 10000;
+      const twoMinutesAgo =
+         now - 120000;      
 
       const active =
         snapshot.docs
@@ -1431,7 +1431,7 @@ router.get(
 
             return (
               lastActive >
-              tenSecondsAgo
+              twoMinutesAgo
             );
 
           })

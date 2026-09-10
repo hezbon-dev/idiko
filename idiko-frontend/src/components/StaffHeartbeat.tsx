@@ -76,7 +76,7 @@ export default function StaffHeartbeat() {
       interval =
         setInterval(
           sendHeartbeat,
-          10000
+          60000
         );
 
     };
