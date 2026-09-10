@@ -348,17 +348,6 @@ useEffect(() => {
 
   loadStats();
 
-  const interval =
-    setInterval(
-      loadStats,
-      1000
-    );
-
-  return () =>
-    clearInterval(
-      interval
-    );
-
 }, [
   API_URL,
   period,

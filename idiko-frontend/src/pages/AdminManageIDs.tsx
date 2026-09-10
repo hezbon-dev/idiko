@@ -59,11 +59,11 @@ useEffect(() => {
 
   loadRecords();
 
-  const interval =
-    setInterval(
-      loadRecords,
-      1000
-    );
+const interval =
+  setInterval(
+    loadRecords,
+    10 * 60 * 1000
+  );
 
   return () =>
     clearInterval(

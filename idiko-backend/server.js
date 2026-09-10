@@ -259,6 +259,17 @@ const TRASH_RECORD_CLEANUP_INTERVAL =
 let lastTrashRecordCleanupRun = 0;
 
 // =======================================
+// ALL HISTORY RECORD CLEANUP SETTINGS
+// =======================================
+
+const ALL_HISTORY_RETENTION_DAYS = 364;
+
+const ALL_HISTORY_CLEANUP_INTERVAL =
+  180 * 24 * 60 * 60 * 1000; // every 6 months
+
+let lastAllHistoryCleanupRun = 0;
+
+// =======================================
 // PHASE 4 — NEXT NOTIFICATION SCHEDULING
 // =======================================
 
@@ -571,6 +582,106 @@ if (
         daysSincePaid >=
         PAID_RECORD_RETENTION_DAYS
       ) {
+
+// =======================================
+// CLEAN OLD ALL HISTORY RECORDS
+// Runs once every 6 months
+// Deletes history records older than 364 days
+// =======================================
+
+if (
+  Date.now() - lastAllHistoryCleanupRun >=
+  ALL_HISTORY_CLEANUP_INTERVAL
+) {
+
+  lastAllHistoryCleanupRun = Date.now();
+
+  try {
+
+    console.log(
+      "🧹 Running all history record cleanup..."
+    );
+
+    const expirationCutoff =
+      new Date(
+        Date.now() -
+        ALL_HISTORY_RETENTION_DAYS *
+        24 * 60 * 60 * 1000
+      ).toISOString();
+
+    const cleanupSnapshot =
+      await db
+        .collection("allHistoryRecords")
+        .where(
+          "uploadDate",
+          "<=",
+          expirationCutoff
+        )
+        .get();
+
+    const now = Date.now();
+
+    for (
+      const docSnap
+      of cleanupSnapshot.docs
+    ) {
+
+      const record =
+        docSnap.data();
+
+      // Do not delete records without uploadDate
+      if (!record.uploadDate) {
+        continue;
+      }
+
+      const uploadedAt =
+        record.uploadDate.toDate
+          ? record.uploadDate.toDate().getTime()
+          : new Date(
+              record.uploadDate
+            ).getTime();
+
+      // Ignore invalid dates
+      if (
+        Number.isNaN(uploadedAt)
+      ) {
+        continue;
+      }
+
+      const daysSinceUploaded =
+        Math.floor(
+          (now - uploadedAt) /
+          (1000 * 60 * 60 * 24)
+        );
+
+      if (
+        daysSinceUploaded >=
+        ALL_HISTORY_RETENTION_DAYS
+      ) {
+
+        await db
+          .collection("allHistoryRecords")
+          .doc(docSnap.id)
+          .delete();
+
+        console.log(
+          `🧹 Deleted expired history record: ${record.idNumber}`
+        );
+
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "❌ All history record cleanup failed:",
+      err
+    );
+
+  }
+
+}
 
         // =======================================
         // DELETE FROM records

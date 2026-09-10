@@ -1395,19 +1395,26 @@ router.get(
 
     try {
 
+      const now =
+        Date.now();
+
+      const oneMinutesAgo =
+        new Date(
+          now - 60000
+        );
+
       const snapshot =
         await admin
           .firestore()
           .collection(
             "staffSessions"
           )
+          .where(
+            "lastActive",
+            ">",
+            oneMinutesAgo
+          )
           .get();
-
-      const now =
-        Date.now();
-
-      const oneMinutesAgo =
-         now - 60000;      
 
       const active =
         snapshot.docs
@@ -1415,26 +1422,6 @@ router.get(
             id: doc.id,
             ...doc.data(),
           }))
-          .filter(session => {
-
-            if (
-              !session.lastActive
-            ) {
-              return false;
-            }
-
-            const lastActive =
-              session
-                .lastActive
-                .toDate()
-                .getTime();
-
-            return (
-              lastActive >
-              oneMinutesAgo
-            );
-
-          })
           .map(
             session =>
               session.stationName ||
