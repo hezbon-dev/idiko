@@ -701,7 +701,7 @@ router.post(
 
       const { record } = req.body;
 
-      if (!record) {
+      if (!record || !record.idNumber) {
 
         return res.status(400).json({
           success: false,
@@ -712,25 +712,56 @@ router.post(
 
       const db = admin.firestore();
 
-      // Move record to trash
+      // Get the real record from Firestore
+      const recordRef = db
+        .collection("records")
+        .doc(record.idNumber);
 
+      const recordSnap =
+        await recordRef.get();
+
+      if (!recordSnap.exists) {
+
+        return res.status(404).json({
+          success: false,
+          error: "Record not found",
+        });
+
+      }
+
+      // Use the database record as the source of truth
+      const existingRecord =
+        recordSnap.data();
+
+      // Make sure this record belongs
+      // to the logged-in staff station
+      if (
+        existingRecord.stationId !==
+        req.staff.stationId
+      ) {
+
+        return res.status(403).json({
+          success: false,
+          error:
+            "You are not authorized to modify this record",
+        });
+
+      }
+
+      // Move the actual Firestore record to trash
       await db
         .collection("trash")
         .doc(record.idNumber)
         .set({
-            ...record,
-            trashedAt: new Date().toISOString(),
-       });
+          ...existingRecord,
+          trashedAt:
+            new Date().toISOString(),
+        });
 
-      // Remove from records
-
-      await db
-        .collection("records")
-        .doc(record.idNumber)
-        .delete();
+      // Remove it from active records
+      await recordRef.delete();
 
       // Remove notify requests
-
       const notifySnapshot =
         await db
           .collection("notify_requests")
@@ -741,7 +772,10 @@ router.post(
           )
           .get();
 
-      for (const docSnap of notifySnapshot.docs) {
+      for (
+        const docSnap
+        of notifySnapshot.docs
+      ) {
 
         await docSnap.ref.delete();
 
@@ -749,7 +783,7 @@ router.post(
 
       return res.json({
         success: true,
-         record,
+        record: existingRecord,
       });
 
     } catch (err) {
@@ -832,7 +866,7 @@ router.post(
 
       const { record } = req.body;
 
-      if (!record) {
+      if (!record || !record.idNumber) {
 
         return res.status(400).json({
           success: false,
@@ -843,24 +877,60 @@ router.post(
 
       const db = admin.firestore();
 
+      // Get the real record from trash
+      const trashRef = db
+        .collection("trash")
+        .doc(record.idNumber);
+
+      const trashSnap =
+        await trashRef.get();
+
+      if (!trashSnap.exists) {
+
+        return res.status(404).json({
+          success: false,
+          error: "Trash record not found",
+        });
+
+      }
+
+      // Use the database record as the source of truth
+      const existingRecord =
+        trashSnap.data();
+
+      // Make sure this record belongs
+      // to the logged-in staff station
+      if (
+        existingRecord.stationId !==
+        req.staff.stationId
+      ) {
+
+        return res.status(403).json({
+          success: false,
+          error:
+            "You are not authorized to restore this record",
+        });
+
+      }
+
+      // Restore to active records
       await db
         .collection("records")
         .doc(record.idNumber)
-        .set(record);
+        .set(existingRecord);
 
+      // Restore/update permanent history
       await db
         .collection("allHistoryRecords")
         .doc(record.idNumber)
-        .set(record);
+        .set(existingRecord);
 
-      await db
-        .collection("trash")
-        .doc(record.idNumber)
-        .delete();
+      // Remove from trash
+      await trashRef.delete();
 
       return res.json({
         success: true,
-        record,
+        record: existingRecord,
       });
 
     } catch (err) {

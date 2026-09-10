@@ -96,9 +96,15 @@ const allRecords = useMemo(() => {
 
 const recordsForStaff = useMemo(() => {
 
-  if (!stationKey) {
+  if (user !== "staff") {
 
     return allRecords;
+
+  }
+
+  if (!stationKey) {
+
+    return [];
 
   }
 
@@ -109,7 +115,7 @@ const recordsForStaff = useMemo(() => {
         .toLowerCase() === stationKey
   );
 
-}, [allRecords, stationKey]);
+}, [allRecords, stationKey, user]);
 
 useEffect(() => {
   const loadStation = async () => {
