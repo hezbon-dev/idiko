@@ -583,6 +583,66 @@ if (
         PAID_RECORD_RETENTION_DAYS
       ) {
 
+
+        // =======================================
+        // DELETE FROM records
+        // =======================================
+
+        await db
+          .collection("records")
+          .doc(docSnap.id)
+          .delete();
+
+        console.log(
+          `🧹 Deleted expired PAID record: ${record.idNumber}`
+        );
+
+
+        // =======================================
+        // DELETE CORRESPONDING NOTIFY REQUEST(S)
+        // =======================================
+
+        if (record.idNumber) {
+
+          const notifySnapshot =
+            await db
+              .collection("notify_requests")
+              .where(
+                "idNumber",
+                "==",
+                record.idNumber
+              )
+              .get();
+
+          for (
+            const notifyDoc
+            of notifySnapshot.docs
+          ) {
+
+            await notifyDoc.ref.delete();
+
+            console.log(
+              `🧹 Deleted corresponding notify request: ${record.idNumber}`
+            );
+
+          }
+
+        }
+      }
+
+    }
+
+  } catch (err) {
+
+    console.error(
+      "❌ Paid record cleanup failed:",
+      err
+    );
+
+  }
+
+}
+
 // =======================================
 // CLEAN OLD ALL HISTORY RECORDS
 // Runs once every 6 months
@@ -676,65 +736,6 @@ if (
 
     console.error(
       "❌ All history record cleanup failed:",
-      err
-    );
-
-  }
-
-}
-
-        // =======================================
-        // DELETE FROM records
-        // =======================================
-
-        await db
-          .collection("records")
-          .doc(docSnap.id)
-          .delete();
-
-        console.log(
-          `🧹 Deleted expired PAID record: ${record.idNumber}`
-        );
-
-
-        // =======================================
-        // DELETE CORRESPONDING NOTIFY REQUEST(S)
-        // =======================================
-
-        if (record.idNumber) {
-
-          const notifySnapshot =
-            await db
-              .collection("notify_requests")
-              .where(
-                "idNumber",
-                "==",
-                record.idNumber
-              )
-              .get();
-
-          for (
-            const notifyDoc
-            of notifySnapshot.docs
-          ) {
-
-            await notifyDoc.ref.delete();
-
-            console.log(
-              `🧹 Deleted corresponding notify request: ${record.idNumber}`
-            );
-
-          }
-
-        }
-      }
-
-    }
-
-  } catch (err) {
-
-    console.error(
-      "❌ Paid record cleanup failed:",
       err
     );
 

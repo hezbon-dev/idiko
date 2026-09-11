@@ -212,7 +212,7 @@ const toggleMaintenanceMode =
   const interval =
     setInterval(
       loadActiveStaff,
-      1000
+      60000
     );
 
   return () =>
