@@ -56,12 +56,14 @@ function normalizeSex(value = "") {
 // =======================================
 
 function createMatchKey(
+  documentType = "",
   fullName = "",
   dob = "",
   sex = "",
   district = ""
 ) {
   return [
+    normalizeText(documentType),
     normalizeText(fullName),
     normalizeDate(dob),
     normalizeSex(sex),
@@ -80,6 +82,7 @@ router.post(
         createdAt,
         matched,
         status,
+        documentType,
         fullName,
         idNumber,
         dob,
@@ -89,6 +92,24 @@ router.post(
         secondaryPhone,
         email,
       } = req.body;
+
+      if (
+  !["id", "drivingLicence", "birthCertificate"].includes(
+    documentType
+  )
+) {
+  return res.status(400).json({
+    success: false,
+    error: "Invalid document type",
+  });
+}
+
+if (documentType === "drivingLicence" && !idNumber) {
+  return res.status(400).json({
+    success: false,
+    error: "ID number is required for a driving licence",
+  });
+}
 
       if (
         !fullName ||
@@ -114,10 +135,17 @@ if (idNumber) {
       .get();
 
   if (!existing.empty) {
+
+    const duplicateMessage =
+      documentType === "drivingLicence"
+        ? "You already requested notification for this driving licence."
+        : documentType === "birthCertificate"
+        ? "You already requested notification for this birth certificate."
+        : "You already requested notification for this ID.";
+
     return res.status(409).json({
       success: false,
-      error:
-        "You already requested notification for this ID.",
+      error: duplicateMessage,
     });
   }
 }
@@ -150,13 +178,20 @@ if (!idNumber) {
       );
     });
 
-  if (duplicateIdentity) {
-    return res.status(409).json({
-      success: false,
-      error:
-        "You already requested notification for this identity.",
-    });
-  }
+if (duplicateIdentity) {
+
+  const duplicateMessage =
+    documentType === "drivingLicence"
+      ? "You already requested notification for this driving licence."
+      : documentType === "birthCertificate"
+      ? "You already requested notification for this birth certificate."
+      : "You already requested notification for this ID.";
+
+  return res.status(409).json({
+    success: false,
+    error: duplicateMessage,
+  });
+}
 }
 
 await db
@@ -167,6 +202,7 @@ await db
     createdAt,
     matched,
     status,
+    documentType,
 
     fullName,
     idNumber,
@@ -186,6 +222,7 @@ await db
 
     // Deterministic key used later for targeted ID-less matching
     matchKey: createMatchKey(
+      documentType,
       fullName,
       dob,
       sex,

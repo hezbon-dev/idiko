@@ -169,6 +169,13 @@ if (
 
 }, [idNumber]);
 
+const documentTypeLabel =
+  record?.documentType === "drivingLicence"
+    ? "Driving Licence"
+    : record?.documentType === "birthCertificate"
+    ? "Birth Certificate"
+    : "ID";
+
 // 🔹 DEBUG: field-by-field mismatch logging
   if (record) {
     const mismatches = [];
@@ -254,7 +261,7 @@ if (
         alignItems: "center",
       }}
     >
-      <h1 style={{ marginBottom: "20px" }}>ID Details</h1>
+      <h1 style={{ marginBottom: "20px" }}>{documentTypeLabel} Details</h1>
 
       {/* Images */}
       <div
@@ -318,6 +325,16 @@ if (
           gap: "15px",
         }}
       >
+
+<label>
+  Document Type:
+  <input
+    type="text"
+    value={documentTypeLabel}
+    readOnly
+    style={inputStyle}
+  />
+</label>
         <label>
           Full Names:
           <input

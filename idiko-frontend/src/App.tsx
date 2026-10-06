@@ -14,6 +14,7 @@ import MainLayout from "./layouts/MainLayout";
 
 // Public & General Pages
 import Home from "./pages/Home";
+import DocumentSelection from "./pages/DocumentSelection";
 import FindMyID from "./pages/FindMyID";
 import Payment from "./pages/Payment";
 import PayToClaim from "./pages/PayToClaim"; 
@@ -214,6 +215,7 @@ function AppContent() {
 
                     {/* Public Routes */}
                     <Route path="/" element={<Home />} />
+                    <Route path="/document-selection"element={<DocumentSelection />}/>
                     <Route path="/find-my-id" element={<FindMyID />} />
                     <Route path="/payment/:idNumber" element={<Payment />} />
                     <Route path="/pay-to-claim" element={<PayToClaim />} />

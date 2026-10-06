@@ -1,6 +1,6 @@
 // src/pages/FindMyID.tsx
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation,useNavigate, Link } from "react-router-dom";
 
 // Reuse normalization functions exactly like in RecordContext
 function normalizeText(s?: string): string {
@@ -59,9 +59,20 @@ function normalizeSex(value?: string): string {
 }
 
 export default function FindMyID() {
- 
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const documentType =
+    (location.state as { documentType?: string } | null)
+      ?.documentType || "id";
+
+  const documentTypeLabel =
+    documentType === "drivingLicence"
+      ? "Driving Licence"
+      : documentType === "birthCertificate"
+      ? "Birth Certificate"
+      : "ID";
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -107,16 +118,30 @@ export default function FindMyID() {
     [name]: value,
   });
 };
-  const handleSearch = async () => {
-    if (!formData.fullName || !formData.dob || !formData.sex || !formData.district) {
-      setError("⚠️ Please fill in all fields before searching.");
-      return;
-    }
+const handleSearch = async () => {
+  if (
+    !formData.fullName ||
+    !formData.dob ||
+    !formData.sex ||
+    !formData.district
+  ) {
+    setError("⚠️ Please fill in all fields before searching.");
+    return;
+  }
 
-    setError("");
+  if (
+    documentType === "drivingLicence" &&
+    !formData.idNumber
+  ) {
+    setError("⚠️ ID number is required for a Driving Licence search.");
+    return;
+  }
+
+  setError("");
 
 // ✅ DEBUG: log normalized input
     console.log("Searching for normalized input:", {
+      documentType,
       fullName: normalizeText(formData.fullName),
       idNumber: normalizeId(formData.idNumber),
       dob: normalizeDate(formData.dob),
@@ -138,22 +163,24 @@ try {
             "application/json",
         },
 
-        body: JSON.stringify({
-          fullName:
-            formData.fullName,
+body: JSON.stringify({
+  documentType,
 
-          idNumber:
-            formData.idNumber,
+  fullName:
+    formData.fullName,
 
-          dob:
-            formData.dob,
+  idNumber:
+    formData.idNumber,
 
-          sex:
-            formData.sex,
+  dob:
+    formData.dob,
 
-          district:
-            formData.district,
-        }),
+  sex:
+    formData.sex,
+
+  district:
+    formData.district,
+}),
       }
     );
 
@@ -181,14 +208,15 @@ try {
 
   } else {
 
-    navigate(
-      "/notify-me",
-      {
-        state: {
-          formData,
-        },
-      }
-    );
+navigate(
+  "/notify-me",
+  {
+    state: {
+      formData,
+      documentType,
+    },
+  }
+);
 
   }
 
@@ -251,8 +279,31 @@ try {
     <div style={containerStyle}>
       <h1></h1>
       <form style={formStyle} onSubmit={(e) => e.preventDefault()}>
+          <div>
+    <label
+      style={{
+        display: "block",
+        marginBottom: "5px",
+        textAlign: "left",
+      }}
+    >
+
+    </label>
+
+<input
+  type="text"
+  value={documentTypeLabel}
+  readOnly
+  style={{
+    ...inputStyle,
+    width: "100%",
+    boxSizing: "border-box",
+  }}
+/>
+
+  </div>
         <input type="text" name="fullName" placeholder="Full Names (Given names + Surname)" value={formData.fullName} onChange={handleChange} style={inputStyle} />
-        <input type="text" name="idNumber" placeholder="ID Number (optional if not available)" value={formData.idNumber} onChange={handleChange} style={inputStyle} />
+        <input type="text"name="idNumber"placeholder={documentType === "drivingLicence"? "ID Number (required)": "ID Number (optional if not available)"}value={formData.idNumber}onChange={handleChange}style={inputStyle}/>
         <input type="text" name="dob" placeholder="Date of Birth (dd/mm/yyyy)" value={formData.dob} onChange={handleChange} style={inputStyle} />
         <select name="sex" value={formData.sex} onChange={handleChange} style={inputStyle}>
           <option value=""> Sex</option>
@@ -262,7 +313,7 @@ try {
         <input type="text" name="district" placeholder="Place / district of Birth" value={formData.district} onChange={handleChange} style={inputStyle} />
         {error && <p style={{ color: "red", fontSize: "14px" }}>{error}</p>}
         <button type="button" onClick={handleSearch} style={buttonStyle}>Search</button>
-        <Link to="/" style={backLinkStyle}>&lt; Home</Link>
+       <Link to="/document-selection" style={backLinkStyle}>&lt;Document Selection</Link>
       </form>
     </div>
   );

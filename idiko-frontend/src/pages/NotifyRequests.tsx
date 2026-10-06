@@ -150,7 +150,7 @@ if (loading) {
     borderSpacing: "0 8px",
   }}
 >
-         <thead>
+  <thead>
   <tr>
     <th style={{ ...cellStyle, fontWeight: "bold" }}>
       Full Name

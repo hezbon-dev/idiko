@@ -68,6 +68,7 @@ function normalizeSex(value = "") {
 router.post("/find-id", async (req, res) => {
   try {
     const {
+      documentType,
       fullName,
       idNumber,
       dob,
@@ -75,70 +76,135 @@ router.post("/find-id", async (req, res) => {
       district,
     } = req.body;
 
-    // =======================================
-    // TARGETED RECORD LOOKUP
-    // =======================================
+    if (
+  !["id", "drivingLicence", "birthCertificate"].includes(
+    documentType
+  )
+) {
+  return res.status(400).json({
+    success: false,
+    error: "Invalid document type",
+  });
+}
 
-    const normalizedRequestedId =
-      normalizeId(idNumber);
+// =======================================
+// BIRTH CERTIFICATE LOOKUP
+// =======================================
 
-    if (!normalizedRequestedId) {
-      return res.json({
-        success: false,
-        found: false,
-      });
-    }
+if (documentType === "birthCertificate") {
 
-    // Look up ONLY the record belonging to this ID.
-    const recordDoc =
-      await db
-        .collection("records")
-        .doc(normalizedRequestedId)
-        .get();
+  const snapshot =
+    await db
+      .collection("records")
+      .where("documentType", "==", "birthCertificate")
+      .where(
+        "normalizedFullName",
+        "==",
+        normalizeText(fullName)
+      )
+      .where(
+        "normalizedDob",
+        "==",
+        normalizeDate(dob)
+      )
+      .where(
+        "normalizedSex",
+        "==",
+        normalizeSex(sex)
+      )
+      .where(
+        "normalizedDistrict",
+        "==",
+        normalizeText(district)
+      )
+      .limit(1)
+      .get();
 
-    if (!recordDoc.exists) {
-      return res.json({
-        success: false,
-        found: false,
-      });
-    }
-
-    const record =
-      recordDoc.data();
-
-    // =======================================
-    // PRESERVE EXISTING MATCHING LOGIC
-    // =======================================
-
-    const found =
-      normalizeText(record.fullName) ===
-        normalizeText(fullName) &&
-
-      normalizeId(record.idNumber) ===
-        normalizedRequestedId &&
-
-      normalizeDate(record.dob) ===
-        normalizeDate(dob) &&
-
-      normalizeSex(record.sex) ===
-        normalizeSex(sex) &&
-
-      normalizeText(record.district) ===
-        normalizeText(district);
-
-    if (!found) {
-      return res.json({
-        success: false,
-        found: false,
-      });
-    }
-
+  if (snapshot.empty) {
     return res.json({
-      success: true,
-      found: true,
-      idNumber: record.idNumber,
-      status: record.status,
+      success: false,
+      found: false,
     });
+  }
+
+  const record =
+    snapshot.docs[0].data();
+
+  return res.json({
+    success: true,
+    found: true,
+    idNumber: record.idNumber || "",
+    status: record.status,
+  });
+}
+
+// =======================================
+// ID / DRIVING LICENCE LOOKUP
+// =======================================
+
+const normalizedRequestedId =
+  normalizeId(idNumber);
+
+if (!normalizedRequestedId) {
+  return res.json({
+    success: false,
+    found: false,
+  });
+}
+
+// Look up ONLY the record belonging to this ID.
+const recordDoc =
+  await db
+    .collection("records")
+    .doc(normalizedRequestedId)
+    .get();
+
+if (!recordDoc.exists) {
+  return res.json({
+    success: false,
+    found: false,
+  });
+}
+
+const record =
+  recordDoc.data();
+
+// =======================================
+// DOCUMENT TYPE + IDENTITY MATCH
+// =======================================
+
+const found =
+  normalizeText(record.documentType) ===
+    normalizeText(documentType) &&
+
+  normalizeText(record.fullName) ===
+    normalizeText(fullName) &&
+
+  normalizeId(record.idNumber) ===
+    normalizedRequestedId &&
+
+  normalizeDate(record.dob) ===
+    normalizeDate(dob) &&
+
+  normalizeSex(record.sex) ===
+    normalizeSex(sex) &&
+
+  normalizeText(record.district) ===
+    normalizeText(district);
+
+if (!found) {
+  return res.json({
+    success: false,
+    found: false,
+  });
+}
+
+return res.json({
+  success: true,
+  found: true,
+  idNumber: record.idNumber,
+  status: record.status,
+});
 
   } catch (err) {
 

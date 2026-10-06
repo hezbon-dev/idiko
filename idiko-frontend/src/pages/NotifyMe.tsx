@@ -5,9 +5,21 @@ export default function NotifyMe() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const prefilled = (location.state as any)?.formData || {};
-  const [showForm, setShowForm] = useState(false);
-  const [saved, setSaved] = useState(false);
+const prefilled = (location.state as any)?.formData || {};
+
+const documentType =
+  (location.state as { documentType?: string } | null)
+    ?.documentType || "id";
+
+const documentTypeLabel =
+  documentType === "drivingLicence"
+    ? "Driving Licence"
+    : documentType === "birthCertificate"
+    ? "Birth Certificate"
+    : "ID";
+
+const [showForm, setShowForm] = useState(false);
+const [saved, setSaved] = useState(false);
 
   const [form, setForm] = useState({
     fullName: prefilled.fullName || "",
@@ -37,6 +49,7 @@ export default function NotifyMe() {
       createdAt: new Date().toISOString(),
       matched: false,
       status: "pending",
+      documentType,
 
       ...form,
 
@@ -153,7 +166,7 @@ export default function NotifyMe() {
       <div style={containerStyle}>
         <h1>✅ Notification request saved</h1>
         <button onClick={() => navigate("/find-my-id")} style={backLinkStyle}>
-          &lt; Back to Find My ID
+          &lt; Find My ID
         </button>
       </div>
     );
@@ -162,15 +175,15 @@ export default function NotifyMe() {
   if (!showForm) {
     return (
       <div style={containerStyle}>
-        <h1>😞 Sorry, ID not found</h1>
+       <h1>😞 Sorry, {documentTypeLabel} not found</h1>
         <button
           style={{ ...buttonStyle, backgroundColor: "green", marginTop: "20px" }}
           onClick={() => setShowForm(true)}
         >
-          Notify me if ID found
+          Notify me if {documentTypeLabel} found
         </button>
         <button onClick={() => navigate("/find-my-id")} style={backLinkStyle}>
-          &lt; Back to Find My ID
+          &lt; Find My ID
         </button>
       </div>
     );
@@ -178,8 +191,19 @@ export default function NotifyMe() {
 
   return (
     <div style={containerStyle}>
-      <h1>Notify Me If ID Found</h1>
+      <h1>Notify Me If {documentTypeLabel} Found</h1>
       <form style={formStyle} onSubmit={handleSubmit}>
+        <input
+  type="text"
+  value={documentTypeLabel}
+  readOnly
+  style={{
+    ...inputStyle,
+    width: "100%",
+    boxSizing: "border-box",
+
+  }}
+/>
         <input type="text" name="fullName" placeholder="Full Names (as in the ID card)" value={form.fullName} onChange={handleChange} style={inputStyle} readOnly />
         <input type="text" name="idNumber" placeholder="ID Number (optional if not availabe)" value={form.idNumber} onChange={handleChange} style={inputStyle} readOnly />
         <input type="text" name="dob" placeholder="Date of Birth (dd/mm/yyyy)" value={form.dob} onChange={handleChange} style={inputStyle} readOnly />
@@ -190,7 +214,7 @@ export default function NotifyMe() {
         <input type="email" name="email" placeholder="Email (optional)" value={form.email} onChange={handleChange} style={inputStyle} />
         <button type="submit" style={{ ...buttonStyle, backgroundColor: "green" }}>Notify Me</button>
         <button type="button" onClick={() => navigate("/find-my-id")} style={backLinkStyle}>
-          &lt; Back to Find My ID
+          &lt; Find My ID
         </button>
       </form>
     </div>

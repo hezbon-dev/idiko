@@ -58,8 +58,8 @@ export default function Home() {
         Staff Login
       </Link>
 
-      <Link to="/find-my-id" style={buttonStyle}>
-        Search ID
+      <Link to="/document-selection" style={buttonStyle}>
+        Search Document
       </Link>
 
       {/* ID Status Inquiry */}
