@@ -131,6 +131,7 @@ if (idNumber) {
     await db
       .collection("notify_requests")
       .where("idNumber", "==", idNumber)
+      .where("documentType", "==", documentType)
       .limit(1)
       .get();
 
@@ -165,17 +166,19 @@ if (!idNumber) {
     existing.docs.some(doc => {
       const request = doc.data();
 
-      return (
-        !request.idNumber &&
-        normalizeText(request.fullName) ===
-          normalizeText(fullName) &&
-        normalizeDate(request.dob) ===
-          normalizeDate(dob) &&
-        normalizeSex(request.sex) ===
-          normalizeSex(sex) &&
-        normalizeText(request.district) ===
-          normalizeText(district)
-      );
+return (
+  !request.idNumber &&
+  normalizeText(request.documentType) ===
+    normalizeText(documentType) &&
+  normalizeText(request.fullName) ===
+    normalizeText(fullName) &&
+  normalizeDate(request.dob) ===
+    normalizeDate(dob) &&
+  normalizeSex(request.sex) ===
+    normalizeSex(sex) &&
+  normalizeText(request.district) ===
+    normalizeText(district)
+);
     });
 
 if (duplicateIdentity) {
