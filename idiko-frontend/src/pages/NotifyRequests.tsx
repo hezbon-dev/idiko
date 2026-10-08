@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import type { NotifyRequestType } from "../context/RecordContext";
 
 export default function NotifyRequests() {
-  const [requests, setRequests] = useState<NotifyRequestType[]>([]);
-  const [loading, setLoading] =useState(true);
-  const [search, setSearch] = useState(""); 
+const [requests, setRequests] = useState<NotifyRequestType[]>([]);
+const [loading, setLoading] = useState(true);
+const [search, setSearch] = useState("");
+const [documentTypeFilter, setDocumentTypeFilter] = useState("id");
 
  useEffect(() => {
 
@@ -61,11 +62,28 @@ export default function NotifyRequests() {
 
 }, []); 
 
-const filteredRequests = requests.filter((req) =>
-  req.idNumber
-    .toLowerCase()
-    .includes(search.toLowerCase())
-);
+const filteredRequests = requests.filter((req) => {
+
+  const searchValue = search.toLowerCase();
+
+  const matchesSearch =
+    (req.idNumber || "")
+      .toLowerCase()
+      .includes(searchValue) ||
+    (req.fullName || "")
+      .toLowerCase()
+      .includes(searchValue);
+
+  const matchesDocumentType =
+    !documentTypeFilter ||
+    req.documentType === documentTypeFilter;
+
+  return (
+    matchesSearch &&
+    matchesDocumentType
+  );
+
+});
 
 if (loading) {
 
@@ -96,7 +114,7 @@ if (loading) {
         
       </h1>
 
-      {/* Search + Count */}
+{/* Search + Document Type Filter + Count */}
 <div
   style={{
     marginBottom: "20px",
@@ -105,7 +123,7 @@ if (loading) {
 >
   <input
     type="text"
-    placeholder="Search by ID Number..."
+    placeholder="Search by ID Number or Name..."
     value={search}
     onChange={(e) =>
       setSearch(e.target.value)
@@ -120,24 +138,51 @@ if (loading) {
     }}
   />
 
- <span
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "38px",
-    minWidth: "150px",
-    textAlign: "center",
-    borderRadius: "8px",
-    border: "1px solid gray",
-    backgroundColor: "black",
-    color: "white",
-    boxSizing: "border-box",
-    verticalAlign: "middle",
-  }}
->
-  Total: {requests.length}
-</span>
+  <select
+    value={documentTypeFilter}
+    onChange={(e) =>
+      setDocumentTypeFilter(e.target.value)
+    }
+    style={{
+      padding: "10px",
+      borderRadius: "8px",
+      border: "1px solid gray",
+      marginRight: "10px",
+      backgroundColor: "black",
+      color: "white",
+    }}
+  >
+    <option value="id">
+      ID
+    </option>
+
+    <option value="drivingLicence">
+      Driving Licence
+    </option>
+
+    <option value="birthCertificate">
+      Birth Certificate
+    </option>
+  </select>
+
+  <span
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "38px",
+      minWidth: "150px",
+      textAlign: "center",
+      borderRadius: "8px",
+      border: "1px solid gray",
+      backgroundColor: "black",
+      color: "white",
+      boxSizing: "border-box",
+      verticalAlign: "middle",
+    }}
+  >
+    Total: {filteredRequests.length}
+  </span>
 </div>
 
       {/* Table Container */}
@@ -150,8 +195,12 @@ if (loading) {
     borderSpacing: "0 8px",
   }}
 >
-  <thead>
+<thead>
   <tr>
+    <th style={{ ...cellStyle, fontWeight: "bold" }}>
+      Document Type
+    </th>
+
     <th style={{ ...cellStyle, fontWeight: "bold" }}>
       Full Name
     </th>
@@ -190,7 +239,7 @@ if (loading) {
             {filteredRequests.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   style={{
                     textAlign: "center",
                     padding: "20px",
@@ -201,10 +250,18 @@ if (loading) {
                 </td>
               </tr>
             ) : (
-              filteredRequests.map((req) => (
-                <tr key={req.id}>
+filteredRequests.map((req) => (
+  <tr key={req.id}>
+
+    <td style={cellStyle}>
+      {req.documentType === "drivingLicence"
+        ? "Driving Licence"
+        : req.documentType === "birthCertificate"
+        ? "Birth Certificate"
+        : "ID"}
+    </td>
                   <td style={cellStyle}>{req.fullName}</td>
-                  <td style={cellStyle}>{req.idNumber}</td>
+                  <td style={cellStyle}>{req.idNumber || "—"}</td>   
                   <td style={cellStyle}>{req.dob}</td>
                   <td style={cellStyle}>{req.sex}</td>
                   <td style={cellStyle}>{req.district}</td>

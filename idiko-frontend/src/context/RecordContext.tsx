@@ -21,8 +21,10 @@ export type RecordType = {
 };
 
 export type NotifyRequestType = {
+
   status: string;
   id: string;
+  documentType: string;
   fullName: string;
   idNumber: string;
   dob: string;
@@ -478,9 +480,13 @@ const updateNotifyRequest = async (
       secondaryPhone: normalizePhone(req.secondaryPhone),
     };
 
-    const existing = notifyRequests.find(
-      r => normalizeId(r.idNumber) === normalizedReq.idNumber
-    );
+const existing = notifyRequests.find(
+
+  r =>
+    r.documentType === normalizedReq.documentType &&
+    normalizeId(r.idNumber) === normalizedReq.idNumber
+
+); 
 
     if (existing) {
       return false;
