@@ -408,6 +408,7 @@ router.post(
 
       const db = admin.firestore();
 
+
       // -------------------------------
       // SELECT FIRESTORE DOCUMENT KEY
       // -------------------------------
@@ -415,12 +416,12 @@ router.post(
       let recordRef;
 
       if (documentType === "national_id") {
-        // PRESERVE EXISTING NATIONAL ID KEY STRATEGY.
-        // National ID records remain keyed by their ID number.
+        // National ID records keep their existing document key.
         recordRef = db
           .collection("records")
           .doc(normalizedId);
 
+        // Prevent duplicate National ID records.
         const existing = await recordRef.get();
 
         if (existing.exists) {
@@ -429,14 +430,34 @@ router.post(
             error: "ID already exists",
           });
         }
+      } else if (documentType === "driving_license") {
+        // Prefix the holder's National ID to prevent collisions
+        // with National ID records in the same collection.
+        const drivingLicenseKey =
+          `driving_license_${normalizedId}`;
+
+        recordRef = db
+          .collection("records")
+          .doc(drivingLicenseKey);
+
+        // Prevent duplicate active driving licence records
+        // for the same holder while the record exists.
+        const existing = await recordRef.get();
+
+        if (existing.exists) {
+          return res.status(409).json({
+            success: false,
+            error:
+              "A driving licence record already exists for this National ID number",
+          });
+        }
       } else {
-        // Driving licences and birth certificates receive
-        // generated keys to avoid collisions with National IDs
-        // or with one another.
+        // Birth certificates continue using auto-generated keys.
         recordRef = db.collection("records").doc();
       }
 
       const recordId = recordRef.id;
+
 
       // -------------------------------
       // BUILD RECORD
