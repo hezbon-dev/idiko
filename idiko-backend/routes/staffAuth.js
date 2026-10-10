@@ -294,13 +294,12 @@ router.post(
   }
 );
 
+
 router.post(
   "/upload-record",
   verifyStaffToken,
   async (req, res) => {
-
     try {
-
       const {
         frontImage,
         backImage,
@@ -308,320 +307,379 @@ router.post(
         idNumber,
         dob,
         sex,
-        district
+        district,
       } = req.body;
+
+      // Support older clients that don't send documentType.
+      // Older uploads continue to behave as National ID uploads.
+      const documentType =
+        req.body.documentType || "national_id";
+
+      const allowedDocumentTypes = [
+        "national_id",
+        "driving_license",
+        "birth_certificate",
+      ];
+
+      if (!allowedDocumentTypes.includes(documentType)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid document type",
+        });
+      }
+
+      const normalizedName = String(fullName || "")
+        .trim()
+        .toLowerCase();
+
+      const normalizedDob = String(dob || "").trim();
+
+      const normalizedSex = String(sex || "")
+        .trim()
+        .toLowerCase();
+
+      const normalizedId = String(idNumber || "")
+        .replace(/\s+/g, "")
+        .trim();
+
+      // The frontend currently sends the birth-certificate
+      // place of birth through the "district" field.
+      // Accept "placeOfBirth" too for future compatibility.
+      const normalizedPlaceOfBirth = String(
+        req.body.placeOfBirth || district || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const normalizedDistrict =
+        documentType === "national_id"
+          ? String(district || "").trim().toLowerCase()
+          : "";
+
+      // -------------------------------
+      // VALIDATE REQUIRED FIELDS
+      // -------------------------------
 
       if (
         !frontImage ||
-        !backImage ||
-        !fullName ||
-        !idNumber ||
-        !dob ||
-        !sex ||
-        !district
+        !normalizedName ||
+        !normalizedDob ||
+        !normalizedSex
       ) {
-
         return res.status(400).json({
           success: false,
-          error: "Missing required fields"
+          error:
+            "Front image, full name, date of birth and sex are required",
         });
-
       }
 
-      const normalizedId =
-        String(idNumber)
-          .replace(/\s+/g, "");
-
-      const db =
-        admin.firestore();
-
-      const existing =
-        await db
-          .collection("records")
-          .doc(normalizedId)
-          .get();
-
-      if (existing.exists) {
-
-        return res.status(409).json({
+      if (
+        documentType === "national_id" &&
+        (!backImage || !normalizedId || !normalizedDistrict)
+      ) {
+        return res.status(400).json({
           success: false,
-          error: "ID already exists"
+          error:
+            "National ID requires front and back images, ID number and district/place of birth",
         });
-
       }
+
+      if (
+        documentType === "driving_license" &&
+        (!backImage || !normalizedId)
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Driving licence requires front and back images and the holder's National ID number",
+        });
+      }
+
+      if (
+        documentType === "birth_certificate" &&
+        !normalizedPlaceOfBirth
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Birth certificate requires place of birth",
+        });
+      }
+
+      const db = admin.firestore();
+
+      // -------------------------------
+      // SELECT FIRESTORE DOCUMENT KEY
+      // -------------------------------
+
+      let recordRef;
+
+      if (documentType === "national_id") {
+        // PRESERVE EXISTING NATIONAL ID KEY STRATEGY.
+        // National ID records remain keyed by their ID number.
+        recordRef = db
+          .collection("records")
+          .doc(normalizedId);
+
+        const existing = await recordRef.get();
+
+        if (existing.exists) {
+          return res.status(409).json({
+            success: false,
+            error: "ID already exists",
+          });
+        }
+      } else {
+        // Driving licences and birth certificates receive
+        // generated keys to avoid collisions with National IDs
+        // or with one another.
+        recordRef = db.collection("records").doc();
+      }
+
+      const recordId = recordRef.id;
+
+      // -------------------------------
+      // BUILD RECORD
+      // -------------------------------
 
       const record = {
+        recordId,
 
-        stationId:
-          req.staff.stationId,
+        documentType,
 
-        uploadDate:
-          new Date().toISOString(),
+        stationId: req.staff.stationId,
 
-        fullName:
-          fullName
-            .trim()
-            .toLowerCase(),
+        uploadDate: new Date().toISOString(),
 
+        fullName: normalizedName,
+
+        // For driving licences, this is the HOLDER'S NATIONAL
+        // ID number, not the driving licence number.
+        // Birth certificates have no ID number.
         idNumber:
-          normalizedId,
+          documentType === "birth_certificate"
+            ? ""
+            : normalizedId,
 
-        dob,
+        dob: normalizedDob,
 
-        sex:
-          sex
-            .trim()
-            .toLowerCase(),
+        sex: normalizedSex,
 
-        district:
-          district
-            .trim()
-            .toLowerCase(),
+        // Preserve the existing district field for National IDs.
+        // Do not require or populate it for other document types.
+        district: normalizedDistrict,
+
+        // Keep an explicit placeOfBirth field for birth certificates.
+        // National IDs retain their existing district value here too.
+        placeOfBirth:
+          documentType === "birth_certificate"
+            ? normalizedPlaceOfBirth
+            : documentType === "national_id"
+              ? normalizedDistrict
+              : "",
 
         status: "Pending",
 
         frontImage,
 
-        backImage,
+        // Birth certificates only need a front image.
+        backImage:
+          documentType === "birth_certificate"
+            ? null
+            : backImage,
 
-        pickupStation:
-          req.staff.stationName
-            .trim()
-            .toLowerCase()
-
+        pickupStation: String(
+          req.staff.stationName || ""
+        )
+          .trim()
+          .toLowerCase(),
       };
 
-await Promise.all([
-  db
-    .collection("records")
-    .doc(normalizedId)
-    .set(record),
+      // -------------------------------
+      // SAVE TO BOTH FIRESTORE COLLECTIONS
+      // -------------------------------
 
-  db
-    .collection("allHistoryRecords")
-    .doc(normalizedId)
-    .set(record),
-]);
+      // Use the SAME document key in records and allHistoryRecords.
+      // Keep the existing National ID key unchanged.
+      await Promise.all([
+        recordRef.set(record),
 
-// =========================
-// MATCH PENDING NOTIFY REQUEST
-// =========================
+        db
+          .collection("allHistoryRecords")
+          .doc(recordId)
+          .set(record),
+      ]);
 
-const normalizeText = (value = "") =>
-  String(value).trim().toLowerCase();
+      // ==================================================
+      // NATIONAL ID NOTIFICATION MATCHING
+      // PRESERVED FROM YOUR EXISTING IMPLEMENTATION
+      // ==================================================
 
-const normalizeId = (value = "") =>
-  String(value)
-    .replace(/\s+/g, "")
-    .trim();
+      // Do not run the current ID-based matching algorithm for
+      // driving licences or birth certificates. Their matching
+      // strategy can be added separately without changing ID logic.
 
-const normalizeDate = (value = "") => {
+      if (documentType === "national_id") {
+        const normalizeText = (value = "") =>
+          String(value).trim().toLowerCase();
 
-  const parts = String(value)
-    .trim()
-    .split(/\D+/);
+        const normalizeId = (value = "") =>
+          String(value)
+            .replace(/\s+/g, "")
+            .trim();
 
-  if (parts.length !== 3) {
-    return "";
-  }
+        const normalizeDate = (value = "") => {
+          const parts = String(value)
+            .trim()
+            .split(/\D+/);
 
-  let day;
-  let month;
-  let year;
+          if (parts.length !== 3) {
+            return "";
+          }
 
-  if (parts[0].length === 4) {
+          let day;
+          let month;
+          let year;
 
-    [year, month, day] = parts;
+          if (parts[0].length === 4) {
+            [year, month, day] = parts;
+          } else {
+            [day, month, year] = parts;
+          }
 
-  } else {
+          return `${year.padStart(4, "0")}-${month.padStart(
+            2,
+            "0"
+          )}-${day.padStart(2, "0")}`;
+        };
 
-    [day, month, year] = parts;
+        const normalizeSex = (value = "") => {
+          const v = String(value)
+            .trim()
+            .toLowerCase();
 
-  }
+          if (v === "m" || v === "male") {
+            return "male";
+          }
 
-  return `${year.padStart(4, "0")}-${month.padStart(
-    2,
-    "0"
-  )}-${day.padStart(2, "0")}`;
-};
+          if (v === "f" || v === "female") {
+            return "female";
+          }
 
-const normalizeSex = (value = "") => {
+          return v;
+        };
 
-  const v =
-    String(value)
-      .trim()
-      .toLowerCase();
+        const createMatchKey = (
+          fullName = "",
+          dob = "",
+          sex = "",
+          district = ""
+        ) => {
+          return [
+            normalizeText(fullName),
+            normalizeDate(dob),
+            normalizeSex(sex),
+            normalizeText(district),
+          ].join("|");
+        };
 
-  if (v === "m" || v === "male") {
-    return "male";
-  }
+        const recordMatchKey = createMatchKey(
+          record.fullName,
+          record.dob,
+          record.sex,
+          record.district
+        );
 
-  if (v === "f" || v === "female") {
-    return "female";
-  }
+        console.log(
+          "🔑 Upload record matchKey:",
+          recordMatchKey
+        );
 
-  return v;
-};
+        // Look up matching pending notification requests.
+        const matchKeySnapshot = await db
+          .collection("notify_requests")
+          .where("matchKey", "==", recordMatchKey)
+          .get();
 
-const createMatchKey = (
-  fullName = "",
-  dob = "",
-  sex = "",
-  district = ""
-) => {
-  return [
-    normalizeText(fullName),
-    normalizeDate(dob),
-    normalizeSex(sex),
-    normalizeText(district),
-  ].join("|");
-};
+        const matchingNotifyDoc =
+          matchKeySnapshot.docs.find((doc) => {
+            const request = doc.data();
 
-const recordMatchKey = createMatchKey(
-  record.fullName,
-  record.dob,
-  record.sex,
-  record.district
-);
+            // Skip requests already matched.
+            if (request.matched === true) {
+              return false;
+            }
 
-console.log(
-  "🔑 Upload record matchKey:",
-  recordMatchKey
-);
+            // Skip expired requests.
+            if (request.expired === true) {
+              return false;
+            }
 
-// =======================================
-// PHASE 4 — TARGETED NOTIFY REQUEST LOOKUP
-// PRODUCTION MATCHING ENGINE
-// =======================================
+            // If a request has an ID number, it must match.
+            if (
+              request.idNumber &&
+              normalizeId(request.idNumber) !== ""
+            ) {
+              return (
+                normalizeId(request.idNumber) ===
+                normalizedId
+              );
+            }
 
-let matchingNotifyRequest = null;
+            // Preserve existing behavior for ID-less requests.
+            return true;
+          });
 
-// ---------------------------------------
-// LOOKUP USING MATCH KEY
-// ---------------------------------------
+        console.log(
+          "🔎 TARGETED NOTIFY LOOKUP:",
+          {
+            uploadedId: normalizedId,
+            matchKey: recordMatchKey,
+            matchedRequest:
+              matchingNotifyDoc?.id || null,
+          }
+        );
 
-const matchKeySnapshot =
-  await db
-    .collection("notify_requests")
-    .where("matchKey", "==", recordMatchKey)
-    .get();
+        if (matchingNotifyDoc) {
+          const matchedAt = new Date().toISOString();
 
-const matchingNotifyDoc =
-  matchKeySnapshot.docs.find(doc => {
+          await matchingNotifyDoc.ref.update({
+            idNumber: normalizedId,
+            matched: true,
+            startedAt: matchedAt,
+            nextNotificationAt: matchedAt,
+            sentCount: 0,
+            status: "pending",
+          });
 
-    const request = doc.data();
+          console.log(
+            "✅ Notify request matched:",
+            matchingNotifyDoc.id,
+            "→",
+            normalizedId
+          );
 
-    // Skip requests already matched
-    if (request.matched === true) {
-      return false;
-    }
+          console.log(
+            "📅 Notification schedule initialized:",
+            normalizedId
+          );
+        } else {
+          console.log(
+            "ℹ️ No matching notify request found for:",
+            normalizedId
+          );
+        }
+      }
 
-    // Skip expired requests
-    if (request.expired === true) {
-      return false;
-    }
+      // -------------------------------
+      // SUCCESS RESPONSE
+      // -------------------------------
 
-    // ---------------------------------------
-    // IF REQUEST HAS AN ID,
-    // THE ID MUST ALSO MATCH
-    // ---------------------------------------
-
-    if (
-      request.idNumber &&
-      normalizeId(request.idNumber) !== ""
-    ) {
-
-      return (
-        normalizeId(request.idNumber) ===
-        normalizedId
-      );
-
-    }
-
-    // ---------------------------------------
-    // ID-LESS REQUEST
-    // ---------------------------------------
-
-    return true;
-
-  });
-
-if (matchingNotifyDoc) {
-
-  matchingNotifyRequest = {
-    id: matchingNotifyDoc.id,
-    ref: matchingNotifyDoc.ref,
-    data: matchingNotifyDoc.data(),
-  };
-
-}
-
-console.log(
-  "🔎 TARGETED NOTIFY LOOKUP:",
-  {
-    uploadedId: normalizedId,
-    matchKey: recordMatchKey,
-    matchedRequest:
-      matchingNotifyRequest?.id || null,
-  }
-);
-
-// =======================================
-// MATCH FOUND
-// =======================================
-
-if (matchingNotifyRequest) {
-
-  const matchedAt =
-    new Date().toISOString();
-
-  await matchingNotifyRequest.ref.update({
-
-    // Make sure the uploaded ID is stored
-    idNumber: normalizedId,
-
-    // Activate scheduler
-    matched: true,
-
-    // Start notification schedule
-    startedAt: matchedAt,
-
-    nextNotificationAt: matchedAt,
-
-    sentCount: 0,
-
-    status: "pending",
-
-  });
-
-  console.log(
-    "✅ Notify request matched:",
-    matchingNotifyRequest.id,
-    "→",
-    normalizedId
-  );
-
-  console.log(
-    "📅 Notification schedule initialized:",
-    normalizedId
-  );
-
-} else {
-
-  console.log(
-    "ℹ️ No matching notify request found for:",
-    normalizedId
-  );
-
-}
-
-return res.json({
-  success: true,
-  record,
-});
-
+      return res.json({
+        success: true,
+        record,
+      });
     } catch (err) {
-
       console.error(
         "Upload record error:",
         err
@@ -629,13 +687,12 @@ return res.json({
 
       return res.status(500).json({
         success: false,
-        error: "Server error"
+        error: "Server error",
       });
-
     }
-
   }
 );
+
 
 
 // =========================
