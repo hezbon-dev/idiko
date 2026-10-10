@@ -2103,65 +2103,67 @@ function calculateConfidence(data) {
 //
 // ============================================================
 
-function parseKenyanDocument(text) {
 
-  console.log(
-    "📄 Starting Kenyan document-aware parser..."
-  );
+function parseKenyanDocument(text, requestedDocumentType) {
+  console.log("📄 Starting Kenyan document-aware parser...");
 
-  const documentType =
-    detectKenyanDocumentType(text);
+  // Normalize the document type received from the OCR endpoint.
+  const normalizedType = String(requestedDocumentType || "")
+    .trim()
+    .toLowerCase();
 
-  console.log(
-    "🔎 Detected Document Type:",
-    documentType
-  );
+  let documentType;
+
+  // Prefer the requested type when one is provided.
+  // Otherwise, detect the type from the OCR text.
+  switch (normalizedType) {
+    case "national_id":
+      documentType = "NATIONAL_ID";
+      break;
+
+    case "driving_license":
+    case "driving_licence":
+      documentType = "DRIVING_LICENCE";
+      break;
+
+    case "birth_certificate":
+      documentType = "BIRTH_CERTIFICATE";
+      break;
+
+    default:
+      documentType = detectKenyanDocumentType(text);
+      break;
+  }
+
+  console.log("🔎 Selected Document Type:", documentType);
 
   // ----------------------------------------------------------
   // DRIVING LICENCE
   // ----------------------------------------------------------
-
-  if (
-    documentType === "DRIVING_LICENCE"
-  ) {
-
-    return parseKenyanDrivingLicence(
-      text
-    );
+  if (documentType === "DRIVING_LICENCE") {
+    return parseKenyanDrivingLicence(text);
   }
 
   // ----------------------------------------------------------
   // BIRTH CERTIFICATE
   // ----------------------------------------------------------
-
-  if (
-    documentType === "BIRTH_CERTIFICATE"
-  ) {
-
-    return parseKenyanBirthCertificate(
-      text
-    );
+  if (documentType === "BIRTH_CERTIFICATE") {
+    return parseKenyanBirthCertificate(text);
   }
 
   // ----------------------------------------------------------
   // NATIONAL ID
-  //
-  // IMPORTANT:
-  // Existing ID parser remains the fallback.
   // ----------------------------------------------------------
+  console.log("🪪 Using existing Kenyan ID parser...");
 
-  console.log(
-    "🪪 Using existing Kenyan ID parser..."
-  );
-
-  const result =
-    parseKenyanID(text);
+  const result = parseKenyanID(text);
 
   return {
     documentType: "NATIONAL_ID",
     ...result,
   };
 }
+
 
 
 // ============================================================

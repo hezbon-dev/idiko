@@ -1,27 +1,31 @@
+
 const Tesseract = require("tesseract.js");
-const parseKenyanID = require("./parser");
+const parseKenyanDocument = require("./parser");
 
-let worker; // ✅ added
+let worker;
 
-async function initWorker() { // ✅ added
+async function initWorker() {
   if (!worker) {
     worker = await Tesseract.createWorker("eng");
     console.log("🔥 Tesseract worker initialized");
   }
 }
 
-async function tesseractOCR(imageBase64) {
+async function tesseractOCR(imageBase64, documentType = "national_id") {
   try {
-    await initWorker(); // ✅ added
+    await initWorker();
 
-    const result = await worker.recognize(imageBase64); // ✅ logger removed
-
+    const result = await worker.recognize(imageBase64);
     const text = result.data.text;
 
     console.log("🧾 RAW OCR TEXT:\n", text);
 
-    // Extract structured data
-    const parsedData = parseKenyanID(text);
+    // Preserve the existing document parser and its text-based detection.
+    const parsedData = parseKenyanDocument(text);
+
+    // Log the selected type alongside the parser's detected type.
+    console.log("📄 Selected document type:", documentType);
+    console.log("📄 Detected document type:", parsedData.documentType);
 
     return parsedData;
   } catch (error) {

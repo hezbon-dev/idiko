@@ -28,6 +28,7 @@ import StaffLogin from "./pages/StaffLogin";
 
 // Staff Pages
 import StaffDashboard from "./pages/StaffDashboard";
+import StaffDocumentUploadType from "./pages/StaffDocumentUploadType";
 import StaffUpload from "./pages/StaffUpload";
 import StaffManage from "./pages/StaffManage";
 import StaffTrash from "./pages/StaffTrash";
@@ -301,6 +302,16 @@ function AppContent() {
                         </ProtectedRoute>
                       }
                     />
+
+<Route
+  path="/staff/upload-document"
+  element={
+    <ProtectedRoute allowedRoles={["staff"]}>
+      <StaffDocumentUploadType />
+    </ProtectedRoute>
+  }
+/>
+
                     <Route
                       path="/staff/upload"
                       element={

@@ -1,5 +1,5 @@
 // src/pages/StaffUpload.tsx
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate,useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import ReactCrop, {type Crop,type PixelCrop,} from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -7,9 +7,44 @@ import { usePickupStations } from "../context/PickupStationContext";
 import { StorageService } from "../Services/StorageService";
 import { useRecords } from "../context/RecordContext";
 
-  export default function StaffUpload() {
+export default function StaffUpload() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { reloadRecords } = useRecords();
+
+  type DocumentType =
+    | "national_id"
+    | "driving_license"
+    | "birth_certificate";
+
+  const queryParams = new URLSearchParams(location.search);
+  const requestedDocumentType = queryParams.get("documentType");
+
+  const documentType: DocumentType | null =
+    requestedDocumentType === "national_id" ||
+    requestedDocumentType === "driving_license" ||
+    requestedDocumentType === "birth_certificate"
+      ? requestedDocumentType
+      : null;
+
+  const documentTypeLabel =
+    documentType === "national_id"
+      ? "ID"
+      : documentType === "driving_license"
+        ? "Driving Licence"
+        : documentType === "birth_certificate"
+          ? "Birth Certificate"
+          : "";
+
+  const requiresBackImage = documentType !== "birth_certificate";
+  const requiresIdNumber = documentType !== "birth_certificate";
+  const requiresDistrict = documentType !== "driving_license";
+
+  useEffect(() => {
+    if (!documentType) {
+      navigate("/staff/upload-document", { replace: true });
+    }
+  }, [documentType, navigate]);
 
 // 🔒 Prevent login bypass
   const [authChecked, setAuthChecked] =
@@ -124,23 +159,42 @@ useEffect(() => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ image: imageBase64 }),
+        body: JSON.stringify({ image: imageBase64,documentType }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        const { fullName, idNumber, dob, sex, district } = data.data;
+if (data.success) {
+  const {
+    fullName,
+    idNumber,
+    dob,
+    sex,
+    district,
+    placeOfBirth,
+  } = data.data;
 
-// ✅ Auto-fill the form in lowercase
-          setFullName(fullName ? fullName.toLowerCase() : "");
-          setIdNumber(idNumber || "");
-          setDob(dob ? dob.split("/").reverse().join("-") : "");
-          setSex(sex ? sex.toLowerCase() : "");
-          setDistrict(district ? district.toLowerCase() : "");
-      } else {
-        console.error("OCR failed:", data.error);
-      }
+  setFullName(fullName ? fullName.toLowerCase() : "");
+
+  setIdNumber(
+    requiresIdNumber ? (idNumber || "") : ""
+  );
+
+  // Preserve the current date conversion behavior.
+  setDob(dob ? dob.split("/").reverse().join("-") : "");
+
+  setSex(sex ? sex.toLowerCase() : "");
+
+  setDistrict(
+    requiresDistrict
+      ? (placeOfBirth || district || "").toLowerCase()
+      : ""
+  );
+} else {
+  console.error("OCR failed:", data.error);
+}
+
+
     } catch (err) {
       console.error("OCR request error:", err);
     } finally {
@@ -250,23 +304,35 @@ useEffect(() => {
     return `${day}/${month}/${year}`;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setUploading(true);
-    if (
-      !frontPreview ||
-      !backPreview ||
-      !fullName ||
-      !idNumber ||
-      !dob ||
-      !sex ||
-      !district
-      
-    ) {
-      alert("Please fill in all fields and upload both images.");
-      setUploading(false);
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setUploading(true);
+
+  if (!documentType) {
+    alert("Please select a document type first.");
+    setUploading(false);
+    navigate("/staff/upload-document", { replace: true });
+    return;
+  }
+
+  const missingRequiredField =
+    !frontPreview ||
+    (requiresBackImage && !backPreview) ||
+    !fullName.trim() ||
+    (requiresIdNumber && !idNumber.trim()) ||
+    !dob ||
+    !sex.trim() ||
+    (requiresDistrict && !district.trim());
+
+  if (missingRequiredField) {
+    alert(
+      requiresBackImage
+        ? "Please fill in all required fields and upload both images."
+        : "Please fill in all required fields and upload the front image."
+    );
+    setUploading(false);
+    return;
+  }
 
     const normalizedFullName = fullName.trim().toUpperCase();
     const normalizedIdNumber = idNumber.replace(/\s+/g, "");
@@ -296,28 +362,30 @@ useEffect(() => {
             "application/json",
         },
 
-        body: JSON.stringify({
-          frontImage:
-            frontImageCompressed,
+body: JSON.stringify({
+  documentType,
 
-          backImage:
-            backImageCompressed,
+  frontImage: frontImageCompressed,
 
-          fullName:
-            normalizedFullName,
+  backImage: requiresBackImage
+    ? backImageCompressed
+    : null,
 
-          idNumber:
-            normalizedIdNumber,
+  fullName: normalizedFullName,
 
-          dob:
-            formatDate(dob),
+  idNumber: requiresIdNumber
+    ? normalizedIdNumber
+    : "",
 
-          sex:
-            normalizedSex,
+  dob: formatDate(dob),
 
-          district:
-            normalizedDistrict,
-        }),
+  sex: normalizedSex,
+
+  district: requiresDistrict
+    ? normalizedDistrict
+    : "",
+}),
+
       }
     );
 
@@ -438,72 +506,96 @@ if (!authChecked) {
             style={{ display: "none" }}
             onChange={(e) => handleImageChange(e, setFrontPreview, true)}
           />
-        </label>
+</label>
 
-        {/* Back */}
-        <label
-          style={{
-            border: "2px dashed gray",
-            borderRadius: "10px",
-            height: "150px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            cursor: "pointer",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          {backPreview ? (
-            <img
-              src={backPreview}
-              alt="Back ID"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              onClick={() => setZoomImage(backPreview)}
-            />
-          ) : (
-            <span style={{ color: "gray" }}>Back Image (Camera)</span>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={(e) => handleImageChange(e, setBackPreview, false)}
-          />
-        </label>
+{requiresBackImage && (
+  <label
+    style={{
+      border: "2px dashed gray",
+      borderRadius: "10px",
+      height: "150px",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      cursor: "pointer",
+      position: "relative",
+      overflow: "hidden",
+    }}
+  >
+    {backPreview ? (
+      <img
+        src={backPreview}
+        alt="Back of document"
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+        onClick={() => setZoomImage(backPreview)}
+      />
+    ) : (
+      <span style={{ color: "gray" }}>
+        Back Image (Camera)
+      </span>
+    )}
+
+    <input
+      type="file"
+      accept="image/*"
+      capture="environment"
+      style={{ display: "none" }}
+      onChange={(e) =>
+        handleImageChange(e, setBackPreview, false)
+      }
+    />
+  </label>
+)}
       </div>
 
       {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          width: "100%",
-          maxWidth: "400px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "15px",
-        }}
-      >
-        <label>
-          Full Names:
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </label>
+<form
+  onSubmit={handleSubmit}
+  style={{
+    width: "100%",
+    maxWidth: "400px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "15px",
+  }}
+>
+  <label>
+    Document Type:
+    <input
+      type="text"
+      value={documentTypeLabel}
+      readOnly
+      style={{ width: "100%", padding: "8px" }}
+    />
+  </label>
 
-        <label>
-          ID Number:
-          <input
-            type="text"
-            value={idNumber}
-            onChange={(e) => setIdNumber(e.target.value)}
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </label>
+  <label>
+    Full Names:
+    <input
+      type="text"
+      value={fullName}
+      onChange={(e) => setFullName(e.target.value)}
+      required
+      style={{ width: "100%", padding: "8px" }}
+    />
+  </label>
+
+{requiresIdNumber && (
+  <label>
+    National ID Number:
+    <input
+      type="text"
+      value={idNumber}
+      onChange={(e) => setIdNumber(e.target.value)}
+      required
+      style={{ width: "100%", padding: "8px" }}
+    />
+  </label>
+)}
 
         <label>
           Date of Birth:
@@ -511,6 +603,7 @@ if (!authChecked) {
             type="date"
             value={dob}
             onChange={(e) => setDob(e.target.value)}
+            required
             style={{ width: "100%", padding: "8px" }}
           />
         </label>
@@ -518,22 +611,29 @@ if (!authChecked) {
         <label>
           Sex:
           <input
-            type="sex"
+            type="text"
             value={sex}
             onChange={(e) => setSex(e.target.value)}
+            required
             style={{ width: "100%", padding: "8px" }}
           />
         </label>
 
-        <label>
-          District of Birth:
-          <input
-            type="text"
-            value={district}
-            onChange={(e) => setDistrict(e.target.value)}
-            style={{ width: "100%", padding: "8px" }}
-          />
-        </label>
+{requiresDistrict && (
+  <label>
+    {documentType === "birth_certificate"
+      ? "Place of Birth:"
+      : "District of Birth:"}
+
+    <input
+      type="text"
+      value={district}
+      onChange={(e) => setDistrict(e.target.value)}
+      required
+      style={{ width: "100%", padding: "8px" }}
+    />
+  </label>
+)}
 
         <label>
           Pickup Station:
@@ -573,14 +673,14 @@ if (!authChecked) {
       {/* Back */}
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
         <Link
-          to="/staff/dashboard"
+          to="/staff/upload-document"
           style={{
             color: "white",
             textDecoration: "none",
             fontSize: "14px",
           }}
         >
-          &lt; Dashboard
+          &lt; Document Type
         </Link>
       </div>
 

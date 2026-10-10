@@ -1,8 +1,9 @@
+
 const vision = require("@google-cloud/vision");
-const parseKenyanID = require("./parser");
+const parseKenyanDocument = require("./parser");
 
 // ==============================
-// ✅ LOAD GOOGLE CREDENTIALS
+// LOAD GOOGLE CREDENTIALS
 // ==============================
 
 let credentials;
@@ -19,33 +20,24 @@ try {
   );
 
   console.log("✅ Google credentials loaded");
-
 } catch (error) {
-
-  console.error(
-    "❌ Failed to load Google credentials:",
-    error
-  );
-
+  console.error("❌ Failed to load Google credentials:", error);
   throw error;
 }
 
 // ==============================
-// ✅ CREATE GOOGLE CLIENT
+// CREATE GOOGLE CLIENT
 // ==============================
 
 let client;
 
 try {
-
   client = new vision.ImageAnnotatorClient({
     credentials,
   });
 
   console.log("✅ Google Vision client initialized");
-
 } catch (error) {
-
   console.error(
     "❌ Failed to initialize Google Vision client:",
     error
@@ -55,25 +47,27 @@ try {
 }
 
 // ==============================
-// ✅ GOOGLE OCR FUNCTION
+// GOOGLE OCR FUNCTION
 // ==============================
 
-async function googleOCR(imageBase64) {
-
+async function googleOCR(
+  imageBase64,
+  documentType = "national_id"
+) {
   try {
-
     console.log("📸 Starting Google OCR...");
+    console.log("📄 Selected document type:", documentType);
 
-    // ✅ Remove base64 header safely
+    // Remove a data URL header if present.
     const base64Image = imageBase64.replace(
-      /^data:image\/\w+;base64,/,
+      /^data:image\/[^;]+;base64,/i,
       ""
     );
 
     console.log("✅ Base64 image cleaned");
 
     // ==============================
-    // ✅ GOOGLE OCR REQUEST
+    // GOOGLE VISION OCR REQUEST
     // ==============================
 
     const [result] = await client.textDetection({
@@ -85,26 +79,31 @@ async function googleOCR(imageBase64) {
     console.log("✅ Google Vision OCR completed");
 
     // ==============================
-    // ✅ EXTRACT RAW TEXT
+    // EXTRACT RAW TEXT
     // ==============================
 
     const text =
-      result.fullTextAnnotation?.text || "";
+      result.fullTextAnnotation?.text ||
+      result.textAnnotations?.[0]?.description ||
+      "";
 
     console.log("🧾 RAW GOOGLE OCR TEXT:\n", text);
 
-    // ==============================
-    // ✅ PARSE KENYAN ID
-    // ==============================
-
-    const parsedData = parseKenyanID(text);
-
-    console.log(
-      "✅ Google OCR parsed successfully"
-    );
+    if (!text.trim()) {
+      throw new Error("Google Vision could not detect text");
+    }
 
     // ==============================
-    // ✅ RETURN RESULT
+    // PARSE DOCUMENT
+    // ==============================
+
+    // Preserve the existing parser behavior for now.
+    const parsedData = parseKenyanDocument(text, documentType);
+
+    console.log("✅ Google OCR parsed successfully");
+
+    // ==============================
+    // RETURN RESULT
     // ==============================
 
     return {
@@ -112,14 +111,8 @@ async function googleOCR(imageBase64) {
       provider: "google-vision",
       ...parsedData,
     };
-
   } catch (error) {
-
-    console.error(
-      "❌ Google OCR FULL ERROR:",
-      error
-    );
-
+    console.error("❌ Google OCR FULL ERROR:", error);
     throw error;
   }
 }

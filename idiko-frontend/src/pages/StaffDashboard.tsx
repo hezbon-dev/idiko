@@ -114,12 +114,12 @@ return (
           width: "250px",
         }}
       >
-        <Link to="/staff/upload" style={buttonStyle}>
-          Upload New ID
+        <Link to="/staff/upload-document" style={buttonStyle}>
+          Upload Document
         </Link>
 
         <Link to="/staff/manage" style={buttonStyle}>
-          Manage IDs
+          Manage Documents
         </Link>
 
         <Link to="/staff/trash" style={buttonStyle}>
