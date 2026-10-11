@@ -1,4 +1,4 @@
-
+// idiko-backend/routes/staffAuth.js
 const express = require("express");
 const router = express.Router();
 const admin = require("firebase-admin");
@@ -774,98 +774,117 @@ router.post(
   "/move-to-trash",
   verifyStaffToken,
   async (req, res) => {
-
     try {
-
       const { record } = req.body;
 
-      if (!record || !record.idNumber) {
-
+      if (!record) {
         return res.status(400).json({
           success: false,
           error: "Record missing",
         });
+      }
 
+      // Prefer the actual Firestore document key.
+      // record.id is populated by GET /records.
+      // record.recordId is saved during upload.
+      // Fall back to legacy keys for older records.
+      const recordKey =
+        record.id ||
+        record.recordId ||
+        (
+          record.documentType === "driving_license"
+            ? `driving_license_${String(record.idNumber || "").replace(/\s+/g, "")}`
+            : record.idNumber
+        );
+
+      if (!recordKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Record document key missing",
+        });
       }
 
       const db = admin.firestore();
 
-      // Get the real record from Firestore
       const recordRef = db
         .collection("records")
-        .doc(record.idNumber);
+        .doc(recordKey);
 
-      const recordSnap =
-        await recordRef.get();
+      const recordSnap = await recordRef.get();
 
       if (!recordSnap.exists) {
-
         return res.status(404).json({
           success: false,
           error: "Record not found",
         });
-
       }
 
-      // Use the database record as the source of truth
-      const existingRecord =
-        recordSnap.data();
+      const existingRecord = recordSnap.data();
 
-      // Make sure this record belongs
-      // to the logged-in staff station
+      // Enforce station-level authorization.
       if (
         existingRecord.stationId !==
         req.staff.stationId
       ) {
-
         return res.status(403).json({
           success: false,
           error:
             "You are not authorized to modify this record",
         });
-
       }
 
-      // Move the actual Firestore record to trash
-      await db
+      const trashRef = db
         .collection("trash")
-        .doc(record.idNumber)
-        .set({
-          ...existingRecord,
-          trashedAt:
-            new Date().toISOString(),
-        });
+        .doc(recordKey);
 
-      // Remove it from active records
-      await recordRef.delete();
+      // Preserve existing National ID notification cleanup.
+      // Matching for driving licences and birth certificates
+      // will be handled separately.
+      let notifySnapshot = null;
 
-      // Remove notify requests
-      const notifySnapshot =
-        await db
+      if (
+        !existingRecord.documentType ||
+        existingRecord.documentType === "national_id"
+      ) {
+        notifySnapshot = await db
           .collection("notify_requests")
           .where(
             "idNumber",
             "==",
-            record.idNumber
+            existingRecord.idNumber
           )
           .get();
-
-      for (
-        const docSnap
-        of notifySnapshot.docs
-      ) {
-
-        await docSnap.ref.delete();
-
       }
+
+      // Move the record and delete it from active records
+      // atomically. allHistoryRecords is intentionally untouched.
+      const batch = db.batch();
+
+      batch.set(trashRef, {
+        ...existingRecord,
+        originalRecordKey: recordKey,
+        trashedAt: new Date().toISOString(),
+      });
+
+      batch.delete(recordRef);
+
+      if (notifySnapshot) {
+        notifySnapshot.docs.forEach((docSnap) => {
+          batch.delete(docSnap.ref);
+        });
+      }
+
+      await batch.commit();
 
       return res.json({
         success: true,
-        record: existingRecord,
+        record: {
+          ...existingRecord,
+          id: recordKey,
+          originalRecordKey: recordKey,
+        },
       });
-
     } catch (err) {
-
       console.error(
         "❌ Staff Move To Trash Failed:",
         err
@@ -875,9 +894,7 @@ router.post(
         success: false,
         error: "Move to trash failed",
       });
-
     }
-
   }
 );
 
@@ -903,11 +920,11 @@ router.get(
           )
           .get();
 
-      const trash =
-        snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+const trash = snapshot.docs.map(doc => ({
+  ...doc.data(),
+  id: doc.id,
+}));
+
 
       return res.json({
         success: true,
@@ -939,80 +956,105 @@ router.post(
   "/trash/restore",
   verifyStaffToken,
   async (req, res) => {
-
     try {
-
       const { record } = req.body;
 
-      if (!record || !record.idNumber) {
-
+      if (!record) {
         return res.status(400).json({
           success: false,
           error: "Record missing",
         });
+      }
 
+      // Use the original Firestore key.
+      // The fallbacks support older trash records.
+      const recordKey =
+        record.originalRecordKey ||
+        record.id ||
+        record.recordId ||
+        (
+          record.documentType === "driving_license"
+            ? `driving_license_${String(record.idNumber || "").replace(/\s+/g, "")}`
+            : record.idNumber
+        );
+
+      if (!recordKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Record document key missing",
+        });
       }
 
       const db = admin.firestore();
 
-      // Get the real record from trash
       const trashRef = db
         .collection("trash")
-        .doc(record.idNumber);
+        .doc(recordKey);
 
-      const trashSnap =
-        await trashRef.get();
+      const trashSnap = await trashRef.get();
 
       if (!trashSnap.exists) {
-
         return res.status(404).json({
           success: false,
           error: "Trash record not found",
         });
-
       }
 
-      // Use the database record as the source of truth
-      const existingRecord =
-        trashSnap.data();
+      const existingRecord = trashSnap.data();
 
-      // Make sure this record belongs
-      // to the logged-in staff station
+      // Enforce station-level authorization.
       if (
         existingRecord.stationId !==
         req.staff.stationId
       ) {
-
         return res.status(403).json({
           success: false,
           error:
             "You are not authorized to restore this record",
         });
-
       }
 
-      // Restore to active records
-      await db
+      const recordRef = db
         .collection("records")
-        .doc(record.idNumber)
-        .set(existingRecord);
+        .doc(recordKey);
 
-      // Restore/update permanent history
-      await db
-        .collection("allHistoryRecords")
-        .doc(record.idNumber)
-        .set(existingRecord);
+      // Avoid silently overwriting a different active record.
+      const activeSnap = await recordRef.get();
 
-      // Remove from trash
-      await trashRef.delete();
+      if (activeSnap.exists) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "An active record already exists with this document key",
+        });
+      }
+
+      // Remove trash-only metadata from the active record.
+      const {
+        trashedAt,
+        originalRecordKey,
+        ...restoredRecord
+      } = existingRecord;
+
+      const batch = db.batch();
+
+      // Restore using the SAME key it had before trashing.
+      batch.set(recordRef, restoredRecord);
+
+      // Keep allHistoryRecords untouched; it already contains
+      // the record from the original upload.
+      batch.delete(trashRef);
+
+      await batch.commit();
 
       return res.json({
         success: true,
-        record: existingRecord,
+        record: {
+          ...restoredRecord,
+          id: recordKey,
+        },
       });
-
     } catch (err) {
-
       console.error(
         "❌ Staff Restore Failed:",
         err
@@ -1022,11 +1064,10 @@ router.post(
         success: false,
         error: "Restore failed",
       });
-
     }
-
   }
 );
+
 
 
 // =========================
