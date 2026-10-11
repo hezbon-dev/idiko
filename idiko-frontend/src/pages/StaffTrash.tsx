@@ -302,7 +302,7 @@ export default function StaffTrash() {
 
                 {showDistrict && (
                   <th style={headerStyle}>
-                    District / Place of Birth
+                    Place of Birth
                   </th>
                 )}
 
