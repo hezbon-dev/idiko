@@ -623,11 +623,9 @@ export default function StaffManage() {
                 width: "350px",
                 maxWidth: "90vw",
                 textAlign: "center",
-                backgroundColor: "#222",
+              
               }}
             >
-              <h3>Move Document To Trash</h3>
-
               <p>
                 Are you sure you want to move this{" "}
                 {documentTypeLabel(

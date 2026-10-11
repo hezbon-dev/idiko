@@ -252,11 +252,11 @@ router.get(
       const snapshot =
         await db.collection("records").get();
 
-      const records =
-        snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+const records =
+  snapshot.docs.map(doc => ({
+    ...doc.data(),
+    id: doc.id,
+  }));
 
       return res.json({
         success: true,
@@ -399,63 +399,103 @@ router.post(
   "/move-to-trash",
   verifyAdminToken,
   async (req, res) => {
-
     try {
-
       const { record } = req.body;
 
       if (!record) {
-
         return res.status(400).json({
           success: false,
           error: "Record missing",
         });
+      }
 
+      // Resolve the original Firestore document key.
+      const recordKey =
+        record.id ||
+        record.recordId ||
+        (
+          record.documentType === "driving_license"
+            ? `driving_license_${String(record.idNumber || "").replace(/\s+/g, "")}`
+            : record.idNumber
+        );
+
+      if (!recordKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Record document key missing",
+        });
       }
 
       const db = admin.firestore();
 
-      // Move record to trash
-
-      await db
-        .collection("trash")
-        .doc(record.idNumber)
-      .set({
-        ...record,
-        trashedAt:new Date().toISOString()
-      });
-
-      // Remove from records
-
-      await db
+      const recordRef = db
         .collection("records")
-        .doc(record.idNumber)
-        .delete();
+        .doc(recordKey);
 
-      // Remove notify requests
+      const recordSnap = await recordRef.get();
 
-      const notifySnapshot =
-        await db
+      if (!recordSnap.exists) {
+        return res.status(404).json({
+          success: false,
+          error: "Record not found",
+        });
+      }
+
+      // Use the Firestore record as the source of truth.
+      const existingRecord = recordSnap.data();
+
+      const trashRef = db
+        .collection("trash")
+        .doc(recordKey);
+
+      // Preserve the existing National ID notification cleanup.
+      // Driving licence and birth certificate matching will be
+      // handled separately.
+      let notifySnapshot = null;
+
+      if (
+        !existingRecord.documentType ||
+        existingRecord.documentType === "national_id"
+      ) {
+        notifySnapshot = await db
           .collection("notify_requests")
           .where(
             "idNumber",
             "==",
-            record.idNumber
+            existingRecord.idNumber
           )
           .get();
-
-      for (const docSnap of notifySnapshot.docs) {
-
-        await docSnap.ref.delete();
-
       }
+
+      // Move the record atomically between collections.
+      // Permanent history remains untouched.
+      const batch = db.batch();
+
+      batch.set(trashRef, {
+        ...existingRecord,
+        originalRecordKey: recordKey,
+        trashedAt: new Date().toISOString(),
+      });
+
+      batch.delete(recordRef);
+
+      if (notifySnapshot) {
+        notifySnapshot.docs.forEach((docSnap) => {
+          batch.delete(docSnap.ref);
+        });
+      }
+
+      await batch.commit();
 
       return res.json({
         success: true,
+        record: {
+          ...existingRecord,
+          id: recordKey,
+          originalRecordKey: recordKey,
+        },
       });
-
     } catch (err) {
-
       console.error(
         "❌ Move To Trash Failed:",
         err
@@ -465,9 +505,7 @@ router.post(
         success: false,
         error: "Move to trash failed",
       });
-
     }
-
   }
 );
 
@@ -490,11 +528,11 @@ router.get(
           .collection("trash")
           .get();
 
-      const trash =
-        snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+const trash =
+  snapshot.docs.map(doc => ({
+    ...doc.data(),
+    id: doc.id,
+  }));
 
       return res.json({
         success: true,
@@ -525,36 +563,97 @@ router.post(
   "/trash/restore",
   verifyAdminToken,
   async (req, res) => {
-
     try {
+      const { record } = req.body;
 
-      const db =
-        admin.firestore();
+      if (!record) {
+        return res.status(400).json({
+          success: false,
+          error: "Record missing",
+        });
+      }
 
-      const { record } =
-        req.body;
+      const db = admin.firestore();
 
-      await db
-        .collection("records")
-        .doc(record.idNumber)
-        .set(record);
+      // The trash document key and the original active record key
+      // can differ for records trashed by the older implementation.
+      const trashKey =
+        record.id ||
+        record.originalRecordKey ||
+        record.recordId ||
+        record.idNumber;
 
-      await db
-        .collection("allHistoryRecords")
-        .doc(record.idNumber)
-        .set(record);
+      if (!trashKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Trash document key missing",
+        });
+      }
 
-      await db
+      const trashRef = db
         .collection("trash")
-        .doc(record.idNumber)
-        .delete();
+        .doc(trashKey);
+
+      const trashSnap = await trashRef.get();
+
+      if (!trashSnap.exists) {
+        return res.status(404).json({
+          success: false,
+          error: "Trash record not found",
+        });
+      }
+
+      const existingRecord = trashSnap.data();
+
+      // Prefer the original key saved during the new trash operation.
+      // recordId also supports records uploaded with generated keys.
+      const recordKey =
+        existingRecord.originalRecordKey ||
+        existingRecord.recordId ||
+        (
+          existingRecord.documentType === "driving_license"
+            ? `driving_license_${String(existingRecord.idNumber || "").replace(/\s+/g, "")}`
+            : trashKey
+        );
+
+      const recordRef = db
+        .collection("records")
+        .doc(recordKey);
+
+      const activeSnap = await recordRef.get();
+
+      if (activeSnap.exists) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "An active record already exists with this document key",
+        });
+      }
+
+      // Do not carry trash-only metadata back into records.
+      const {
+        trashedAt,
+        originalRecordKey,
+        ...restoredRecord
+      } = existingRecord;
+
+      const batch = db.batch();
+
+      batch.set(recordRef, restoredRecord);
+      batch.delete(trashRef);
+
+      // allHistoryRecords already retains the original record.
+      // Do not modify it during restore.
+      await batch.commit();
 
       return res.json({
         success: true,
+        record: {
+          ...restoredRecord,
+          id: recordKey,
+        },
       });
-
     } catch (err) {
-
       console.error(
         "❌ Restore failed:",
         err
@@ -562,54 +661,68 @@ router.post(
 
       return res.status(500).json({
         success: false,
+        error: "Restore failed",
       });
-
     }
-
   }
 );
 
-// =========================
-// DELETE TRASH RECORD
-// =========================
+
+// ================================
+// PERMANENTLY DELETE TRASH RECORD
+// ================================
 
 router.delete(
   "/trash/:idNumber",
   verifyAdminToken,
   async (req, res) => {
-
     try {
+      const db = admin.firestore();
 
-      const db =
-        admin.firestore();
+      // Despite the route parameter name, this must be the
+      // actual Firestore document key, not necessarily idNumber.
+      const trashKey = req.params.idNumber;
 
-      const { idNumber } =
-        req.params;
+      if (!trashKey) {
+        return res.status(400).json({
+          success: false,
+          error: "Trash document key missing",
+        });
+      }
 
-      await db
+      const trashRef = db
         .collection("trash")
-        .doc(idNumber)
-        .delete();
+        .doc(trashKey);
+
+      const trashSnap = await trashRef.get();
+
+      if (!trashSnap.exists) {
+        return res.status(404).json({
+          success: false,
+          error: "Trash record not found",
+        });
+      }
+
+      await trashRef.delete();
 
       return res.json({
         success: true,
+        message: "Trash record permanently deleted",
       });
-
     } catch (err) {
-
       console.error(
-        "❌ Delete failed:",
+        "❌ Permanent trash deletion failed:",
         err
       );
 
       return res.status(500).json({
         success: false,
+        error: "Failed to permanently delete trash record",
       });
-
     }
-
   }
 );
+
 
 
 // =========================

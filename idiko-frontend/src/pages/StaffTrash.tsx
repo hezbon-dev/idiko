@@ -1,356 +1,507 @@
+
 // src/pages/StaffTrash.tsx
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useRecords } from "../context/RecordContext";
 import { StorageService } from "../Services/StorageService";
 
+type DocumentType = "national_id" | "driving_license" | "birth_certificate";
+type StatusFilter = "Paid" | "Pending";
+
 export default function StaffTrash() {
   const { trash, restoreRecord } = useRecords();
   const navigate = useNavigate();
 
-// 🔒 Prevent login bypass
-  const [authChecked, setAuthChecked] =
-  useState(false);
+  // Prevent login bypass
+  const [authChecked, setAuthChecked] = useState(false);
 
-useEffect(() => {
+  useEffect(() => {
+    const verifyStaff = async () => {
+      try {
+        const token = await StorageService.get("staffToken");
 
-  const verifyStaff = async () => {
+        if (!token) {
+          navigate("/staff/login", { replace: true });
+          return;
+        }
 
-    try {
-
-      const token =
-        await StorageService.get(
-          "staffToken"
+        const response = await fetch(
+          "https://idiko.onrender.com/staff/verify",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
 
-      if (!token) {
-        navigate("/staff/login", {
-          replace: true,
-        });
-        return;
-      }
+        const data = await response.json();
 
-      const response = await fetch(
-        "https://idiko.onrender.com/staff/verify",
-        {
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-          },
+        if (!data.success) {
+          navigate("/staff/login", { replace: true });
+          return;
         }
-      );
 
-      const data =
-        await response.json();
-
-      if (!data.success) {
-        navigate("/staff/login", {
-          replace: true,
-        });
-        return;
+        setAuthChecked(true);
+      } catch {
+        navigate("/staff/login", { replace: true });
       }
+    };
 
-      setAuthChecked(true);
-
-    } catch {
-
-      navigate("/staff/login", {
-        replace: true,
-      });
-
-    }
-
-  };
-
-  verifyStaff();
-
-}, [navigate]);
+    verifyStaff();
+  }, [navigate]);
 
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"All" | "Paid" | "Pending">("All");
+  const [filter, setFilter] = useState<StatusFilter>("Paid");
+  const [documentType, setDocumentType] =
+    useState<DocumentType>("national_id");
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
-  // ✅ Staff station tracking
+  // Staff station tracking
   const [stationKey, setStationKey] = useState<string | null>(null);
 
   useEffect(() => {
     const loadStation = async () => {
       const s = await StorageService.get("currentStaff");
+
       if (s?.stationName) {
         setStationKey(s.stationName.trim().toLowerCase());
       }
     };
+
     loadStation();
   }, []);
 
-// ✅ Filter visible records for this staff/station only
- const visibleRecords =
-stationKey === null
-    ? []
-    : trash.filter(
-        r =>
-          r.pickupStation?.trim().toLowerCase() === stationKey
-      );
+  // Normalize document type, including legacy National ID records.
+  const getDocumentType = (record: any): DocumentType => {
+    const type = String(record.documentType || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
 
-// ✅ Count records for visible records only
-  const allCount = visibleRecords.length;
-  const paidCount = visibleRecords.filter(r => r.status === "Paid").length;
-  const pendingCount = visibleRecords.filter(r => r.status === "Pending").length;
+    if (
+      type === "driving_license" ||
+      type === "driving_licence" ||
+      type === "licence" ||
+      type === "license"
+    ) {
+      return "driving_license";
+    }
 
-// Filter + search (existing logic)
-  const filteredRecords = visibleRecords
-    .filter((r) => {
+    if (
+      type === "birth_certificate" ||
+      type === "birth_cert"
+    ) {
+      return "birth_certificate";
+    }
+
+    // Older records without documentType are treated as National IDs.
+    return "national_id";
+  };
+
+  // Only show trashed records belonging to this staff member's station.
+  const visibleRecords =
+    stationKey === null
+      ? []
+      : trash.filter(
+          (record: any) =>
+            record.pickupStation?.trim().toLowerCase() === stationKey
+        );
+
+  // Counts for the selected document type and station.
+  const selectedTypeRecords = visibleRecords.filter(
+    (record: any) => getDocumentType(record) === documentType
+  );
+
+  const paidCount = selectedTypeRecords.filter(
+    (record: any) => record.status === "Paid"
+  ).length;
+
+  const pendingCount = selectedTypeRecords.filter(
+    (record: any) => record.status === "Pending"
+  ).length;
+
+  // Search and status filtering only apply to the selected document type.
+  const filteredRecords = selectedTypeRecords
+    .filter((record: any) => {
+      const searchTerm = search.trim().toLowerCase();
+
       const matchesSearch =
-        r.fullName.toLowerCase().includes(search.toLowerCase()) ||
-        r.idNumber.includes(search);
+        String(record.fullName || "")
+          .toLowerCase()
+          .includes(searchTerm) ||
+        String(record.idNumber || "")
+          .toLowerCase()
+          .includes(searchTerm);
 
-      const matchesFilter = filter === "All" || r.status === filter;
+      const matchesStatus = record.status === filter;
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesStatus;
     })
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
+    .sort((a: any, b: any) =>
+      String(a.fullName || "").localeCompare(String(b.fullName || ""))
+    );
 
-if (!authChecked) {
+  if (!authChecked) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          color: "white",
+        }}
+      >
+        Loading...
+      </div>
+    );
+  }
+
+  const showBackImage = documentType !== "birth_certificate";
+  const showIdNumber = documentType !== "birth_certificate";
+  const showDistrict = documentType !== "driving_license";
+
+  const imageButtonStyle: React.CSSProperties = {
+    width: "60px",
+    height: "40px",
+    cursor: "pointer",
+    borderRadius: "5px",
+  };
+
+  const cellStyle: React.CSSProperties = {
+    padding: "10px",
+    borderBottom: "1px solid gray",
+  };
+
+  const headerStyle: React.CSSProperties = {
+    padding: "10px",
+    whiteSpace: "nowrap",
+  };
+
   return (
     <div
       style={{
+        color: "white",
         minHeight: "100vh",
+        padding: "20px",
+        overflow: "auto",
         display: "flex",
         justifyContent: "center",
-        alignItems: "center",
-        color: "white",
       }}
     >
-      Loading...
-    </div>
-  );
-}
-
-  return (
-<div
-  style={{
-    color: "white",
-    minHeight: "100vh",
-    padding: "20px",
-    overflow: "auto",
-    display: "flex",
-    justifyContent: "center",
-  }}
->
-<div
-  style={{
-    width: "100%",
-    maxWidth: "1400px",
-  }}
->
-
-      <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
-
-      {/* Search + Filter */}
-      <div style={{ marginBottom: "20px", textAlign: "center" }}>
-        <input
-          type="text"
-          placeholder="Search by name or ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "10px",
-            width: "60%",
-            maxWidth: "300px",
-            borderRadius: "8px",
-            border: "1px solid gray",
-            marginRight: "10px",
-          }}
-        />
-
-        <select
-          value={filter}
-          onChange={(e) =>
-            setFilter(e.target.value as "All" | "Paid" | "Pending")
-          }
-          style={{
-            padding: "10px",
-            borderRadius: "8px",
-            border: "1px solid gray",
-            backgroundColor: "black",
-            color: "white",
-          }}
-        >
-          <option value="All">All ({allCount})</option>
-          <option value="Paid">Paid ({paidCount})</option>
-          <option value="Pending">Pending ({pendingCount})</option>
-        </select>
-      </div>
-
-      {/* Table */}
       <div
-  style={{
-    width: "100%",
-    overflowX: "auto",
-    overflowY: "hidden",
-  }}
->
-<table
-  style={{
-    minWidth: "1000px",
-    width: "max-content",
-    borderCollapse: "collapse",
-    textAlign: "left",
-    margin: "0 auto",
-  }}
->
-          <thead>
-            <tr>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Front</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Back</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Full Name</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>ID Number</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>DOB</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Sex</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>District</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Pickup Station</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Status</th>
-              <th style={{ padding: "10px", whiteSpace: "nowrap" }}>Restore</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRecords.map((record) => (
-              <tr key={record.idNumber}>
-                {/* Front Image */}
-                <td
-                  style={{
-                    padding: "10px",
-                    borderBottom: "1px solid gray",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <button
-                    onClick={() => setZoomImage(record.frontImage ?? null)}
-                    style={{
-                      width: "60px",
-                      height: "40px",
-                      cursor: "pointer",
-                      borderRadius: "5px",
-                    }}
-                  >
-                    Front
-                  </button>
-                </td>
+        style={{
+          width: "100%",
+          maxWidth: "1400px",
+        }}
+      >
+        <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
 
-                {/* Back Image */}
-                <td
-                  style={{
-                    padding: "10px",
-                    borderBottom: "1px solid gray",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <button
-                    onClick={() => setZoomImage(record.backImage ?? null)}
-                    style={{
-                      width: "60px",
-                      height: "40px",
-                      cursor: "pointer",
-                      borderRadius: "5px",
-                    }}
-                  >
-                    Back
-                  </button>
-                </td>
-
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  {record.fullName}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  {record.idNumber}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  {record.dob}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  {record.sex}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  {record.district}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  {record.pickupStation}
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "4px 8px",
-                      borderRadius: "5px",
-                      fontWeight: "bold",
-                      backgroundColor: record.status === "Paid" ? "green" : "red",
-                    }}
-                  >
-                    {record.status}
-                  </span>
-                </td>
-                <td style={{ padding: "10px", borderBottom: "1px solid gray" }}>
-                  <button
-                    onClick={() => restoreRecord(record)}
-                    style={{
-                      backgroundColor: "lightgreen",
-                      color: "black",
-                      border: "none",
-                      borderRadius: "5px",
-                      padding: "5px 10px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Restore
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Back */}
-      <div style={{ textAlign: "center", marginTop: "20px" }}>
-        <Link
-          to="/staff/dashboard"
-          style={{
-            color: "white",
-            textDecoration: "none",
-            fontSize: "14px",
-          }}
-        >
-          &lt; Dashboard
-        </Link>
-      </div>
-
-      {/* Zoom Modal */}
-      {zoomImage && (
+        {/* Search + Document Type + Status Filters */}
         <div
-          onClick={() => setZoomImage(null)}
           style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0,0,0,0.8)",
+            marginBottom: "20px",
+            textAlign: "center",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            zIndex: 1000,
+            flexWrap: "wrap",
+            gap: "10px",
           }}
         >
-          <img
-            src={zoomImage}
-            alt="Zoomed ID"
-            style={{ maxWidth: "90%", maxHeight: "90%" }}
+          <input
+            type="text"
+            placeholder={
+              documentType === "birth_certificate"
+                ? "Search by name..."
+                : "Search by name or ID..."
+            }
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              padding: "10px",
+              width: "60%",
+              maxWidth: "300px",
+              borderRadius: "8px",
+              border: "1px solid gray",
+            }}
           />
-        </div>
-      )}
-    </div>
 
+          <select
+            value={documentType}
+            onChange={(e) =>
+              setDocumentType(e.target.value as DocumentType)
+            }
+            aria-label="Filter by document type"
+            style={{
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid gray",
+              backgroundColor: "black",
+              color: "white",
+            }}
+          >
+            <option value="national_id">National ID</option>
+            <option value="driving_license">Driving Licence</option>
+            <option value="birth_certificate">Birth Certificate</option>
+          </select>
+
+          <select
+            value={filter}
+            onChange={(e) =>
+              setFilter(e.target.value as StatusFilter)
+            }
+            aria-label="Filter by payment status"
+            style={{
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid gray",
+              backgroundColor: "black",
+              color: "white",
+            }}
+          >
+            <option value="Paid">Paid ({paidCount})</option>
+            <option value="Pending">Pending ({pendingCount})</option>
+          </select>
+        </div>
+
+        {/* Table */}
+        <div
+          style={{
+            width: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+          }}
+        >
+          <table
+            style={{
+              minWidth: "1000px",
+              width: "max-content",
+              borderCollapse: "collapse",
+              textAlign: "left",
+              margin: "0 auto",
+            }}
+          >
+            <thead>
+              <tr>
+                <th style={headerStyle}>Front</th>
+
+                {showBackImage && (
+                  <th style={headerStyle}>Back</th>
+                )}
+
+                <th style={headerStyle}>Full Name</th>
+
+                {showIdNumber && (
+                  <th style={headerStyle}>ID Number</th>
+                )}
+
+                <th style={headerStyle}>DOB</th>
+                <th style={headerStyle}>Sex</th>
+
+                {showDistrict && (
+                  <th style={headerStyle}>
+                    District / Place of Birth
+                  </th>
+                )}
+
+                <th style={headerStyle}>Pickup Station</th>
+                <th style={headerStyle}>Status</th>
+                <th style={headerStyle}>Restore</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredRecords.map((record: any) => (
+                <tr
+                  key={
+                    record.id ||
+                    record.recordId ||
+                    `${getDocumentType(record)}-${record.idNumber || record.fullName}`
+                  }
+                >
+                  {/* Front Image */}
+                  <td
+                    style={{
+                      ...cellStyle,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        record.frontImage &&
+                        setZoomImage(record.frontImage)
+                      }
+                      disabled={!record.frontImage}
+                      style={{
+                        ...imageButtonStyle,
+                        opacity: record.frontImage ? 1 : 0.5,
+                      }}
+                    >
+                      Front
+                    </button>
+                  </td>
+
+                  {/* Back Image: National ID and Driving Licence only */}
+                  {showBackImage && (
+                    <td
+                      style={{
+                        ...cellStyle,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <button
+                        onClick={() =>
+                          record.backImage &&
+                          setZoomImage(record.backImage)
+                        }
+                        disabled={!record.backImage}
+                        style={{
+                          ...imageButtonStyle,
+                          opacity: record.backImage ? 1 : 0.5,
+                        }}
+                      >
+                        Back
+                      </button>
+                    </td>
+                  )}
+
+                  <td style={cellStyle}>
+                    {record.fullName || ""}
+                  </td>
+
+                  {/* ID Number: hidden for Birth Certificates */}
+                  {showIdNumber && (
+                    <td style={cellStyle}>
+                      {record.idNumber || ""}
+                    </td>
+                  )}
+
+                  <td style={cellStyle}>
+                    {record.dob || ""}
+                  </td>
+
+                  <td style={cellStyle}>
+                    {record.sex || ""}
+                  </td>
+
+                  {/* District / Place of Birth: hidden for Driving Licences */}
+                  {showDistrict && (
+                    <td style={cellStyle}>
+                      {record.district ||
+                        record.placeOfBirth ||
+                        ""}
+                    </td>
+                  )}
+
+                  <td style={cellStyle}>
+                    {record.pickupStation || ""}
+                  </td>
+
+                  <td style={cellStyle}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "4px 8px",
+                        borderRadius: "5px",
+                        fontWeight: "bold",
+                        backgroundColor:
+                          record.status === "Paid" ? "green" : "red",
+                      }}
+                    >
+                      {record.status || "Pending"}
+                    </span>
+                  </td>
+
+                  {/* Preserve existing restore behavior */}
+                  <td style={cellStyle}>
+                    <button
+                      onClick={() => restoreRecord(record)}
+                      style={{
+                        backgroundColor: "lightgreen",
+                        color: "black",
+                        border: "none",
+                        borderRadius: "5px",
+                        padding: "5px 10px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Restore
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {filteredRecords.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={
+                      7 +
+                      (showBackImage ? 1 : 0) +
+                      (showIdNumber ? 1 : 0) +
+                      (showDistrict ? 1 : 0)
+                    }
+                    style={{
+                      padding: "20px",
+                      textAlign: "center",
+                      color: "#ccc",
+                    }}
+                  >
+                    No {documentType === "national_id"
+                      ? "National ID"
+                      : documentType === "driving_license"
+                      ? "driving licence"
+                      : "birth certificate"} records found for this status.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Back */}
+        <div style={{ textAlign: "center", marginTop: "20px" }}>
+          <Link
+            to="/staff/dashboard"
+            style={{
+              color: "white",
+              textDecoration: "none",
+              fontSize: "14px",
+            }}
+          >
+            &lt; Dashboard
+          </Link>
+        </div>
+
+        {/* Zoom Modal */}
+        {zoomImage && (
+          <div
+            onClick={() => setZoomImage(null)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(0,0,0,0.8)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
+            <img
+              src={zoomImage}
+              alt="Zoomed document"
+              style={{
+                maxWidth: "90%",
+                maxHeight: "90%",
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
-    
   );
 }
