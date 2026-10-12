@@ -144,7 +144,25 @@ const safeName =
     ? firstName.trim()
     : "there";
 
-const message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under(Search ID)to confirm,then visit Huduma Centre for collection.Thank you.`;
+
+const documentType =
+  req.normalizedDocumentType ||
+  ({
+    id: "national_id",
+    drivingLicence: "driving_license",
+    birthCertificate: "birth_certificate",
+  }[req.documentType] || "national_id");
+
+let message;
+
+if (documentType === "driving_license") {
+  message = `Good news ${safeName}, your driving licence is ready for collection.Visit idiko.co.ke under(Search ID)to confirm,then visit Huduma Centre for collection.Thank you.`;
+} else if (documentType === "birth_certificate") {
+  message = `Good news ${safeName}, your birth certificate is ready for collection.Visit idiko.co.ke under(Search ID)to confirm,then visit Huduma Centre for collection.Thank you.`;
+} else {
+  // Preserve the existing National ID message
+  message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under(Search ID)to confirm,then visit Huduma Centre for collection.Thank you.`;
+}
 
     console.log("📤 Sending SMS to:", phones);
 
