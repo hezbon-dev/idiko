@@ -496,7 +496,7 @@ if (
 }
 
 // Run only between 6AM and 7PM Kenya time
-if (kenyaHour < 6 || kenyaHour >= 19) {
+if (kenyaHour < 1 || kenyaHour >= 19) {
 
   // Log sleeping status only once every 2 hours
   if (now - lastSchedulerLog > 2 * 60 * 60 * 1000) {
