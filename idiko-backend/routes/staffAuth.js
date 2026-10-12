@@ -7,6 +7,101 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const verifyStaffToken = require("../middleware/verifyStaffToken");
 
+
+function normalizeText(value = "") {
+  return String(value).trim().toLowerCase();
+}
+
+// Preserve the existing ID format used for Firestore record keys.
+// This helper is only for comparing ID numbers in matching logic.
+function normalizeMatchId(value = "") {
+  return String(value)
+    .replace(/[\s_-]+/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeDate(dob = "") {
+  const value = String(dob).trim();
+
+  if (!value) return "";
+
+  const parts = value.split(/\D+/);
+
+  if (parts.length !== 3 || parts.some(part => !part)) {
+    return "";
+  }
+
+  let day;
+  let month;
+  let year;
+
+  if (parts[0].length === 4) {
+    [year, month, day] = parts;
+  } else {
+    [day, month, year] = parts;
+  }
+
+  if (
+    year.length !== 4 ||
+    Number(month) < 1 ||
+    Number(month) > 12 ||
+    Number(day) < 1 ||
+    Number(day) > 31
+  ) {
+    return "";
+  }
+
+  return `${year.padStart(4, "0")}-${month.padStart(
+    2,
+    "0"
+  )}-${day.padStart(2, "0")}`;
+}
+
+function normalizeSex(value = "") {
+  const v = normalizeText(value);
+
+  if (v === "m" || v === "male") return "male";
+  if (v === "f" || v === "female") return "female";
+
+  return v;
+}
+
+function getFrontendDocumentType(storedType = "") {
+  const mapping = {
+    national_id: "id",
+    driving_license: "drivingLicence",
+    birth_certificate: "birthCertificate",
+  };
+
+  return mapping[storedType] || "";
+}
+
+function createMatchKey({
+  documentType = "",
+  fullName = "",
+  idNumber = "",
+  dob = "",
+  sex = "",
+  placeOfBirth = "",
+} = {}) {
+  const location =
+    documentType === "national_id" ||
+    documentType === "birth_certificate"
+      ? normalizeText(placeOfBirth)
+      : "";
+
+  return [
+    documentType,
+    normalizeText(fullName),
+    normalizeMatchId(idNumber),
+    normalizeDate(dob),
+    normalizeSex(sex),
+    location,
+  ].join("|");
+}
+
+
 router.post("/login", async (req, res) => {
 
   try {
@@ -329,33 +424,38 @@ router.post(
         });
       }
 
-      const normalizedName = String(fullName || "")
-        .trim()
-        .toLowerCase();
+    
+const normalizedName = normalizeText(fullName);
 
-      const normalizedDob = String(dob || "").trim();
+// Preserve the uploaded DOB exactly as entered.
+const normalizedDob = String(dob || "").trim();
 
-      const normalizedSex = String(sex || "")
-        .trim()
-        .toLowerCase();
+const normalizedSex = normalizeSex(sex);
 
-      const normalizedId = String(idNumber || "")
-        .replace(/\s+/g, "")
-        .trim();
+// Keep the existing record-key behavior unchanged.
+const normalizedId = String(idNumber || "")
+  .replace(/\s+/g, "")
+  .trim();
 
-      // The frontend currently sends the birth-certificate
-      // place of birth through the "district" field.
-      // Accept "placeOfBirth" too for future compatibility.
-      const normalizedPlaceOfBirth = String(
-        req.body.placeOfBirth || district || ""
-      )
-        .trim()
-        .toLowerCase();
+// Birth certificates should submit placeOfBirth.
+// district remains a compatibility fallback for older clients.
+const normalizedPlaceOfBirth = normalizeText(
+  req.body.placeOfBirth ||
+    (
+      documentType === "birth_certificate"
+        ? district
+        : documentType === "national_id"
+          ? district
+          : ""
+    ) ||
+    ""
+);
 
-      const normalizedDistrict =
-        documentType === "national_id"
-          ? String(district || "").trim().toLowerCase()
-          : "";
+const normalizedDistrict =
+  documentType === "national_id"
+    ? normalizeText(district)
+    : "";
+
 
       // -------------------------------
       // VALIDATE REQUIRED FIELDS
@@ -532,166 +632,203 @@ router.post(
           .set(record),
       ]);
 
+
       // ==================================================
-      // NATIONAL ID NOTIFICATION MATCHING
-      // PRESERVED FROM YOUR EXISTING IMPLEMENTATION
+      // DOCUMENT-AWARE NOTIFICATION MATCHING
       // ==================================================
 
-      // Do not run the current ID-based matching algorithm for
-      // driving licences or birth certificates. Their matching
-      // strategy can be added separately without changing ID logic.
+      // Use the same canonical document type and six-part
+      // match key that routes/userRoutes.js saves.
+      const recordMatchKey = createMatchKey({
+        documentType: record.documentType,
+        fullName: record.fullName,
+        idNumber: record.idNumber,
+        dob: record.dob,
+        sex: record.sex,
+        placeOfBirth: record.placeOfBirth,
+      });
 
-      if (documentType === "national_id") {
-        const normalizeText = (value = "") =>
-          String(value).trim().toLowerCase();
+      console.log("🔑 Upload record matchKey:", {
+        documentType: record.documentType,
+        recordMatchKey,
+      });
 
-        const normalizeId = (value = "") =>
-          String(value)
-            .replace(/\s+/g, "")
-            .trim();
+      const notifyRef = db.collection("notify_requests");
 
-        const normalizeDate = (value = "") => {
-          const parts = String(value)
-            .trim()
-            .split(/\D+/);
+      // Exact key lookup prevents cross-document-type matches.
+      const candidatesSnapshot = await notifyRef
+        .where("matchKey", "==", recordMatchKey)
+        .get();
 
-          if (parts.length !== 3) {
-            return "";
+      // Verify the actual fields too; never trust the key alone.
+      function isCorrectPendingRequest(request) {
+        const expectedFrontendType =
+          getFrontendDocumentType(record.documentType);
+
+        const requestStoredType =
+          request.normalizedDocumentType ||
+          (
+            {
+              id: "national_id",
+              drivingLicence: "driving_license",
+              birthCertificate: "birth_certificate",
+            }[request.documentType] || ""
+          );
+
+        if (
+          !expectedFrontendType ||
+          requestStoredType !== record.documentType ||
+          request.documentType !== expectedFrontendType
+        ) {
+          return false;
+        }
+
+        // Do not reuse a request already matched or expired.
+        if (
+          request.matched === true ||
+          request.expired === true
+        ) {
+          return false;
+        }
+
+        const status = normalizeText(request.status);
+
+        if (
+          status === "paid" ||
+          status === "expired" ||
+          status === "completed"
+        ) {
+          return false;
+        }
+
+        const sameCoreIdentity =
+          normalizeText(
+            request.normalizedFullName || request.fullName
+          ) === normalizeText(record.fullName) &&
+          normalizeDate(
+            request.normalizedDob || request.dob
+          ) === normalizeDate(record.dob) &&
+          normalizeSex(
+            request.normalizedSex || request.sex
+          ) === normalizeSex(record.sex);
+
+        if (!sameCoreIdentity) {
+          return false;
+        }
+
+        // National ID: type, name, ID number, DOB, sex,
+        // and place of birth (stored as district on old records).
+        if (record.documentType === "national_id") {
+          return (
+            normalizeMatchId(request.idNumber) ===
+              normalizeMatchId(record.idNumber) &&
+            normalizeText(
+              request.placeOfBirth || request.district
+            ) === normalizeText(record.placeOfBirth)
+          );
+        }
+
+        // Driving licence: the ID number is the holder's
+        // National ID number. No location is required.
+        if (record.documentType === "driving_license") {
+          return (
+            normalizeMatchId(request.idNumber) ===
+            normalizeMatchId(record.idNumber)
+          );
+        }
+
+        // Birth certificate: no ID number is required.
+        if (record.documentType === "birth_certificate") {
+          return (
+            !normalizeMatchId(request.idNumber) &&
+            normalizeText(
+              request.placeOfBirth || request.district
+            ) === normalizeText(record.placeOfBirth)
+          );
+        }
+
+        return false;
+      }
+
+      // Sort candidates oldest-first so legacy duplicates
+      // do not cause an arbitrary newer request to be selected.
+      const candidates = candidatesSnapshot.docs
+        .filter(doc => isCorrectPendingRequest(doc.data()))
+        .sort((a, b) => {
+          const dateA = String(a.data().createdAt || "");
+          const dateB = String(b.data().createdAt || "");
+          return dateA.localeCompare(dateB);
+        });
+
+      let matchingNotifyDoc = null;
+
+      // Transactionally recheck the chosen request before marking
+      // it matched. This prevents two concurrent uploads from
+      // claiming the same notification request.
+      for (const candidate of candidates) {
+        const matched = await db.runTransaction(async transaction => {
+          const latestSnapshot = await transaction.get(
+            candidate.ref
+          );
+
+          if (!latestSnapshot.exists) {
+            return false;
           }
 
-          let day;
-          let month;
-          let year;
+          const latestRequest = latestSnapshot.data();
 
-          if (parts[0].length === 4) {
-            [year, month, day] = parts;
-          } else {
-            [day, month, year] = parts;
+          if (!isCorrectPendingRequest(latestRequest)) {
+            return false;
           }
 
-          return `${year.padStart(4, "0")}-${month.padStart(
-            2,
-            "0"
-          )}-${day.padStart(2, "0")}`;
-        };
-
-        const normalizeSex = (value = "") => {
-          const v = String(value)
-            .trim()
-            .toLowerCase();
-
-          if (v === "m" || v === "male") {
-            return "male";
-          }
-
-          if (v === "f" || v === "female") {
-            return "female";
-          }
-
-          return v;
-        };
-
-        const createMatchKey = (
-          fullName = "",
-          dob = "",
-          sex = "",
-          district = ""
-        ) => {
-          return [
-            normalizeText(fullName),
-            normalizeDate(dob),
-            normalizeSex(sex),
-            normalizeText(district),
-          ].join("|");
-        };
-
-        const recordMatchKey = createMatchKey(
-          record.fullName,
-          record.dob,
-          record.sex,
-          record.district
-        );
-
-        console.log(
-          "🔑 Upload record matchKey:",
-          recordMatchKey
-        );
-
-        // Look up matching pending notification requests.
-        const matchKeySnapshot = await db
-          .collection("notify_requests")
-          .where("matchKey", "==", recordMatchKey)
-          .get();
-
-        const matchingNotifyDoc =
-          matchKeySnapshot.docs.find((doc) => {
-            const request = doc.data();
-
-            // Skip requests already matched.
-            if (request.matched === true) {
-              return false;
-            }
-
-            // Skip expired requests.
-            if (request.expired === true) {
-              return false;
-            }
-
-            // If a request has an ID number, it must match.
-            if (
-              request.idNumber &&
-              normalizeId(request.idNumber) !== ""
-            ) {
-              return (
-                normalizeId(request.idNumber) ===
-                normalizedId
-              );
-            }
-
-            // Preserve existing behavior for ID-less requests.
-            return true;
-          });
-
-        console.log(
-          "🔎 TARGETED NOTIFY LOOKUP:",
-          {
-            uploadedId: normalizedId,
-            matchKey: recordMatchKey,
-            matchedRequest:
-              matchingNotifyDoc?.id || null,
-          }
-        );
-
-        if (matchingNotifyDoc) {
           const matchedAt = new Date().toISOString();
 
-          await matchingNotifyDoc.ref.update({
-            idNumber: normalizedId,
+          transaction.update(candidate.ref, {
             matched: true,
+            normalizedDocumentType: record.documentType,
+            matchedRecordId: record.recordId,
+            matchedAt,
             startedAt: matchedAt,
             nextNotificationAt: matchedAt,
             sentCount: 0,
             status: "pending",
+
+            // Store the canonical place of birth.
+            placeOfBirth: record.placeOfBirth || "",
+
+            // Only records with an ID number populate this field.
+            idNumber: record.idNumber || "",
           });
 
-          console.log(
-            "✅ Notify request matched:",
-            matchingNotifyDoc.id,
-            "→",
-            normalizedId
-          );
+          return true;
+        });
 
-          console.log(
-            "📅 Notification schedule initialized:",
-            normalizedId
-          );
-        } else {
-          console.log(
-            "ℹ️ No matching notify request found for:",
-            normalizedId
-          );
+        if (matched) {
+          matchingNotifyDoc = candidate;
+          break;
         }
       }
+
+      if (matchingNotifyDoc) {
+        console.log("✅ Notification request matched:", {
+          requestId: matchingNotifyDoc.id,
+          recordId: record.recordId,
+          documentType: record.documentType,
+          matchKey: recordMatchKey,
+        });
+
+        console.log(
+          "📅 Notification schedule initialized:",
+          matchingNotifyDoc.id
+        );
+      } else {
+        console.log("ℹ️ No eligible notification request found:", {
+          recordId: record.recordId,
+          documentType: record.documentType,
+          matchKey: recordMatchKey,
+        });
+      }
+
 
       // -------------------------------
       // SUCCESS RESPONSE
