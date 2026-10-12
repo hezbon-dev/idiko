@@ -60,6 +60,7 @@ export default function AdminUpload() {
     addRecord({
       frontImage: frontPreview,
       backImage: backPreview,
+      documentType: "national_id",
       fullName,
       idNumber,
       dob: formatDate(dob),

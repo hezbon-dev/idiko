@@ -18,6 +18,9 @@ const documentTypeLabel =
     ? "Birth Certificate"
     : "ID";
 
+const isDrivingLicence = documentType === "drivingLicence";
+const isBirthCertificate = documentType === "birthCertificate";
+
 const [showForm, setShowForm] = useState(false);
 const [saved, setSaved] = useState(false);
 
@@ -205,10 +208,10 @@ const [saved, setSaved] = useState(false);
   }}
 />
         <input type="text" name="fullName" placeholder="Full Names (as in the ID card)" value={form.fullName} onChange={handleChange} style={inputStyle} readOnly />
-        <input type="text" name="idNumber" placeholder="ID Number (optional if not availabe)" value={form.idNumber} onChange={handleChange} style={inputStyle} readOnly />
+        {!isBirthCertificate && (<input type="text"name="idNumber"placeholder={isDrivingLicence? "ID Number (required)": "ID Number (optional if not available)"}value={form.idNumber}style={inputStyle}readOnly required={isDrivingLicence}/>)}
         <input type="text" name="dob" placeholder="Date of Birth (dd/mm/yyyy)" value={form.dob} onChange={handleChange} style={inputStyle} readOnly />
         <input type="text" name="sex" placeholder="Sex" value={form.sex} onChange={handleChange} style={inputStyle} readOnly />
-        <input type="text" name="district" placeholder="District of Birth" value={form.district} onChange={handleChange} style={inputStyle} readOnly />
+        {!isDrivingLicence && (<input type="text"name="district"placeholder="Place / district of Birth"value={form.district}style={inputStyle}readOnly required/>)}
         <input type="text" name="primaryPhone" placeholder="Primary Phone" value={form.primaryPhone} onChange={handleChange} style={inputStyle} required />
         <input type="text" name="secondaryPhone" placeholder="Secondary Phone" value={form.secondaryPhone} onChange={handleChange} style={inputStyle} />
         <input type="email" name="email" placeholder="Email (optional)" value={form.email} onChange={handleChange} style={inputStyle} />

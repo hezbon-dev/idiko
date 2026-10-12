@@ -74,6 +74,10 @@ export default function FindMyID() {
       ? "Birth Certificate"
       : "ID";
 
+const isDrivingLicence = documentType === "drivingLicence";
+const isBirthCertificate = documentType === "birthCertificate";
+const isNationalId = documentType === "id";  
+
   const [formData, setFormData] = useState({
     fullName: "",
     idNumber: "",
@@ -119,15 +123,17 @@ export default function FindMyID() {
   });
 };
 const handleSearch = async () => {
-  if (
-    !formData.fullName ||
-    !formData.dob ||
-    !formData.sex ||
-    !formData.district
-  ) {
-    setError("⚠️ Please fill in all fields before searching.");
-    return;
-  }
+if (
+  !formData.fullName.trim() ||
+  !formData.dob.trim() ||
+  !formData.sex.trim() ||
+  (isNationalId && !formData.district.trim()) ||
+  (isDrivingLicence && !formData.idNumber.trim()) ||
+  (isBirthCertificate && !formData.district.trim())
+) {
+  setError("Please fill in all required fields before searching.");
+  return;
+}
 
   if (
     documentType === "drivingLicence" &&
@@ -303,14 +309,14 @@ navigate(
 
   </div>
         <input type="text" name="fullName" placeholder="Full Names (Given names + Surname)" value={formData.fullName} onChange={handleChange} style={inputStyle} />
-        <input type="text"name="idNumber"placeholder={documentType === "drivingLicence"? "ID Number (required)": "ID Number (optional if not available)"}value={formData.idNumber}onChange={handleChange}style={inputStyle}/>
+        {!isBirthCertificate && (<input type="text"name="idNumber"placeholder={isDrivingLicence? "ID Number (required)": "ID Number (optional if not available)"}value={formData.idNumber}onChange={handleChange}required={isDrivingLicence}style={inputStyle}/>)}
         <input type="text" name="dob" placeholder="Date of Birth (dd/mm/yyyy)" value={formData.dob} onChange={handleChange} style={inputStyle} />
         <select name="sex" value={formData.sex} onChange={handleChange} style={inputStyle}>
           <option value=""> Sex</option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
         </select>
-        <input type="text" name="district" placeholder="Place / district of Birth" value={formData.district} onChange={handleChange} style={inputStyle} />
+        {!isDrivingLicence && (<input type="text"name="district"placeholder="Place / district of Birth"value={formData.district}onChange={handleChange}required style={inputStyle}/>)}
         {error && <p style={{ color: "red", fontSize: "14px" }}>{error}</p>}
         <button type="button" onClick={handleSearch} style={buttonStyle}>Search</button>
        <Link to="/document-selection" style={backLinkStyle}>&lt;Document Selection</Link>
