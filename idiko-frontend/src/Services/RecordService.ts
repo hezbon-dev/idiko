@@ -192,7 +192,7 @@ async moveToTrash(
   const data =
     await response.json();
 
-  if (!data.success) {
+ if (!response.ok || !data.success) {
 
     throw new Error(
       data.error ||
@@ -248,7 +248,7 @@ async restoreRecord(
   const data =
     await response.json();
 
-  if (!data.success) {
+  if (!response.ok || !data.success) {
 
     throw new Error(
       data.error ||
@@ -259,32 +259,27 @@ async restoreRecord(
 
 },
 
+
 async deleteRecord(
-  idNumber: string
+  documentKey: string
 ) {
+  const response = await fetch(
+    `${API_URL}/admin/trash/${encodeURIComponent(documentKey)}`,
+    {
+      method: "DELETE",
+      headers: getHeaders(),
+    }
+  );
 
-  const response =
-    await fetch(
-      `${API_URL}/admin/trash/${idNumber}`,
-      {
-        method: "DELETE",
-        headers: getHeaders(),
-      }
-    );
+  const data = await response.json();
 
-  const data =
-    await response.json();
-
-  if (!data.success) {
-
+  if (!response.ok || !data.success) {
     throw new Error(
-      data.error ||
-      "Failed to delete record"
+      data.error || "Failed to delete record"
     );
-
   }
-
 },
+
 
   /*
    * ==========================

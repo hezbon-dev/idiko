@@ -7,6 +7,7 @@ import { RecordService } from "../Services/RecordService";
 
 /* ================= TYPES ================= */
 export type RecordType = {
+  documentType: any;
   stationId: string | null;
   uploadDate: string;
   fullName: string;
@@ -83,18 +84,37 @@ export const RecordProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [notifyRequests, setNotifyRequests] = useState<NotifyRequestType[]>([]);
 
 
+const getRecordKey = (record: any): string =>
+  String(
+    record.id ||
+    record.originalRecordKey ||
+    record.recordId ||
+    (
+      record.documentType === "driving_license"
+        ? `driving_license_${String(record.idNumber || "").replace(/\s+/g, "")}`
+        : record.idNumber || ""
+    )
+  );
 
 const trashIds = useMemo(() => {
   return new Set(
-    trash.map(t => t.idNumber)
+    trash.map((record: any) =>
+      String(
+        record.originalRecordKey ||
+        record.id ||
+        record.recordId ||
+        ""
+      )
+    )
   );
 }, [trash]);
 
 const allRecords = useMemo(() => {
-  return records.filter(
-    r => !trashIds.has(r.idNumber)
+  return records.filter((record: any) =>
+    !trashIds.has(getRecordKey(record))
   );
 }, [records, trashIds]);
+
 
 const recordsForStaff = useMemo(() => {
 
@@ -354,36 +374,39 @@ const loadTrash = async () => {
 
   };
 
-const moveToTrash = async (
-  record: RecordType
-) => {
 
+const moveToTrash = async (record: RecordType) => {
   await RecordService.moveToTrash(
     record,
     user as "admin" | "staff"
   );
 
+  const keyToRemove = getRecordKey(record);
+
   setRecords(prev =>
     prev.filter(
-      r =>
-        r.idNumber !==
-        record.idNumber
+      (item: any) => getRecordKey(item) !== keyToRemove
     )
   );
 
-  setNotifyRequests(prev =>
-    prev.filter(
-      r =>
-        normalizeId(r.idNumber) !==
-        normalizeId(record.idNumber)
-    )
-  );
+  // Only remove notification requests for National IDs.
+  if (
+    !record.documentType ||
+    record.documentType === "national_id"
+  ) {
+    setNotifyRequests(prev =>
+      prev.filter(
+        request =>
+          normalizeId(request.idNumber) !==
+          normalizeId(record.idNumber)
+      )
+    );
+  }
 
   await refreshRecords();
-
   await loadTrash();
-
 };
+
 
 const restoreRecord = async (
   record: RecordType

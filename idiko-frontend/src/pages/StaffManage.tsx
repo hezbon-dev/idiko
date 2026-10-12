@@ -95,18 +95,23 @@ export default function StaffManage() {
   // HIDDEN ROWS AFTER TRASH ACTION
   // ---------------------------------
 
-  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
 
   // Use the real record key, not idNumber alone.
   // National ID and driving licence records can share idNumber.
-  const getRecordKey = (record: any): string =>
-    String(
-      record.recordId ||
-        record.id ||
-        (record.documentType === "driving_license"
-          ? `driving_license_${record.idNumber || ""}`
-          : record.idNumber || "")
-    );
+
+
+const getRecordKey = (record: any): string =>
+  String(
+    record.id ||
+    record.recordId ||
+    (
+      record.documentType === "driving_license"
+        ? `driving_license_${String(record.idNumber || "").replace(/\s+/g, "")}`
+        : record.idNumber || ""
+    )
+  );
+
+
 
   const getDocumentType = (record: any): DocumentType => {
     // Older records without documentType are treated as National IDs.
@@ -180,9 +185,7 @@ export default function StaffManage() {
           ? record.status === "Paid"
           : record.status !== "Paid";
 
-      const isHidden = hiddenIds.includes(getRecordKey(record));
-
-      return matchesSearch && matchesStatus && !isHidden;
+      return matchesSearch && matchesStatus;
     })
     .sort((a: any, b: any) =>
       String(a.fullName || "").localeCompare(
@@ -654,22 +657,17 @@ export default function StaffManage() {
                 </button>
 
                 <button
-                  onClick={async () => {
-                    const keyToHide = getRecordKey(recordToTrash);
 
-                    // Preserve the existing trash action.
-                    moveToTrash(recordToTrash);
+onClick={async () => {
+  try {
+    await moveToTrash(recordToTrash);
+    setRecordToTrash(null);
+  } catch (error) {
+    console.error("Move to trash failed:", error);
+    alert("Could not move this document to Trash. Please try again.");
+  }
+}}
 
-                    // Hide this specific record, not every record
-                    // belonging to the same National ID number.
-                    setHiddenIds((previous) =>
-                      previous.includes(keyToHide)
-                        ? previous
-                        : [...previous, keyToHide]
-                    );
-
-                    setRecordToTrash(null);
-                  }}
                 >
                   Move to Trash
                 </button>
