@@ -193,38 +193,24 @@ body: JSON.stringify({
   const data =
     await response.json();
 
-  if (data.found) {
-
-    if (
-      String(data.status)
-        .toLowerCase() === "paid"
-    ) {
-
-      navigate(
-        `/claimed/${data.idNumber}`
-      );
-
-    } else {
-
-      navigate(
-        `/payment/${data.idNumber}`
-      );
-
-    }
-
+if (data.found && data.recordId) {
+  if (
+    String(data.status).toLowerCase() === "paid"
+  ) {
+    navigate(`/claimed/${encodeURIComponent(data.recordId)}`);
   } else {
-
-navigate(
-  "/notify-me",
-  {
+    navigate(`/payment/${encodeURIComponent(data.recordId)}`);
+  }
+} else if (data.found) {
+  setError("The document was found, but its record reference is missing. Please try again.");
+} else {
+  navigate("/notify-me", {
     state: {
       formData,
       documentType,
     },
-  }
-);
-
-  }
+  });
+}
 
 } catch (err) {
 

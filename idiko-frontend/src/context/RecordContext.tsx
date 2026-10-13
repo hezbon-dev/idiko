@@ -58,7 +58,7 @@ type RecordContextType = {
   ) => Promise<void>;
 
 markRecordPaidLocally: (
-  idNumber: string
+  recordId: string
 ) => void;
 
   addNotifyRequest: (req: NotifyRequestType) => Promise<boolean>;
@@ -451,13 +451,18 @@ const updateRecordStatus = async (
 
 };
 
-const markRecordPaidLocally = (
-  idNumber: string
-) => {
 
+const markRecordPaidLocally = (
+  recordId: string
+) => {
   setRecords(prev =>
-    prev.map(record =>
-      record.idNumber === idNumber
+    prev.map((record: any) =>
+      String(
+        record.recordId ||
+        record.id ||
+        record.originalRecordKey ||
+        ""
+      ) === recordId
         ? {
             ...record,
             status: "Paid",
@@ -465,8 +470,8 @@ const markRecordPaidLocally = (
         : record
     )
   );
-
 };
+
 
 
 const updateNotifyRequest = async (

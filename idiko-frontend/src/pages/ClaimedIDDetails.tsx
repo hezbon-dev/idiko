@@ -51,12 +51,12 @@ export default function ClaimedIDDetails() {
 
 console.log("🔥 CLAIMED ID DETAILS PAGE LOADED");
 
-  const { idNumber } =
-  useParams<{ idNumber: string }>();
+const { recordId } =
+  useParams<{ recordId: string }>();
 
 console.log(
-  "🔥 URL ID:",
-  idNumber
+  "🔥 URL RECORD ID:",
+  recordId
 );
 
 console.log(
@@ -76,7 +76,7 @@ const [station, setStation] =
 
 useEffect(() => {
 
-  if (!idNumber) {
+  if (! recordId) {
     setLoading(false);
     return;
   }
@@ -86,8 +86,8 @@ useEffect(() => {
 
       try {
 
-        const apiUrl =
-  `${import.meta.env.VITE_API_URL}/api/record/${idNumber}`;
+const apiUrl =
+  `${import.meta.env.VITE_API_URL}/api/record-by-id/${encodeURIComponent(recordId)}`;
 
 console.log(
   "🔥 FETCHING:",
@@ -167,7 +167,7 @@ if (
 
   loadRecord();
 
-}, [idNumber]);
+}, [ recordId]);
 
 const documentTypeLabel =
   record?.documentType === "drivingLicence"
@@ -199,7 +199,7 @@ const documentTypeLabel =
       );
     }
   } else {
-    console.log("No matching record found for:", normalizeId(idNumber));
+    console.log("No matching record found for:", normalizeId( recordId));
   }
 
   const [zoomImage, setZoomImage] = useState<string | null>(null);

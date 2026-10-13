@@ -184,13 +184,14 @@ router.post("/find-id", async (req, res) => {
         });
       }
 
-      return res.json({
-        success: true,
-        found: true,
-        documentType: record.documentType,
-        idNumber: record.idNumber || "",
-        status: record.status,
-      });
+return res.json({
+  success: true,
+  found: true,
+  recordId: recordDoc.id,
+  documentType: record.documentType,
+  idNumber: record.idNumber || "",
+  status: record.status,
+});
     }
 
     // ================================================
@@ -240,7 +241,7 @@ router.post("/find-id", async (req, res) => {
           });
         }
 
-        record = matchingDoc.data();
+       record = {...matchingDoc.data(),recordId: matchingDoc.id,};
       }
 
       const found =
@@ -257,13 +258,14 @@ router.post("/find-id", async (req, res) => {
         });
       }
 
-      return res.json({
-        success: true,
-        found: true,
-        documentType: record.documentType,
-        idNumber: record.idNumber || "",
-        status: record.status,
-      });
+return res.json({
+  success: true,
+  found: true,
+  recordId: record.recordId || drivingLicenseKey,
+  documentType: record.documentType,
+  idNumber: record.idNumber || "",
+  status: record.status,
+});
     }
 
     // ================================================
@@ -300,13 +302,14 @@ router.post("/find-id", async (req, res) => {
 
       const record = matchingDoc.data();
 
-      return res.json({
-        success: true,
-        found: true,
-        documentType: record.documentType,
-        idNumber: "",
-        status: record.status,
-      });
+return res.json({
+  success: true,
+  found: true,
+  recordId: matchingDoc.id,
+  documentType: record.documentType,
+  idNumber: "",
+  status: record.status,
+});
     }
 
     return res.json({
@@ -330,6 +333,7 @@ router.get("/record/:idNumber", async (req, res) => {
       success: false,
       error: "Database unavailable",
     });
+
   }
 
   try {
@@ -388,6 +392,50 @@ router.get("/record/:idNumber", async (req, res) => {
 
   }
 
+});
+
+// Fetch a record by its unique Firestore document ID
+router.get("/record-by-id/:recordId", async (req, res) => {
+  try {
+    const { recordId } = req.params;
+
+    if (!recordId) {
+      return res.status(400).json({
+        success: false,
+        found: false,
+        message: "Record ID is required",
+      });
+    }
+
+    const recordDoc = await db
+      .collection("records")
+      .doc(recordId)
+      .get();
+
+    if (!recordDoc.exists) {
+      return res.status(404).json({
+        success: true,
+        found: false,
+      });
+    }
+
+    return res.json({
+      success: true,
+      found: true,
+      record: {
+        ...recordDoc.data(),
+        recordId: recordDoc.id,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to fetch record by ID:", error);
+
+    return res.status(500).json({
+      success: false,
+      found: false,
+      message: "Failed to fetch record",
+    });
+  }
 });
 
 // =========================

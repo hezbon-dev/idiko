@@ -59,53 +59,105 @@ async function updatePaymentStatus(
 ) {
   const FILE_PATH = path.join(__dirname, "payments.json");
 
-// ✅ ENSURE FILE EXISTS
+  // Validate the Firestore document ID first.
+  const recordId = String(accountReference || "").trim();
+
+  if (!recordId || recordId === "unknown") {
+    throw new Error(
+      `Cannot update payment: invalid accountReference "${recordId}"`
+    );
+  }
+
+  // Read the existing payment records.
   if (!fs.existsSync(FILE_PATH)) {
     fs.writeFileSync(FILE_PATH, "[]");
     console.log("📂 payments.json created");
   }
 
-  let payments = [];
+  let payments;
 
   try {
     const fileData = fs.readFileSync(FILE_PATH, "utf8");
-
     payments =
       fileData && fileData.trim() !== ""
         ? JSON.parse(fileData)
         : [];
 
     if (!Array.isArray(payments)) {
-      payments = [];
+      throw new Error("payments.json does not contain a valid array");
     }
-
   } catch (err) {
     console.error("❌ Failed to read payments file", err);
-    payments = [];
+    throw err;
   }
-
-  console.log("📦 PAYMENTS BEFORE UPDATE:", payments);
 
   payments = cleanupOldPayments(payments);
 
-console.log(
-  "🧹 OLD PAYMENT RECORDS CLEANED"
-);
+  // Use one timestamp for the record and payment entry.
+  const paidAt = new Date().toISOString();
 
-// Update or add the payment
+  // 1. Update the actual record in Firestore FIRST.
+  const admin = require("firebase-admin");
+  const db = admin.firestore();
+
+  const recordRef = db.collection("records").doc(recordId);
+  const recordDoc = await recordRef.get();
+
+  if (!recordDoc.exists) {
+    throw new Error(
+      `No Firestore record found for record ID: ${recordId}`
+    );
+  }
+
+  await recordRef.update({
+    status: "Paid",
+    paidAt,
+  });
+
+  console.log("✅ Firestore record marked Paid:", recordId);
+
+  // Update the matching history record if it exists.
+  // A history update failure is logged but does not undo the
+  // successful update of the main record.
+  try {
+    const historyRef = db
+      .collection("allHistoryRecords")
+      .doc(recordId);
+
+    const historyDoc = await historyRef.get();
+
+    if (historyDoc.exists) {
+      await historyRef.update({
+        status: "Paid",
+        paidAt,
+      });
+
+      console.log("✅ History record marked Paid:", recordId);
+    } else {
+      console.log(
+        "ℹ️ No history document found for record ID:",
+        recordId
+      );
+    }
+  } catch (err) {
+    console.error("⚠️ History record update failed:", err);
+  }
+
+  // 2. Only after the main Firestore update succeeds,
+  // mark the payment as paid in payments.json.
   const existingIndex = payments.findIndex(
-    p => p.checkoutRequestID === checkoutRequestID
+    (p) => p.checkoutRequestID === checkoutRequestID
   );
 
   const paymentRecord = {
     checkoutRequestID,
-    accountReference,
+    accountReference: recordId,
     status: "paid",
     amount: paymentData.Amount,
     mpesaReceipt: paymentData.MpesaReceiptNumber,
     phone: paymentData.PhoneNumber,
     transactionDate: paymentData.TransactionDate,
-    paidAt: new Date().toISOString(),
+    paidAt,
   };
 
   if (existingIndex >= 0) {
@@ -113,125 +165,20 @@ console.log(
       ...payments[existingIndex],
       ...paymentRecord,
     };
-
-    console.log("♻️ Existing payment updated to PAID");
-
   } else {
     payments.push(paymentRecord);
-
-    console.log("🆕 New PAID payment added");
   }
 
-  try {
-    fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
+  // If this write fails, throw an error rather than pretending
+  // the payment-status file was updated successfully.
+  fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
 
-    console.log("✅ PAYMENT STATUS UPDATED");
-
-    // 🔥 UPDATE FIRESTORE RECORD
-    try {
-      const admin = require("firebase-admin");
-
-      const db = admin.firestore();
-
-      const normalizedId = String(accountReference).trim();
-
-console.log("🔍 SEARCHING FIRESTORE FOR ID:", normalizedId);
-
-// 🔥 UPDATE records COLLECTION
-const recordsSnapshot = await db
-  .collection("records")
-  .where("idNumber", "==", normalizedId)
-  .get();
-
-console.log("📦 RECORDS MATCHES:", recordsSnapshot.size);
-
-if (recordsSnapshot.empty) {
-  console.log("❌ NO RECORDS FIRESTORE RECORD FOUND FOR:", normalizedId);
-} else {
-  for (const firestoreDoc of recordsSnapshot.docs) {
-
-    console.log("✅ MATCHED records DOC:", firestoreDoc.id);
-
-    await firestoreDoc.ref.update({
-      status: "Paid",
-      paidAt: new Date().toISOString(),
-    });
-
-    console.log("🔥 records RECORD UPDATED:", firestoreDoc.id);
-  }
-}
-
-// 🔥 UPDATE allHistoryRecords COLLECTION
-const historySnapshot = await db
-  .collection("allHistoryRecords")
-  .where("idNumber", "==", normalizedId)
-  .get();
-
-console.log("📦 HISTORY MATCHES:", historySnapshot.size);
-
-if (historySnapshot.empty) {
-  console.log("❌ NO HISTORY FIRESTORE RECORD FOUND FOR:", normalizedId);
-} else {
-  for (const firestoreDoc of historySnapshot.docs) {
-
-    console.log("✅ MATCHED history DOC:", firestoreDoc.id);
-
-    await firestoreDoc.ref.update({
-      status: "Paid",
-      paidAt: new Date().toISOString(),
-    });
-
-    console.log("🔥 history RECORD UPDATED:", firestoreDoc.id);
-  }
-}
-
-// 🔥 UPDATE notify_requests COLLECTION
-const notifySnapshot = await db
-  .collection("notify_requests")
-  .where("idNumber", "==", normalizedId)
-  .get();
-
-console.log("📦 NOTIFY REQUEST MATCHES:", notifySnapshot.size);
-
-if (notifySnapshot.empty) {
-  console.log(
-    "❌ NO notify_requests RECORD FOUND FOR:",
-    normalizedId
-  );
-} else {
-  for (const firestoreDoc of notifySnapshot.docs) {
-
-    console.log(
-      "✅ MATCHED notify_requests DOC:",
-      firestoreDoc.id
-    );
-
-    await firestoreDoc.ref.update({
-      status: "Paid",
-      paidAt: new Date().toISOString(),
-    });
-
-    console.log(
-      "🔥 notify_requests RECORD UPDATED:",
-      firestoreDoc.id
-    );
-  }
-}
-
-    } catch (err) {
-      console.error("❌ FIRESTORE PAYMENT UPDATE FAILED", err);
-    }
-
-    console.log("📦 UPDATED RECORD:", paymentRecord);
-    console.log("📦 PAYMENTS AFTER UPDATE:", payments);
-
-  } catch (err) {
-    console.error("❌ Failed to write payments file", err);
-  }
+  console.log("✅ Payment status saved as PAID:", checkoutRequestID);
+  console.log("📦 UPDATED PAYMENT:", paymentRecord);
 }
 
 // Route handler
-function mpesaCallback(req, res) {
+  async function mpesaCallback(req, res) {
   console.log("🔥 MPESA CALLBACK RECEIVED");
   console.log("📩 FULL CALLBACK BODY:");
   console.dir(req.body, { depth: null });
@@ -373,16 +320,16 @@ function mpesaCallback(req, res) {
 
     console.log("📌 ACCOUNT REFERENCE:", accountReference);
 
-    updatePaymentStatus(
-      CheckoutRequestID,
-      accountReference,
-      paymentData
-    );
+await updatePaymentStatus(
+  CheckoutRequestID,
+  accountReference,
+  paymentData
+);
 
-    return res.status(200).json({
-      ResultCode: 0,
-      ResultDesc: "Success",
-    });
+return res.status(200).json({
+  ResultCode: 0,
+  ResultDesc: "Success",
+});
 
   } catch (error) {
     console.error("❌ CALLBACK PROCESSING ERROR");

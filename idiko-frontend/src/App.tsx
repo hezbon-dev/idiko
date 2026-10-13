@@ -47,69 +47,72 @@ import AdminControlPanel from "./pages/AdminControlPanel";
 // Auth + ProtectedRoute
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
+
 function ProtectedClaimedRoute() {
-  const { idNumber } = useParams();
+  const { recordId } = useParams();
 
-  const [loading, setLoading] =
-    React.useState(true);
-
-  const [allowed, setAllowed] =
-    React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [allowed, setAllowed] = React.useState(false);
 
   React.useEffect(() => {
+    let cancelled = false;
 
-    if (!idNumber) {
-      setLoading(false);
-      return;
-    }
+    const checkRecord = async () => {
+      if (!recordId) {
+        setAllowed(false);
+        setLoading(false);
+        return;
+      }
 
-    const checkRecord =
-      async () => {
+      setLoading(true);
+      setAllowed(false);
 
-        try {
+      try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/record-by-id/${encodeURIComponent(recordId)}`);
 
-          const response =
-            await fetch(
-              `${import.meta.env.VITE_API_URL}/api/record/${idNumber}`
-            );
 
-          const data =
-            await response.json();
-
-          console.log(
-            "🔥 PAYMENT CHECK:",
-            data
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch record: HTTP ${response.status}`
           );
-
-          if (
-            data.success &&
-            data.record &&
-            data.record.status === "Paid"
-          ) {
-            setAllowed(true);
-          }
-
-        } catch (err) {
-
-          console.error(
-            "🔥 PAYMENT CHECK ERROR:",
-            err
-          );
-
-        } finally {
-
-          setLoading(false);
-
         }
 
-      };
+        const data = await response.json();
+
+        console.log("PAYMENT CHECK:", data);
+
+        if (cancelled) return;
+
+        if (
+          data.success &&
+          data.record &&
+          data.record.status === "Paid"
+        ) {
+          setAllowed(true);
+        } else {
+          setAllowed(false);
+        }
+      } catch (err) {
+        console.error("PAYMENT CHECK ERROR:", err);
+
+        if (!cancelled) {
+          setAllowed(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
 
     checkRecord();
 
-  }, [idNumber]);
+    return () => {
+      cancelled = true;
+    };
+  }, [recordId]);
 
   if (loading) {
-
     return (
       <div
         style={{
@@ -123,16 +126,18 @@ function ProtectedClaimedRoute() {
         Loading...
       </div>
     );
-
   }
 
-  return allowed
-    ? <ClaimedIDDetails />
-    : <Navigate
-        to={`/payment/${idNumber}`}
-        replace
-      />;
+  return allowed ? (
+    <ClaimedIDDetails />
+  ) : (
+    <Navigate
+      to={`/payment/${encodeURIComponent(recordId || "")}`}
+      replace
+    />
+  );
 }
+
 
 function AppContent() {
 
@@ -218,9 +223,9 @@ function AppContent() {
                     <Route path="/" element={<Home />} />
                     <Route path="/document-selection"element={<DocumentSelection />}/>
                     <Route path="/find-my-id" element={<FindMyID />} />
-                    <Route path="/payment/:idNumber" element={<Payment />} />
+                    <Route path="/payment/:recordId" element={<Payment />} />
                     <Route path="/pay-to-claim" element={<PayToClaim />} />
-                    <Route path="/claimed/:idNumber" element={<ProtectedClaimedRoute />} />
+                    <Route path="/claimed/:recordId"element={<ProtectedClaimedRoute />}/>
                     <Route path="/notify-me" element={<NotifyMe />} />
 
                     {/* Login Routes */}

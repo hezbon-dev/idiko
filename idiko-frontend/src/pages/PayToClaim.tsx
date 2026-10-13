@@ -13,13 +13,16 @@ export default function PayToClaim({}: PayToClaimProps) {
   const { markRecordPaidLocally } = useRecords();
 
 
+
   const state = location.state as {
+    recordId: string;
     idNumber: string;
     fullName: string;
     idImages: string[];
     amount: number;
     accountReference: string;
   };
+
 
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -99,13 +102,15 @@ if (statusResponse.data.status === "paid") {
     clearTimeout(timeoutRef.current);
   }
 
-  markRecordPaidLocally(state.idNumber);
+
+  markRecordPaidLocally(state.recordId);
 
   setMessage("✅ Payment successful! Redirecting...");
 
   setTimeout(() => {
-    navigate(`/claimed/${state.idNumber}`);
+    navigate(`/claimed/${encodeURIComponent(state.recordId)}`);
   }, 1000);
+
 }
 
 

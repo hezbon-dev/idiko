@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 
 export default function Payment() {
-const { idNumber } = useParams();
+const { recordId } = useParams();
 const navigate = useNavigate();
 const [record, setRecord] = useState<any>(null);
 const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ const [zoomImage, setZoomImage] = useState<string | null>(null);
 
       const response =
         await fetch(
-          `${import.meta.env.VITE_API_URL}/api/record/${idNumber}`
+        `${import.meta.env.VITE_API_URL}/api/record-by-id/${encodeURIComponent(recordId!)}`
         );
 
       const data =
@@ -49,11 +49,11 @@ const [zoomImage, setZoomImage] = useState<string | null>(null);
 
   }
 
-  if (idNumber) {
-    loadRecord();
-  }
+ if (recordId) {
+  loadRecord();
+}
 
-}, [idNumber]);
+}, [recordId]);
   const containerStyle: React.CSSProperties = {
     color: "white",
     minHeight: "100vh",
@@ -118,15 +118,19 @@ const [zoomImage, setZoomImage] = useState<string | null>(null);
   const handlePayment = () => {
     if (!record) return;
 
-    navigate("/pay-to-claim", {
-      state: {
-        idNumber: record.idNumber,
-        fullName: record.fullName,
-        idImages: [record.frontImage, record.backImage].filter(Boolean),
-        amount: 1, // or your actual amount
-        accountReference: record.idNumber,
-      },
-    });
+navigate("/pay-to-claim", {
+  state: {
+    recordId: record.recordId,
+    idNumber: record.idNumber || "",
+    fullName: record.fullName,
+    idImages: [
+      record.frontImage,
+      record.backImage,
+    ].filter(Boolean),
+    amount: 1,
+    accountReference: record.recordId,
+  },
+});
   };
 
 if (loading) {
