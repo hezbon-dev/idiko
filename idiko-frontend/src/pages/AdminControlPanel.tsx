@@ -4,7 +4,21 @@ import { Link } from "react-router-dom";
 import { usePickupStations } from "../context/PickupStationContext";
 import { useMaintenance } from "../context/MaintenanceContext";
 
+type DocumentStats = {
+  uploaded: number;
+  pending: number;
+  paid: number;
+  unmatched: number;
+  matched: number;
+};
 
+const emptyDocumentStats: DocumentStats = {
+  uploaded: 0,
+  pending: 0,
+  paid: 0,
+  unmatched: 0,
+  matched: 0,
+};
 type PeriodOption = "All" | "Custom" | "Yesterday" | "LastMonth" | "LastYear";
 
 export default function AdminControlPanel() {
@@ -50,21 +64,12 @@ const previousFilterKey =
   );
 
 
-
-  const [stats, setStats] =
-  useState({
-
-    totalUploaded: 0,
-
-    pending: 0,
-
-    paid: 0,
-
-    awaiting: 0,
-
-    matched: 0,
-
+  const [documentStats, setDocumentStats] = useState({
+    idCards: { ...emptyDocumentStats },
+    drivingLicences: { ...emptyDocumentStats },
+    birthCertificates: { ...emptyDocumentStats },
   });
+
 
   const { maintenanceMode } = useMaintenance();
 
@@ -302,28 +307,28 @@ useEffect(() => {
         const data =
           await response.json();
 
+
         if (data.success) {
+          const byDocumentType = data.byDocumentType;
 
-          setStats({
-
-            totalUploaded:
-              data.totalUploaded,
-
-            pending:
-              data.pending,
-
-            paid:
-              data.paid,
-
-            awaiting:
-              data.awaiting,
-
-            matched:
-              data.matched,
-
-          });
-
+          if (byDocumentType) {
+            setDocumentStats({
+              idCards: {
+                ...emptyDocumentStats,
+                ...byDocumentType.idCards,
+              },
+              drivingLicences: {
+                ...emptyDocumentStats,
+                ...byDocumentType.drivingLicences,
+              },
+              birthCertificates: {
+                ...emptyDocumentStats,
+                ...byDocumentType.birthCertificates,
+              },
+            });
+          }
         }
+
 
       } catch (err) {
 
@@ -465,17 +470,38 @@ if (loading) {
   )}
 </div>
 
+
       <section style={{ marginTop: 30 }}>
-        <h2>Overview </h2>
+        <h2>ID Cards</h2>
+        <DocumentStatsSection
+          stats={documentStats.idCards}
+          periodLoading={periodLoading}
+        />
+      </section>
+
+      <section style={{ marginTop: 30 }}>
+        <h2>Driving Licences</h2>
+        <DocumentStatsSection
+          stats={documentStats.drivingLicences}
+          periodLoading={periodLoading}
+        />
+      </section>
+
+      <section style={{ marginTop: 30 }}>
+        <h2>Birth Certificates</h2>
+        <DocumentStatsSection
+          stats={documentStats.birthCertificates}
+          periodLoading={periodLoading}
+        />
+      </section>
+
+      <section style={{ marginTop: 30 }}>
+        <h2>Overview</h2>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
           <StatBox label="Stations" value={totalStations} />
-          <StatBox label="Uploaded IDs"value={periodLoading? <PeriodSpinner />: stats.totalUploaded}/>
-          <StatBox label="Pending IDs"value={stats.pending}/>
-          <StatBox label="Paid IDs"value={periodLoading? <PeriodSpinner />: stats.paid}/>
-          <StatBox label="Unmatched Notify Requests" value={stats.awaiting} />
-          <StatBox label="Matched Notifications" value={stats.matched} />
         </div>
       </section>
+
 
 <section style={{ marginTop: 40 }}>
 <AlertBox
@@ -574,3 +600,46 @@ const AlertBox = ({ title, items }: { title: string; items: string[] }) => (
     {items.length === 0 ? <div style={{ marginTop: 5 }}>None</div> : <ul style={{ marginTop: 5, paddingLeft: 20 }}>{items.map((item, i) => <li key={i}>{item}</li>)}</ul>}
   </div>
 );
+
+
+const DocumentStatsSection = ({
+  stats,
+  periodLoading,
+}: {
+  stats: DocumentStats;
+  periodLoading: boolean;
+}) => (
+  <div
+    style={{
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 20,
+    }}
+  >
+    <StatBox
+      label="Uploaded"
+      value={periodLoading ? <PeriodSpinner /> : stats.uploaded}
+    />
+
+    <StatBox
+      label="Pending"
+      value={stats.pending}
+    />
+
+    <StatBox
+      label="Paid"
+      value={periodLoading ? <PeriodSpinner /> : stats.paid}
+    />
+
+    <StatBox
+      label="Unmatched"
+      value={stats.unmatched}
+    />
+
+    <StatBox
+      label="Matched"
+      value={stats.matched}
+    />
+  </div>
+);
+

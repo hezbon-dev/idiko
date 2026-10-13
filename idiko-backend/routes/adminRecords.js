@@ -725,255 +725,192 @@ router.delete(
 
 
 
-// =========================
-// DASHBOARD STATS
-// =========================
+
+ // =========================
+ // DASHBOARD STATS
+ // =========================
 
 router.get(
   "/dashboard-stats",
   verifyAdminToken,
   async (req, res) => {
-
     try {
+      const db = admin.firestore();
 
-      const db =
-        admin.firestore();
-
-      // =========================
-      // READ PERIOD PARAMETERS
-      // =========================
-
+      // Read the existing period parameters.
       const {
         period = "All",
         from,
         to,
       } = req.query;
 
-      const dateRange =
-        getNairobiDateRange(
-          period,
-          from,
-          to
-        );
-
-      // =========================
-      // LOAD PERMANENT HISTORY
-      // =========================
-
-      const historySnap =
-        await db
-          .collection(
-            "allHistoryRecords"
-          )
-          .get();
-
-      const history =
-        historySnap.docs.map(
-          doc => ({
-            id: doc.id,
-            ...doc.data(),
-          })
-        );
-
-      // =========================
-      // UPLOADED IDs
-      // =========================
-
-      let uploadedRecords =
-        history;
-
-      if (dateRange) {
-
-        uploadedRecords =
-          history.filter(
-            record => {
-
-              if (
-                !record.uploadDate
-              ) {
-
-                return false;
-
-              }
-
-              const uploadDate =
-                record.uploadDate
-                  .toDate
-                  ? record.uploadDate.toDate()
-                  : new Date(
-                      record.uploadDate
-                    );
-
-              if (
-                Number.isNaN(
-                  uploadDate.getTime()
-                )
-              ) {
-
-                return false;
-
-              }
-
-              const uploadDateString =
-                getNairobiDateString(
-                  uploadDate
-                );
-
-              return (
-                uploadDateString >=
-                  dateRange.from &&
-                uploadDateString <=
-                  dateRange.to
-              );
-
-            }
-          );
-
-      }
-
-      // =========================
-      // PAID IDs
-      // =========================
-
-      let paidRecords =
-        history.filter(
-          record =>
-            record.status ===
-            "Paid"
-        );
-
-      if (dateRange) {
-
-        paidRecords =
-          paidRecords.filter(
-            record => {
-
-              if (
-                !record.paidAt
-              ) {
-
-                return false;
-
-              }
-
-              const paidDate =
-                record.paidAt
-                  .toDate
-                  ? record.paidAt.toDate()
-                  : new Date(
-                      record.paidAt
-                    );
-
-              if (
-                Number.isNaN(
-                  paidDate.getTime()
-                )
-              ) {
-
-                return false;
-
-              }
-
-              const paidDateString =
-                getNairobiDateString(
-                  paidDate
-                );
-
-              return (
-                paidDateString >=
-                  dateRange.from &&
-                paidDateString <=
-                  dateRange.to
-              );
-
-            }
-          );
-
-      }
-
-      // =========================
-      // PENDING IDs
-      // =========================
-      
-      const pending =
-        history.filter(
-          record =>
-            record.status ===
-            "Pending"
-        ).length;
-
-      // =========================
-      // NOTIFY REQUESTS
-      // =========================
-      
-      const notifySnap =
-        await db
-          .collection(
-            "notify_requests"
-          )
-          .get();
-
-      const notify =
-        notifySnap.docs.map(
-          doc => doc.data()
-        );
-
-      const awaiting =
-        notify.filter(
-          request =>
-            !request.matched
-        ).length;
-
-      const matched =
-        notify.filter(
-          request =>
-            request.matched
-        ).length;
-
-      // =========================
-      // RESPONSE
-      // =========================
-
-      return res.json({
-
-        success: true,
-
-        totalUploaded:
-          uploadedRecords.length,
-
-        pending,
-
-        paid:
-          paidRecords.length,
-
-        awaiting,
-
-        matched,
-
-      });
-
-    } catch (err) {
-
-      console.error(
-        "Dashboard stats failed:",
-        err
+      const dateRange = getNairobiDateRange(
+        period,
+        from,
+        to
       );
 
-      return res
-        .status(500)
-        .json({
+      // Normalize both stored and frontend document-type values.
+      // Unknown or missing types are not assigned to a section.
+      const normalizeDocumentType = (value) => {
+        const mapping = {
+          national_id: "national_id",
+          id: "national_id",
 
-          success: false,
+          driving_license: "driving_license",
+          drivingLicence: "driving_license",
 
-          error:
-            "Failed to load dashboard stats",
+          birth_certificate: "birth_certificate",
+          birthCertificate: "birth_certificate",
+        };
 
+        return mapping[value] || "";
+      };
+
+      // Preserve the existing Nairobi date filtering behavior.
+      const isWithinDateRange = (value) => {
+        if (!dateRange) {
+          return true;
+        }
+
+        if (!value) {
+          return false;
+        }
+
+        const date = value.toDate
+          ? value.toDate()
+          : new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return false;
+        }
+
+        const dateString = getNairobiDateString(date);
+
+        return (
+          dateString >= dateRange.from &&
+          dateString <= dateRange.to
+        );
+      };
+
+      // Load permanent record history.
+      const historySnap = await db
+        .collection("allHistoryRecords")
+        .get();
+
+      const history = historySnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Load notification requests.
+      const notifySnap = await db
+        .collection("notify_requests")
+        .get();
+
+      const notify = notifySnap.docs.map((doc) => doc.data());
+
+      // Keep the existing overall statistics and their behavior.
+      const uploadedRecords = history.filter((record) =>
+        isWithinDateRange(record.uploadDate)
+      );
+
+      const paidRecords = history.filter(
+        (record) =>
+          record.status === "Paid" &&
+          isWithinDateRange(record.paidAt)
+      );
+
+      const pending = history.filter(
+        (record) => record.status === "Pending"
+      ).length;
+
+      const awaiting = notify.filter(
+        (request) => !request.matched
+      ).length;
+
+      const matched = notify.filter(
+        (request) => request.matched
+      ).length;
+
+      // Calculate statistics independently for each document type.
+      const getDocumentTypeStats = (documentType) => {
+        const typeRecords = history.filter(
+          (record) =>
+            normalizeDocumentType(record.documentType) ===
+            documentType
+        );
+
+        const typeRequests = notify.filter((request) => {
+          const requestType = normalizeDocumentType(
+            request.normalizedDocumentType ||
+              request.documentType
+          );
+
+          return requestType === documentType;
         });
 
-    }
+        return {
+          uploaded: typeRecords.filter((record) =>
+            isWithinDateRange(record.uploadDate)
+          ).length,
 
+          pending: typeRecords.filter(
+            (record) => record.status === "Pending"
+          ).length,
+
+          paid: typeRecords.filter(
+            (record) =>
+              record.status === "Paid" &&
+              isWithinDateRange(record.paidAt)
+          ).length,
+
+          unmatched: typeRequests.filter(
+            (request) => !request.matched
+          ).length,
+
+          matched: typeRequests.filter(
+            (request) => request.matched
+          ).length,
+        };
+      };
+
+      const byDocumentType = {
+        idCards: getDocumentTypeStats("national_id"),
+
+        drivingLicences: getDocumentTypeStats(
+          "driving_license"
+        ),
+
+        birthCertificates: getDocumentTypeStats(
+          "birth_certificate"
+        ),
+      };
+
+      return res.json({
+        success: true,
+
+        // Existing fields retained for compatibility.
+        totalUploaded: uploadedRecords.length,
+        pending,
+        paid: paidRecords.length,
+        awaiting,
+        matched,
+
+        // New document-specific statistics.
+        byDocumentType,
+      });
+    } catch (err) {
+      console.error("Dashboard stats failed:", err);
+
+      return res.status(500).json({
+        success: false,
+        error: "Failed to load dashboard stats",
+      });
+    }
   }
 );
+
 
 // =========================
 // GET NOTIFY REQUESTS
