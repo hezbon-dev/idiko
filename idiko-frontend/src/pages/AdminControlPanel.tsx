@@ -378,8 +378,29 @@ if (loading) {
 
 }
    return (
-    <div style={{ color: "#fff", minHeight: "100vh", padding: "20px" }}>
+    <div
+  style={{
+    color: "#fff",
+    minHeight: "100vh",
+    padding: "20px",
+    width: "100%",
+    maxWidth: "1200px",
+    margin: "0 auto",
+    boxSizing: "border-box",
+  }}
+>
       <h1 style={{ textAlign: "center", marginBottom: "20px" }}></h1>
+
+
+<section
+  style={{
+    marginTop: 10,
+    textAlign: "center",
+  }}
+>
+  <h2 style={{ marginBottom: 20 }}>Overview</h2>
+</section>
+
 
       <div
   style={{
@@ -470,7 +491,6 @@ if (loading) {
   )}
 </div>
 
-
       <section style={{ marginTop: 30 }}>
         <h2>ID Cards</h2>
         <DocumentStatsSection
@@ -495,12 +515,35 @@ if (loading) {
         />
       </section>
 
-      <section style={{ marginTop: 30 }}>
-        <h2>Overview</h2>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
-          <StatBox label="Stations" value={totalStations} />
-        </div>
-      </section>
+
+<section style={{ marginTop: 30 }}>
+  <h2>Stations</h2>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "flex-start",
+      gap: 20,
+      width: "100%",
+    }}
+  >
+    <div
+      style={{
+        flex: "0 0 180px",
+        textAlign: "center",
+        padding: "16px 8px",
+        borderRadius: 10,
+        boxShadow: "0 4px 10px rgba(0,0,0,0.4)",
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ fontSize: 28, fontWeight: "bold" }}>
+        {totalStations}
+      </div>
+      <div style={{ marginTop: 6 }}>Stations</div>
+    </div>
+  </div>
+</section>
+
 
 
 <section style={{ marginTop: 40 }}>
@@ -588,7 +631,7 @@ const PeriodSpinner = () => (
 
 
 const StatBox = ({label,value,}: {label: string;value: ReactNode;}) => (
-  <div style={{ padding: 20, borderRadius: 10, minWidth: 180, textAlign: "center", boxShadow: "0 4px 10px rgba(0,0,0,0.4)" }}>
+  <div style={{ padding: "16px 8px", borderRadius: 10, flex: "1 1 0", minWidth: 0, textAlign: "center", boxShadow: "0 4px 10px rgba(0,0,0,0.4)" }}>
     <div style={{ fontSize: 28, fontWeight: "bold" }}>{value}</div>
     <div style={{ marginTop: 6 }}>{label}</div>
   </div>
@@ -609,13 +652,18 @@ const DocumentStatsSection = ({
   stats: DocumentStats;
   periodLoading: boolean;
 }) => (
-  <div
-    style={{
-      display: "flex",
-      flexWrap: "wrap",
-      gap: 20,
-    }}
-  >
+<div
+
+style={{
+  display: "flex",
+  flexWrap: "nowrap",
+  gap: 12,
+  justifyContent: "center",
+  width: "100%",
+  overflowX: "auto",
+}}
+
+>
     <StatBox
       label="Uploaded"
       value={periodLoading ? <PeriodSpinner /> : stats.uploaded}

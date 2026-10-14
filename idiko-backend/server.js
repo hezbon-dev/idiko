@@ -156,12 +156,12 @@ const documentType =
 let message;
 
 if (documentType === "driving_license") {
-  message = `Good news ${safeName}, your driving licence is ready for collection.Visit idiko.co.ke under(Search Document)to confirm,then visit Huduma Centre for collection.Thank you.`;
+  message = `Good news ${safeName}, your driving licence is ready for collection.Visit idiko.co.ke under(Search Document)to confirm,then visit Huduma Centre for collection.`;
 } else if (documentType === "birth_certificate") {
-  message = `Good news ${safeName}, your birth certificate is ready for collection.Visit idiko.co.ke under(Search Document)to confirm,then visit Huduma Centre for collection.Thank you.`;
+  message = `Good news ${safeName}, your birth certificate is ready for collection.Visit idiko.co.ke under(Search Document)to confirm,then visit Huduma Centre for collection.`;
 } else {
   // Preserve the existing National ID message
-  message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under(Search Document)to confirm,then visit Huduma Centre for collection.Thank you.`;
+  message = `Good news ${safeName}, your ID is ready for collection.Visit idiko.co.ke under(Search Document)to confirm,then visit Huduma Centre for collection.`;
 }
 
     console.log("📤 Sending SMS to:", phones);
