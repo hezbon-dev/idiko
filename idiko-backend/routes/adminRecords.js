@@ -448,24 +448,96 @@ router.post(
         .collection("trash")
         .doc(recordKey);
 
-      // Preserve the existing National ID notification cleanup.
-      // Driving licence and birth certificate matching will be
-      // handled separately.
-      let notifySnapshot = null;
+
+    // Find notification requests using the full document-aware match key.
+    // This prevents a driving licence from deleting a National ID request
+    // belonging to the same person and supports birth certificates.
+    const normalizeTrashText = (value = "") =>
+      String(value).trim().toLowerCase();
+
+    const normalizeTrashId = (value = "") =>
+      String(value)
+        .replace(/[\s\_-]+/g, "")
+        .trim()
+        .toLowerCase();
+
+    // Keep the same date-normalization rules used by userRoutes.js
+    // and the existing helper in this file.
+    const normalizeTrashDate = (dob = "") => {
+      const value = String(dob).trim();
+
+      if (!value) return "";
+
+      const parts = value.split(/\D+/);
+
+      if (parts.length !== 3 || parts.some(part => !part)) {
+        return "";
+      }
+
+      let day;
+      let month;
+      let year;
+
+      if (parts[0].length === 4) {
+        [year, month, day] = parts;
+      } else {
+        [day, month, year] = parts;
+      }
 
       if (
-        !existingRecord.documentType ||
-        existingRecord.documentType === "national_id"
+        year.length !== 4 ||
+        Number(month) < 1 ||
+        Number(month) > 12 ||
+        Number(day) < 1 ||
+        Number(day) > 31
       ) {
-        notifySnapshot = await db
-          .collection("notify_requests")
-          .where(
-            "idNumber",
-            "==",
-            existingRecord.idNumber
-          )
-          .get();
+        return "";
       }
+
+      return `${year.padStart(4, "0")}-${month.padStart(
+        2,
+        "0"
+      )}-${day.padStart(2, "0")}`;
+    };
+
+    const normalizeTrashSex = (value = "") => {
+      const v = normalizeTrashText(value);
+
+      if (v === "m" || v === "male") return "male";
+      if (v === "f" || v === "female") return "female";
+
+      return v;
+    };
+
+    // Older records without a documentType continue to be treated
+    // as National IDs, matching the existing upload compatibility rule.
+    const trashDocumentType =
+      existingRecord.documentType || "national_id";
+
+    const trashLocation =
+      trashDocumentType === "national_id" ||
+      trashDocumentType === "birth_certificate"
+        ? normalizeTrashText(
+            existingRecord.placeOfBirth ||
+              existingRecord.district ||
+              ""
+          )
+        : "";
+
+    const expectedMatchKey = [
+      trashDocumentType,
+      normalizeTrashText(existingRecord.fullName),
+      normalizeTrashId(existingRecord.idNumber || ""),
+      normalizeTrashDate(existingRecord.dob),
+      normalizeTrashSex(existingRecord.sex),
+      trashLocation,
+    ].join("|");
+
+    const notifySnapshot = await db
+      .collection("notify_requests")
+      .where("matchKey", "==", expectedMatchKey)
+      .get();
+
 
       // Move the record atomically between collections.
       // Permanent history remains untouched.
@@ -479,11 +551,9 @@ router.post(
 
       batch.delete(recordRef);
 
-      if (notifySnapshot) {
-        notifySnapshot.docs.forEach((docSnap) => {
-          batch.delete(docSnap.ref);
-        });
-      }
+notifySnapshot.docs.forEach((docSnap) => {
+  batch.delete(docSnap.ref);
+});
 
       await batch.commit();
 
