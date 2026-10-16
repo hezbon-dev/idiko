@@ -653,12 +653,26 @@ const normalizedDistrict =
         recordMatchKey,
       });
 
-      const notifyRef = db.collection("notify_requests");
 
-      // Exact key lookup prevents cross-document-type matches.
-      const candidatesSnapshot = await notifyRef
-        .where("matchKey", "==", recordMatchKey)
-        .get();
+const notifyRef = db.collection("notify_requests");
+
+let candidatesSnapshot;
+
+// National ID requests may have been created before the applicant
+// knew their ID number. Find those requests by document type first;
+// the identity checks below will determine whether one is a true match.
+if (record.documentType === "national_id") {
+  candidatesSnapshot = await notifyRef
+    .where("documentType", "==", "id")
+    .get();
+} else {
+  // Keep the existing exact-key matching for driving licences
+  // and birth certificates.
+  candidatesSnapshot = await notifyRef
+    .where("matchKey", "==", recordMatchKey)
+    .get();
+}
+
 
       // Verify the actual fields too; never trust the key alone.
       function isCorrectPendingRequest(request) {
@@ -716,17 +730,28 @@ const normalizedDistrict =
           return false;
         }
 
-        // National ID: type, name, ID number, DOB, sex,
-        // and place of birth (stored as district on old records).
+
+        // National ID: type, name, DOB, sex, and place of birth
+        // must match. A blank request ID is allowed for first-time
+        // applicants; a nonblank request ID must match the record.
         if (record.documentType === "national_id") {
+          const requestIdNumber = normalizeMatchId(
+            request.idNumber
+          );
+
+          const recordIdNumber = normalizeMatchId(
+            record.idNumber
+          );
+
           return (
-            normalizeMatchId(request.idNumber) ===
-              normalizeMatchId(record.idNumber) &&
+            (!requestIdNumber ||
+              requestIdNumber === recordIdNumber) &&
             normalizeText(
               request.placeOfBirth || request.district
             ) === normalizeText(record.placeOfBirth)
           );
         }
+
 
         // Driving licence: the ID number is the holder's
         // National ID number. No location is required.
@@ -793,11 +818,22 @@ const normalizedDistrict =
             sentCount: 0,
             status: "pending",
 
+
             // Store the canonical place of birth.
             placeOfBirth: record.placeOfBirth || "",
 
-            // Only records with an ID number populate this field.
+            // Fill the ID number from the uploaded record.
             idNumber: record.idNumber || "",
+
+            // Keep the request's match key synchronized with
+            // the uploaded record, including its actual ID number.
+            matchKey: recordMatchKey,
+
+            // Keep the normalized ID field synchronized too.
+            normalizedIdNumber: normalizeMatchId(
+              record.idNumber || ""
+            ),
+
           });
 
           return true;
