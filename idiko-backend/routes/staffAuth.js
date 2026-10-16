@@ -656,22 +656,40 @@ const normalizedDistrict =
 
 const notifyRef = db.collection("notify_requests");
 
-let candidatesSnapshot;
 
-// National ID requests may have been created before the applicant
-// knew their ID number. Find those requests by document type first;
-// the identity checks below will determine whether one is a true match.
-if (record.documentType === "national_id") {
-  candidatesSnapshot = await notifyRef
-    .where("documentType", "==", "id")
-    .get();
-} else {
-  // Keep the existing exact-key matching for driving licences
-  // and birth certificates.
-  candidatesSnapshot = await notifyRef
-    .where("matchKey", "==", recordMatchKey)
-    .get();
-}
+      let candidatesSnapshot;
+
+      if (record.documentType === "national_id") {
+        candidatesSnapshot = await notifyRef
+          .where("documentType", "==", "id")
+          .where(
+            "normalizedFullName",
+            "==",
+            normalizeText(record.fullName)
+          )
+          .where(
+            "normalizedDob",
+            "==",
+            normalizeDate(record.dob)
+          )
+          .where(
+            "normalizedSex",
+            "==",
+            normalizeSex(record.sex)
+          )
+          .where(
+            "normalizedPlaceOfBirth",
+            "==",
+            normalizeText(record.placeOfBirth)
+          )
+          .get();
+      } else {
+        // Preserve exact-key matching for other document types.
+        candidatesSnapshot = await notifyRef
+          .where("matchKey", "==", recordMatchKey)
+          .get();
+      }
+
 
 
       // Verify the actual fields too; never trust the key alone.
