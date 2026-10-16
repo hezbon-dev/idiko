@@ -195,19 +195,17 @@ router.post("/notify-request", async (req, res) => {
       });
     }
 
-    if (
-      (
-        documentType === "id" ||
-        documentType === "drivingLicence"
-      ) &&
-      !normalizedId
-    ) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "ID number is required for this document type",
-      });
-    }
+
+if (
+  documentType === "drivingLicence" &&
+  !normalizedId
+) {
+  return res.status(400).json({
+    success: false,
+    error: "ID number is required for a driving licence",
+  });
+}
+
 
     if (
       (
