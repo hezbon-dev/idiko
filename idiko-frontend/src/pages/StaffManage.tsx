@@ -511,16 +511,14 @@ const getRecordKey = (record: any): string =>
                       <button
                         onClick={() =>
                           navigate("/pay-to-claim", {
-                            state: {
-                              idNumber: record.idNumber,
-                              fullName: record.fullName,
-                              idImages: [
-                                record.frontImage,
-                                record.backImage,
-                              ].filter(Boolean),
-                              amount: 1,
-                              accountReference: record.idNumber,
-                            },
+state: {
+  recordId: getRecordKey(record),
+  idNumber: record.idNumber || "",
+  fullName: record.fullName,
+  idImages: [record.frontImage, record.backImage].filter(Boolean),
+  amount: 1,
+  accountReference: getRecordKey(record),
+},
                           })
                         }
                         style={{

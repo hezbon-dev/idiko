@@ -143,6 +143,40 @@ async function updatePaymentStatus(
     console.error("⚠️ History record update failed:", err);
   }
 
+  // Update notification requests linked to this exact record.
+try {
+  const notificationSnapshot = await db
+    .collection("notify_requests")
+    .where("matchedRecordId", "==", recordId)
+    .get();
+
+  for (const notificationDoc of notificationSnapshot.docs) {
+    await notificationDoc.ref.update({
+      status: "Paid",
+      paidAt,
+    });
+
+    console.log(
+      "✅ Notification request marked Paid:",
+      notificationDoc.id,
+      "for record:",
+      recordId
+    );
+  }
+
+  if (notificationSnapshot.empty) {
+    console.log(
+      "ℹ️ No notification request linked to record:",
+      recordId
+    );
+  }
+} catch (err) {
+  console.error(
+    "⚠️ Notification request update failed:",
+    err
+  );
+}
+
   // 2. Only after the main Firestore update succeeds,
   // mark the payment as paid in payments.json.
   const existingIndex = payments.findIndex(
@@ -340,114 +374,48 @@ return res.status(200).json({
 }
 
 // Extra route to allow frontend polling
-  function getPaymentStatus(req, res) {
+function getPaymentStatus(req, res) {
   const { checkoutRequestID } = req.params;
-
   const FILE_PATH = path.join(__dirname, "payments.json");
 
-// ✅ ENSURE FILE EXISTS
-  if (!fs.existsSync(FILE_PATH)) {
-    fs.writeFileSync(FILE_PATH, "[]");
-    console.log("📂 payments.json created");
-  }
-
-  let payments = [];
-
   try {
-   console.log(
-  "🔥 FULL FILE PATH:",
-  FILE_PATH
-);
-
-    const fileData = fs.readFileSync(FILE_PATH, "utf8");
-
-    payments =
-      fileData && fileData.trim() !== ""
-        ? JSON.parse(fileData)
-        : [];
-
-    if (!Array.isArray(payments)) {
-      payments = [];
+    if (!fs.existsSync(FILE_PATH)) {
+      return res.json({ status: "pending" });
     }
 
+    const fileData = fs.readFileSync(FILE_PATH, "utf8");
+    const payments = fileData.trim()
+      ? JSON.parse(fileData)
+      : [];
+
+    if (!Array.isArray(payments)) {
+      throw new Error(
+        "payments.json does not contain a valid array"
+      );
+    }
+
+    const payment = payments.find(
+      (p) => p.checkoutRequestID === checkoutRequestID
+    );
+
+    if (!payment) {
+      return res.json({ status: "pending" });
+    }
+
+    return res.json({
+      status: payment.status || "pending",
+    });
   } catch (err) {
-    console.error("❌ Failed to read payments file", err);
-    payments = [];
+    console.error(
+      "❌ Failed to check payment status:",
+      err
+    );
+
+    return res.status(500).json({
+      status: "error",
+      error: "Unable to check payment status",
+    });
   }
-
-  payments = cleanupOldPayments(payments);
-
-  fs.writeFileSync(
-  FILE_PATH,
-  JSON.stringify(payments, null, 2)
-);
-
-  const matchingPayments = payments.filter(
-  p => p.accountReference === checkoutRequestID
-);
-
-console.log("🔥 STATUS REQUEST FOR:", checkoutRequestID);
-
-console.log("🔥 PAYMENTS FILE CONTENT:");
-console.log(JSON.stringify(payments, null, 2));
-
-console.log("🔥 MATCHING PAYMENTS:");
-console.log(JSON.stringify(matchingPayments, null, 2));
-
-// ✅ PAID HAS HIGHEST PRIORITY
-
-const paidPayment = matchingPayments.find(
-  p => p.status === "paid"
-);
-
-if (paidPayment) {
-
-  console.log(
-    `📡 STATUS CHECK: ${checkoutRequestID} -> paid`
-  );
-
-  return res.json({
-    status: "paid",
-  });
-}
-
-// ✅ THEN PENDING
-
-const pendingPayment = matchingPayments.find(
-  p => p.status === "pending"
-);
-
-if (pendingPayment) {
-
-  console.log(
-    `📡 STATUS CHECK: ${checkoutRequestID} -> pending`
-  );
-
-  return res.json({
-    status: "pending",
-  });
-}
-
-// ✅ THEN FAILED
-
-const failedPayment = matchingPayments.find(
-  p => p.status === "failed"
-);
-
-if (failedPayment) {
-
-  console.log(
-    `📡 STATUS CHECK: ${checkoutRequestID} -> failed`
-  );
-
-  return res.json({
-    status: "failed",
-  });
-}
-
-return res.json({
-  status: "pending",
-});
 }
 
 module.exports = { mpesaCallback, getPaymentStatus };

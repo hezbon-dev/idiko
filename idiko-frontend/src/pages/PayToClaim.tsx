@@ -29,6 +29,7 @@ export default function PayToClaim({}: PayToClaimProps) {
   const [message, setMessage] = useState<string | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   if (!state) {
     return (
@@ -38,111 +39,175 @@ export default function PayToClaim({}: PayToClaimProps) {
     );
   }
 
-  const handlePay = async () => {
-    if (!phone) {
-      setMessage("📌 Please enter your phone number");
-      return;
-    }
+const handlePay = async () => {
+  if (!phone) {
+    setMessage("📌 Please enter your phone number");
+    return;
+  }
 
-    let formattedPhone = phone;
-    if (phone.startsWith("0")) {
-      formattedPhone = "254" + phone.slice(1);
-    } else if (!phone.startsWith("254")) {
-      setMessage("📌 Phone number must start with 0 or 254");
-      return;
-    }
+  let formattedPhone = phone;
 
-    setLoading(true);
-    setMessage(null);
+  if (phone.startsWith("0")) {
+    formattedPhone = "254" + phone.slice(1);
+  } else if (!phone.startsWith("254")) {
+    setMessage("📌 Phone number must start with 0 or 254");
+    return;
+  }
 
-    try {
-      const response = await axios.post(
-        "https://idiko.onrender.com/mpesa/stkpush",
-        {
-          phone: formattedPhone,
-          amount: state.amount,
-          accountReference: state.accountReference,
-          description: "ID Claim Payment",
-        }
-      );
+  // Always use the actual Firestore record ID.
+  const recordId = String(state.recordId || "").trim();
 
-      console.log("MPESA payment response:", response.data);
+  if (!recordId) {
+    setMessage(
+      "❌ Record information is missing. Please return to the record and try again."
+    );
+    return;
+  }
 
-      setMessage(
-        "✅ Payment request sent! Check your phone for the M-Pesa prompt."
-        
-      );
-
-      timeoutRef.current = setTimeout(() => {
-
-      clearInterval(pollInterval);
-
-      setLoading(false);
-
-       setMessage(
-            "❌ Payment timed out. Please try again."
-       );
-
-       }, 60000);
-
-      // ✅ START PAYMENT STATUS POLLING
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusResponse = await axios.get(
-  `https://idiko.onrender.com/mpesa/status/${state.accountReference}`
-);
-
-  console.log("📡 Payment status:", statusResponse.data.status);
-
-if (statusResponse.data.status === "paid") {
-
-  clearInterval(pollInterval);
+  // Prevent old timers from interfering with a new attempt.
+  if (pollIntervalRef.current) {
+    clearInterval(pollIntervalRef.current);
+    pollIntervalRef.current = null;
+  }
 
   if (timeoutRef.current) {
     clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
   }
 
+  setLoading(true);
+  setMessage(null);
 
-  markRecordPaidLocally(state.recordId);
+  try {
+    const response = await axios.post(
+      "https://idiko.onrender.com/mpesa/stkpush",
+      {
+        phone: formattedPhone,
+        amount: state.amount,
+        accountReference: recordId,
+        description: "ID Claim Payment",
+      }
+    );
 
-  setMessage("✅ Payment successful! Redirecting...");
+    console.log("MPESA payment response:", response.data);
 
-  setTimeout(() => {
-    navigate(`/claimed/${encodeURIComponent(state.recordId)}`);
-  }, 1000);
+    const checkoutRequestID =
+      response.data?.data?.CheckoutRequestID;
 
-}
+    if (!checkoutRequestID) {
+      throw new Error(
+        "M-Pesa did not return a CheckoutRequestID"
+      );
+    }
 
+    setMessage(
+      "✅ Payment request sent! Check your phone for the M-Pesa prompt."
+    );
 
-  if (statusResponse.data.status === "failed") {
+    // Check only the transaction initiated by this payment attempt.
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const statusResponse = await axios.get(
+          `https://idiko.onrender.com/mpesa/status/${encodeURIComponent(
+            checkoutRequestID
+          )}`
+        );
 
-  clearInterval(pollInterval);
+        const paymentStatus = statusResponse.data?.status;
 
-  if (timeoutRef.current) {
-    clearTimeout(timeoutRef.current);
-  }
+        console.log(
+          "📡 Payment status:",
+          checkoutRequestID,
+          paymentStatus
+        );
 
-  setLoading(false);
+        if (paymentStatus === "paid") {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
 
-  setMessage(
-    "❌ Payment failed. Please try again."
-  );
-}
-        } catch (err) {
-          console.error("❌ Status polling failed", err);
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+
+          setLoading(false);
+
+          markRecordPaidLocally(recordId);
+
+          setMessage(
+            "✅ Payment successful! Redirecting..."
+          );
+
+          setTimeout(() => {
+            navigate(
+              `/claimed/${encodeURIComponent(recordId)}`
+            );
+          }, 1000);
+        } else if (paymentStatus === "failed") {
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+          }
+
+          setLoading(false);
+
+          setMessage(
+            "❌ Payment failed. Please try again."
+          );
+        } else if (paymentStatus === "error") {
+          console.error(
+            "❌ Payment status endpoint reported an error"
+          );
         }
-      }, 10000);
+      } catch (err) {
+        console.error(
+          "❌ Status polling failed",
+          err
+        );
+      }
+    }, 5000);
 
-    } catch (error: any) {
-      console.error(error);
+    // Stop polling after 60 seconds if no final status arrives.
+    timeoutRef.current = setTimeout(() => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+
+      timeoutRef.current = null;
+      setLoading(false);
 
       setMessage(
-        "❌ Payment failed. Make sure your phone number is correct and try again."
+        "❌ We could not confirm the payment yet. Check your M-Pesa transaction before trying again."
       );
+    }, 60000);
+  } catch (error: any) {
+    console.error("❌ Payment initiation failed:", error);
 
-      setLoading(false);
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
     }
-  };
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    setMessage(
+      "❌ Payment could not be initiated. Check your phone number and try again."
+    );
+
+    setLoading(false);
+  }
+};
 
 return (
   <div
