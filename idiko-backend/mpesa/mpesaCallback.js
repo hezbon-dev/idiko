@@ -336,12 +336,23 @@ try {
         payments = [];
       }
 
-    } catch (err) {
-      console.error("❌ Failed to read payments file", err);
-      payments = [];
-    }
+} catch (err) {
+  console.error(
+    "❌ Cannot safely process successful callback: payment mapping could not be read",
+    err
+  );
+
+  // Do not guess which Firestore record received the payment.
+  throw err;
+}
 
     console.log("📦 PAYMENTS FOUND:", payments);
+
+    if (!existingPayment?.accountReference) {
+  throw new Error(
+    `No payment mapping found for CheckoutRequestID: ${CheckoutRequestID}`
+  );
+}
 
     const existingPayment = payments.find(
       p => p.checkoutRequestID === CheckoutRequestID

@@ -90,21 +90,13 @@ async function stkPush(req, res) {
 
     console.log("📦 Existing payments:", payments);
 
-// 🔥 CLOSE ANY OLD PENDING PAYMENTS FOR SAME ID
-
-payments.forEach((payment) => {
-  if (
-    payment.accountReference === accountReference &&
-    payment.status === "pending"
-  ) {
-    payment.status = "failed";
-
-    console.log(
-      "♻️ Old pending payment marked as FAILED:",
-      payment.checkoutRequestID
-    );
-  }
-});
+// Do not mark older pending attempts as failed here.
+// A previous STK Push may still complete or return a late callback.
+// Each attempt must retain its own CheckoutRequestID and status.
+console.log(
+  "ℹ️ Keeping previous payment attempts unchanged for:",
+  accountReference
+);
 
     const existingIndex = payments.findIndex(
       p => p.checkoutRequestID === response.data.CheckoutRequestID

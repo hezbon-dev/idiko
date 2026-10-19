@@ -103,7 +103,7 @@ useEffect(() => {
       
       
       <Link to="/admin/manage-ids" style={buttonStyle}>
-        Manage IDs
+        Manage Documents
       </Link>
       <Link to="/admin/notify-requests" style={buttonStyle}>
         Notification Requests
@@ -115,7 +115,7 @@ useEffect(() => {
         Manage Pickup Station
       </Link>
       <Link to="/admin/id-trash" style={buttonStyle}>
-        ID Trash
+        Trash
       </Link>
 
       {/* Logout */}
