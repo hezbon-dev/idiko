@@ -313,57 +313,58 @@ try {
     console.log("➡️ Phone:", paymentData.PhoneNumber);
     console.log("➡️ TransactionDate:", paymentData.TransactionDate);
 
-// ✅ Find existing payment and preserve accountReference
-    const FILE_PATH = path.join(__dirname, "payments.json");
+// Find the payment attempt using its unique CheckoutRequestID.
+const FILE_PATH = path.join(__dirname, "payments.json");
 
-// ✅ ENSURE FILE EXISTS
-    if (!fs.existsSync(FILE_PATH)) {
-      fs.writeFileSync(FILE_PATH, "[]");
-      console.log("📂 payments.json created");
-    }
+if (!fs.existsSync(FILE_PATH)) {
+  throw new Error(
+    "payments.json is missing; cannot safely identify the payment record"
+  );
+}
 
-    let payments = [];
+let payments;
 
-    try {
-      const fileData = fs.readFileSync(FILE_PATH, "utf8");
+try {
+  const fileData = fs.readFileSync(FILE_PATH, "utf8");
+  payments = fileData.trim() ? JSON.parse(fileData) : [];
 
-      payments =
-        fileData && fileData.trim() !== ""
-          ? JSON.parse(fileData)
-          : [];
-
-      if (!Array.isArray(payments)) {
-        payments = [];
-      }
-
+  if (!Array.isArray(payments)) {
+    throw new Error("payments.json does not contain a valid array");
+  }
 } catch (err) {
   console.error(
-    "❌ Cannot safely process successful callback: payment mapping could not be read",
+    "❌ Cannot read payment mapping for successful callback",
     err
   );
-
-  // Do not guess which Firestore record received the payment.
   throw err;
 }
 
-    console.log("📦 PAYMENTS FOUND:", payments);
+console.log("📦 PAYMENTS FOUND:", payments);
 
-    if (!existingPayment?.accountReference) {
+const existingPayment = payments.find(
+  (payment) =>
+    payment.checkoutRequestID === CheckoutRequestID
+);
+
+console.log("🔍 MATCHED PAYMENT:", existingPayment);
+
+if (!existingPayment || !existingPayment.accountReference) {
   throw new Error(
-    `No payment mapping found for CheckoutRequestID: ${CheckoutRequestID}`
+    `No accountReference found for CheckoutRequestID: ${CheckoutRequestID}`
   );
 }
 
-    const existingPayment = payments.find(
-      p => p.checkoutRequestID === CheckoutRequestID
-    );
+const accountReference = String(
+  existingPayment.accountReference
+).trim();
 
-    console.log("🔍 MATCHED PAYMENT:", existingPayment);
+if (!accountReference || accountReference === "unknown") {
+  throw new Error(
+    `Invalid accountReference for CheckoutRequestID: ${CheckoutRequestID}`
+  );
+}
 
-    const accountReference =
-      existingPayment?.accountReference || "unknown";
-
-    console.log("📌 ACCOUNT REFERENCE:", accountReference);
+console.log("📌 ACCOUNT REFERENCE:", accountReference);
 
 await updatePaymentStatus(
   CheckoutRequestID,
