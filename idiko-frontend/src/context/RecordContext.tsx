@@ -457,12 +457,7 @@ const markRecordPaidLocally = (
 ) => {
   setRecords(prev =>
     prev.map((record: any) =>
-      String(
-        record.recordId ||
-        record.id ||
-        record.originalRecordKey ||
-        ""
-      ) === recordId
+      getRecordKey(record) === recordId
         ? {
             ...record,
             status: "Paid",
@@ -471,6 +466,7 @@ const markRecordPaidLocally = (
     )
   );
 };
+
 
 
 
