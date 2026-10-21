@@ -56,7 +56,9 @@ try {
 
 // 🔵 MPESA (Daraja) integration
 const { stkPush } = require("./mpesa/stkPush");
-const { mpesaCallback, getPaymentStatus } = require("./mpesa/mpesaCallback");
+const {mpesaCallback,getPaymentStatus,getUnresolvedPaymentAttempts,} = require("./mpesa/mpesaCallback");
+
+const verifyAdminToken = require("./middleware/verifyAdminToken");
 
 console.log("🔥 AfricaTalking service imported");
 
@@ -185,6 +187,13 @@ app.post("/mpesa/callback", mpesaCallback);
 
 // 🔵 MPESA PAYMENT STATUS
 app.get("/mpesa/status/:checkoutRequestID", getPaymentStatus);
+
+// Admin-only, read-only report of unresolved payment attempts.
+app.get(
+  "/admin/mpesa/unresolved",
+  verifyAdminToken,
+  getUnresolvedPaymentAttempts
+);
 
 // 🔥 STATUS SYNC ROUTE
 let lastLoggedPaid = "";
