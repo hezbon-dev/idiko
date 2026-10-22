@@ -58,7 +58,7 @@ try {
 
 // 🔵 MPESA (Daraja) integration
 const { stkPush } = require("./mpesa/stkPush");
-const {mpesaCallback,getPaymentStatus,getUnresolvedPaymentAttempts,} = require("./mpesa/mpesaCallback");
+const { mpesaCallback, getPaymentStatus } = require("./mpesa/mpesaCallback");
 
 const verifyAdminToken = require("./middleware/verifyAdminToken");
 
