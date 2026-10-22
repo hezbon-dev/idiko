@@ -690,18 +690,19 @@ export default function AdminManageIDs() {
                     {record.status !== "Paid" && (
                       <button
                         onClick={() =>
-                          navigate("/pay-to-claim", {
-                            state: {
-                              idNumber: record.idNumber,
-                              fullName: record.fullName,
-                              idImages: [
-                                record.frontImage,
-                                record.backImage,
-                              ].filter(Boolean),
-                              amount: 1,
-                              accountReference:
-                                record.idNumber,
-                            },
+navigate("/pay-to-claim", {
+  state: {
+    recordId: getRecordKey(record),
+    documentType: getDocumentType(record),
+    idNumber: record.idNumber || "",
+    fullName: record.fullName,
+    idImages: [
+      record.frontImage,
+      record.backImage,
+    ].filter(Boolean),
+    amount: 1,
+    accountReference: getRecordKey(record),
+  },
                           })
                         }
                         style={{

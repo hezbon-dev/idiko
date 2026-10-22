@@ -1,32 +1,253 @@
-
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const admin = require("firebase-admin");
 
 const { getMpesaAccessToken } = require("./mpesaAuth");
 const { generateTimestamp, generatePassword } = require("./mpesaUtils");
-const { reconcileSavedCallback } = require("./mpesaCallback");
-const db = admin.firestore();
+
+const FILE_PATH = path.join(__dirname, "payments.json");
+
+const ALLOWED_DOCUMENT_TYPES = [
+  "national_id",
+  "driving_license",
+  "birth_certificate",
+];
+
+function normalizeDocumentType(value) {
+  const type = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  if (
+    type === "driving_licence" ||
+    type === "driving_license" ||
+    type === "licence" ||
+    type === "license"
+  ) {
+    return "driving_license";
+  }
+
+  if (
+    type === "birth_certificate" ||
+    type === "birth_cert"
+  ) {
+    return "birth_certificate";
+  }
+
+  if (
+    type === "national_id" ||
+    type === "national" ||
+    type === "id"
+  ) {
+    return "national_id";
+  }
+
+  return type;
+}
+
+function readPaymentsFile() {
+  if (!fs.existsSync(FILE_PATH)) {
+    fs.writeFileSync(FILE_PATH, "[]");
+    return [];
+  }
+
+  const contents = fs.readFileSync(FILE_PATH, "utf8");
+  const payments = contents.trim() ? JSON.parse(contents) : [];
+
+  if (!Array.isArray(payments)) {
+    throw new Error("payments.json must contain a JSON array");
+  }
+
+  return payments;
+}
+
+function writePaymentsFile(payments) {
+  fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
+}
+
+function cleanupOldPayments(payments) {
+  const now = Date.now();
+  const FAILED_RETENTION_MS = 24 * 60 * 60 * 1000;
+  const PAID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+  return payments.filter((payment) => {
+    if (payment.status === "failed" && payment.failedAt) {
+      const age = now - new Date(payment.failedAt).getTime();
+      return age < FAILED_RETENTION_MS;
+    }
+
+    if (payment.status === "paid" && payment.paidAt) {
+      const age = now - new Date(payment.paidAt).getTime();
+      return age < PAID_RETENTION_MS;
+    }
+
+    // Keep pending and uncertain payments.
+    return true;
+  });
+}
 
 /**
- * Send STK Push with a Firestore payment lock.
+ * Find the exact claim record in records.
  *
- * IMPORTANT:
- * - records/{recordId} is the claim document.
- * - paymentAttempts/{attemptId} stores each individual attempt.
- * - Only the callback should release a lock after confirmed failure.
+ * Preferred input:
+ *   recordId: the Firestore document ID
+ *
+ * Compatibility:
+ *   accountReference can still identify older National ID records.
+ *   documentType and fullName help distinguish document types.
  */
+async function resolveClaim({
+  recordId,
+  accountReference,
+  documentType,
+  fullName,
+}) {
+  const admin = require("firebase-admin");
+  const db = admin.firestore();
+
+  const suppliedRecordId = String(
+    recordId || accountReference || ""
+  ).trim();
+
+  const suppliedType = normalizeDocumentType(documentType);
+  const suppliedName = String(fullName || "").trim();
+
+  if (
+    suppliedType &&
+    !ALLOWED_DOCUMENT_TYPES.includes(suppliedType)
+  ) {
+    const error = new Error("Invalid documentType");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // First, try the actual Firestore document key.
+  if (suppliedRecordId) {
+    const directSnapshot = await db
+      .collection("records")
+      .doc(suppliedRecordId)
+      .get();
+
+    if (directSnapshot.exists) {
+      const data = directSnapshot.data() || {};
+      const actualType = normalizeDocumentType(
+        data.documentType || "national_id"
+      );
+
+      if (suppliedType && actualType !== suppliedType) {
+        const error = new Error(
+          "The supplied documentType does not match this claim"
+        );
+        error.statusCode = 409;
+        throw error;
+      }
+
+      if (
+        suppliedName &&
+        String(data.fullName || "").trim().toLowerCase() !==
+          suppliedName.toLowerCase()
+      ) {
+        const error = new Error(
+          "The supplied fullName does not match this claim"
+        );
+        error.statusCode = 409;
+        throw error;
+      }
+
+      return {
+        recordId: directSnapshot.id,
+        documentType: actualType,
+        fullName: String(data.fullName || "").trim(),
+        idNumber: String(data.idNumber || "").trim(),
+        record: data,
+      };
+    }
+  }
+
+  // Compatibility lookup for records where accountReference is an
+  // ID number rather than the Firestore document key.
+  const legacyId = String(accountReference || "").trim();
+
+  if (!legacyId) {
+    const error = new Error(
+      "recordId or accountReference is required"
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let query = db
+    .collection("records")
+    .where("idNumber", "==", legacyId);
+
+  if (suppliedType) {
+    query = query.where("documentType", "==", suppliedType);
+  } else {
+    // Older clients do not send documentType. Preserve the old
+    // National ID behavior instead of accidentally selecting a licence.
+    query = query.where("documentType", "==", "national_id");
+  }
+
+  const snapshot = await query.get();
+
+  let matches = snapshot.docs;
+
+  if (suppliedName) {
+    matches = matches.filter(
+      (doc) =>
+        String(doc.data()?.fullName || "")
+          .trim()
+          .toLowerCase() === suppliedName.toLowerCase()
+    );
+  }
+
+  if (matches.length === 0) {
+    const error = new Error(
+      "Claim record not found. Pass the correct recordId and documentType."
+    );
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (matches.length > 1) {
+    const error = new Error(
+      "More than one claim matched. Pass the exact recordId."
+    );
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const doc = matches[0];
+  const data = doc.data() || {};
+
+  return {
+    recordId: doc.id,
+    documentType: normalizeDocumentType(
+      data.documentType || "national_id"
+    ),
+    fullName: String(data.fullName || "").trim(),
+    idNumber: String(data.idNumber || "").trim(),
+    record: data,
+  };
+}
+
 async function stkPush(req, res) {
   console.log("🔥 STK PUSH ROUTE HIT");
 
-  const { phone, amount, accountReference } = req.body || {};
-  const recordId = String(accountReference || "").trim();
+  const {
+    phone,
+    amount,
+    accountReference,
+    recordId,
+    documentType,
+    fullName,
+  } = req.body || {};
 
-  if (!phone || !amount || !recordId) {
+  if (!phone || amount === undefined || amount === null) {
     return res.status(400).json({
       success: false,
-      error: "phone, amount and accountReference are required",
+      error: "phone and amount are required",
     });
   }
 
@@ -39,91 +260,92 @@ async function stkPush(req, res) {
     });
   }
 
-const rawPhone = String(phone ?? "").trim();
+  let formattedPhone = String(phone).trim();
 
-const normalizedPhone = rawPhone.startsWith("0")
-  ? `254${rawPhone.slice(1)}`
-  : rawPhone;
+  if (formattedPhone.startsWith("0")) {
+    formattedPhone = `254${formattedPhone.slice(1)}`;
+  }
 
-if (!/^254\d{9}$/.test(normalizedPhone)) {
-  return res.status(400).json({
-    success: false,
-    error: "Enter a valid Kenyan phone number",
-  });
-}
+  if (!/^254\d{9}$/.test(formattedPhone)) {
+    return res.status(400).json({
+      success: false,
+      error: "Enter a valid Kenyan phone number",
+    });
+  }
 
-  const recordRef = db.collection("records").doc(recordId);
-  const attemptRef = db.collection("paymentAttempts").doc();
-
-  let lockAcquired = false;
-  let requestSentToSafaricom = false;
+  let claim;
 
   try {
-    // Get credentials before reserving the claim.
+    claim = await resolveClaim({
+      recordId,
+      accountReference,
+      documentType,
+      fullName,
+    });
+  } catch (error) {
+    console.error("❌ Could not resolve claim:", error.message);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.message || "Could not find claim record",
+    });
+  }
+
+  const claimStatus = String(claim.record.status || "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    claimStatus === "paid" ||
+    String(claim.record.paymentStatus || "").toLowerCase() === "paid"
+  ) {
+    return res.status(409).json({
+      success: false,
+      error: "This claim has already been paid",
+    });
+  }
+
+  let payments;
+
+  try {
+    payments = cleanupOldPayments(readPaymentsFile());
+  } catch (error) {
+    console.error("❌ Could not read payments.json:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      error: "Could not read payment records",
+    });
+  }
+
+  // Do not start a second payment for this same claim while a previous
+  // checkout is still pending or its outcome is unknown.
+  const unresolvedPayment = payments.find(
+    (payment) =>
+      payment.recordId === claim.recordId &&
+      ["pending", "unknown", "processing"].includes(
+        String(payment.status || "").toLowerCase()
+      )
+  );
+
+  if (unresolvedPayment) {
+    return res.status(409).json({
+      success: false,
+      status: unresolvedPayment.status,
+      error:
+        "A previous payment is still being confirmed. Please wait before trying again.",
+      checkoutRequestID: unresolvedPayment.checkoutRequestID || null,
+    });
+  }
+
+  try {
     const accessToken = await getMpesaAccessToken();
     const timestamp = generateTimestamp();
     const password = generatePassword(timestamp);
 
-    // Reserve the claim atomically before sending an STK Push.
-    await db.runTransaction(async (transaction) => {
-      const recordSnapshot = await transaction.get(recordRef);
-
-      if (!recordSnapshot.exists) {
-        const error = new Error("Claim record was not found");
-        error.statusCode = 404;
-        throw error;
-      }
-
-      const record = recordSnapshot.data() || {};
-      const currentStatus = String(record.status || "").toLowerCase();
-
-      if (
-        currentStatus === "paid" ||
-        record.paymentStatus === "paid"
-      ) {
-        const error = new Error("This claim has already been paid");
-        error.statusCode = 409;
-        throw error;
-      }
-
-      // Do not allow a second attempt while the previous one is unresolved.
-      if (
-        record.paymentLockStatus === "pending" ||
-        record.paymentLockStatus === "unknown" ||
-        record.paymentLockStatus === "processing" ||
-        (
-          record.activePaymentAttemptId &&
-          record.paymentLockStatus !== "failed"
-        )
-      ) {
-        const error = new Error(
-          "A previous payment is still being confirmed. Please wait before trying again."
-        );
-        error.statusCode = 409;
-        throw error;
-      }
-
-      transaction.update(recordRef, {
-        paymentLockStatus: "pending",
-        activePaymentAttemptId: attemptRef.id,
-        activeCheckoutRequestID: null,
-        paymentLockUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      transaction.set(attemptRef, {
-        attemptId: attemptRef.id,
-        recordId,
-        accountReference: recordId,
-        phone: normalizedPhone,
-        amount: numericAmount,
-        status: "pending",
-        checkoutRequestID: null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    });
-
-    lockAcquired = true;
+    const mpesaAccountReference = String(
+      accountReference || claim.recordId
+    ).trim();
 
     const payload = {
       BusinessShortCode: process.env.MPESA_SHORTCODE,
@@ -131,17 +353,19 @@ if (!/^254\d{9}$/.test(normalizedPhone)) {
       Timestamp: timestamp,
       TransactionType: "CustomerPayBillOnline",
       Amount: numericAmount,
-      PartyA: normalizedPhone,
+      PartyA: formattedPhone,
       PartyB: process.env.MPESA_SHORTCODE,
-      PhoneNumber: normalizedPhone,
+      PhoneNumber: formattedPhone,
       CallBackURL: process.env.MPESA_CALLBACK_URL,
-      AccountReference: recordId,
+      AccountReference: mpesaAccountReference,
       TransactionDesc: "ID Claim Payment",
     };
 
-    console.log("📤 Sending STK Push for claim:", recordId);
-
-    requestSentToSafaricom = true;
+    console.log("📤 Sending STK Push:", {
+      recordId: claim.recordId,
+      documentType: claim.documentType,
+      fullName: claim.fullName,
+    });
 
     const response = await axios.post(
       "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
@@ -160,283 +384,87 @@ if (!/^254\d{9}$/.test(normalizedPhone)) {
     const checkoutRequestID = response.data?.CheckoutRequestID;
     const responseCode = String(response.data?.ResponseCode ?? "");
 
-// Only an explicit nonzero response code confirms rejection.
-// A missing checkout ID after an accepted response is ambiguous.
-if (responseCode !== "0") {
-  await db.runTransaction(async (transaction) => {
-    const recordSnapshot = await transaction.get(recordRef);
-    const attemptSnapshot = await transaction.get(attemptRef);
-
-    if (!attemptSnapshot.exists) {
-      throw new Error(
-        "Cannot safely release payment lock: attempt not found"
-      );
-    }
-
-    const attempt = attemptSnapshot.data() || {};
-
-    if (attempt.status === "paid") {
-      throw new Error(
-        "Payment attempt is already paid; refusing to mark it failed"
-      );
-    }
-
-    if (attempt.status !== "failed") {
-      transaction.update(attemptRef, {
-        status: "failed",
-        failureReason:
+    if (responseCode !== "0" || !checkoutRequestID) {
+      return res.status(502).json({
+        success: false,
+        error:
           response.data?.ResponseDescription ||
-          "Safaricom rejected the STK Push",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          "Safaricom did not accept the STK Push",
       });
     }
 
+    // Save the checkout-to-record mapping so the callback can identify
+    // the exact record without needing paymentAttempts in Firestore.
+    const paymentRecord = {
+      checkoutRequestID,
+      accountReference: mpesaAccountReference,
+      recordId: claim.recordId,
+      documentType: claim.documentType,
+      fullName: claim.fullName,
+      idNumber: claim.idNumber,
+      phone: formattedPhone,
+      amount: numericAmount,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
 
-if (recordSnapshot.exists) {
-  const record = recordSnapshot.data() || {};
-
-  const recordIsPaid =
-    String(record.status || "").toLowerCase() === "paid" ||
-    String(record.paymentStatus || "").toLowerCase() === "paid" ||
-    String(record.paymentLockStatus || "").toLowerCase() === "paid";
-
-  if (recordIsPaid) {
-    throw new Error(
-      "Claim is already paid; refusing to change payment state"
+    const existingIndex = payments.findIndex(
+      (payment) =>
+        payment.checkoutRequestID === checkoutRequestID
     );
-  }
 
-  // Release only this attempt's lock, never another attempt's lock.
-  if (record.activePaymentAttemptId === attemptRef.id) {
-    transaction.update(recordRef, {
-      paymentLockStatus: "failed",
-      activePaymentAttemptId: null,
-      activeCheckoutRequestID: null,
-      paymentLockUpdatedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-}
-
-  });
-
-  return res.status(502).json({
-    success: false,
-    error:
-      response.data?.ResponseDescription ||
-      "Safaricom rejected the payment request",
-  });
-}
-
-if (!checkoutRequestID) {
-  // Safaricom reported acceptance, but we cannot identify the transaction.
-  // Keep the lock; never treat this as a confirmed failure.
-  await db.runTransaction(async (transaction) => {
-    const recordSnapshot = await transaction.get(recordRef);
-    const attemptSnapshot = await transaction.get(attemptRef);
-
-    if (attemptSnapshot.exists) {
-      transaction.update(attemptRef, {
-        status: "unknown",
-        responseCode,
-        responseDescription:
-          response.data?.ResponseDescription || null,
-        failureReason: "Accepted response did not include a checkout ID",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+    if (existingIndex >= 0) {
+      payments[existingIndex] = {
+        ...payments[existingIndex],
+        ...paymentRecord,
+      };
+    } else {
+      payments.push(paymentRecord);
     }
-
-    if (
-      recordSnapshot.exists &&
-      recordSnapshot.data()?.activePaymentAttemptId === attemptRef.id
-    ) {
-      transaction.update(recordRef, {
-        paymentLockStatus: "unknown",
-        paymentLockUpdatedAt:
-          admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-  });
-
-  return res.status(503).json({
-    success: false,
-    status: "unknown",
-    error:
-      "Safaricom may have accepted the request, but its transaction ID could not be confirmed. Do not retry; the payment needs reconciliation.",
-  });
-}
-
-    // Attach the exact Safaricom checkout ID to the durable attempt.
-    await db.runTransaction(async (transaction) => {
-      const recordSnapshot = await transaction.get(recordRef);
-      const attemptSnapshot = await transaction.get(attemptRef);
-
-      if (!recordSnapshot.exists || !attemptSnapshot.exists) {
-        throw new Error("Payment reservation could not be found");
-      }
-
-      const record = recordSnapshot.data() || {};
-
-      if (record.activePaymentAttemptId !== attemptRef.id) {
-        throw new Error(
-          "Payment reservation changed unexpectedly; manual reconciliation required"
-        );
-      }
-
-      transaction.update(attemptRef, {
-        checkoutRequestID,
-        merchantRequestID: response.data?.MerchantRequestID || null,
-        responseCode,
-        responseDescription: response.data?.ResponseDescription || null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      transaction.update(recordRef, {
-        activeCheckoutRequestID: checkoutRequestID,
-        paymentLockUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    });
-
-    // The checkout ID is now saved. Reconcile any callback that arrived early.
-try {
-  await reconcileSavedCallback(checkoutRequestID);
-} catch (reconciliationError) {
-  console.error(
-    "⚠️ Saved callback reconciliation needs recovery:",
-    checkoutRequestID,
-    reconciliationError.message
-  );
-}
-
-    // Temporary compatibility copy for the existing callback/status code.
-    // Firestore remains authoritative for the lock and attempt record.
-    const FILE_PATH = path.join(__dirname, "payments.json");
 
     try {
-      let payments = [];
-
-      if (fs.existsSync(FILE_PATH)) {
-        const fileData = fs.readFileSync(FILE_PATH, "utf8");
-        const parsed = fileData.trim() ? JSON.parse(fileData) : [];
-        payments = Array.isArray(parsed) ? parsed : [];
-      }
-
-      const paymentRecord = {
-        checkoutRequestID,
-        accountReference: recordId,
-        status: "pending",
-      };
-
-      const existingIndex = payments.findIndex(
-        (payment) => payment.checkoutRequestID === checkoutRequestID
-      );
-
-      if (existingIndex >= 0) {
-        payments[existingIndex] = {
-          ...payments[existingIndex],
-          ...paymentRecord,
-        };
-      } else {
-        payments.push(paymentRecord);
-      }
-
-      fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
-      console.log("✅ Temporary payments.json compatibility copy saved");
+      writePaymentsFile(payments);
     } catch (fileError) {
-      // Do not unlock: Safaricom has accepted the request and Firestore
-      // already has its checkout ID. The JSON copy is no longer authoritative.
+      // Safaricom has accepted the request, but without this mapping
+      // the callback cannot safely determine which claim to update.
       console.error(
-        "⚠️ Could not update payments.json compatibility copy:",
+        "❌ Safaricom accepted the request but payments.json could not be saved:",
         fileError.message
       );
+
+      return res.status(503).json({
+        success: false,
+        status: "unknown",
+        checkoutRequestID,
+        error:
+          "Safaricom accepted the payment request, but its local payment mapping could not be saved. Do not retry yet; check the payment status.",
+      });
     }
 
     return res.json({
       success: true,
       message: "STK Push sent successfully",
       data: response.data,
+      record: {
+        recordId: claim.recordId,
+        documentType: claim.documentType,
+        fullName: claim.fullName,
+      },
     });
   } catch (error) {
     console.error("❌ STK PUSH FAILED:", error.message);
 
-    /*
-     * If we reserved the claim but had not yet sent the request to Safaricom,
-     * it is safe to release our reservation.
-     *
-     * Once the request may have reached Safaricom, keep the lock. A network
-     * timeout does not prove that Safaricom rejected the payment.
-     */
-    if (lockAcquired && !requestSentToSafaricom) {
-      try {
-        await db.runTransaction(async (transaction) => {
-          const recordSnapshot = await transaction.get(recordRef);
-          const attemptSnapshot = await transaction.get(attemptRef);
-
-if (recordSnapshot.exists) {
-  const record = recordSnapshot.data() || {};
-
-  const recordIsPaid =
-    String(record.status || "").toLowerCase() === "paid" ||
-    String(record.paymentStatus || "").toLowerCase() === "paid" ||
-    String(record.paymentLockStatus || "").toLowerCase() === "paid";
-
-  if (
-    !recordIsPaid &&
-    record.activePaymentAttemptId === attemptRef.id
-  ) {
-    transaction.update(recordRef, {
-      paymentLockStatus: "failed",
-      activePaymentAttemptId: null,
-      activeCheckoutRequestID: null,
-      paymentLockUpdatedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-    });
-  }
-}
-
-if (
-  attemptSnapshot.exists &&
-  String(attemptSnapshot.data()?.status || "").toLowerCase() !== "paid"
-) {
-  transaction.update(attemptRef, {
-    status: "failed",
-    failureReason: error.message,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-}
-
-        });
-      } catch (releaseError) {
-        console.error(
-          "❌ Could not release pre-request reservation:",
-          releaseError.message
-        );
-      }
-    }
-
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        error: error.message,
-      });
-    }
-
     if (error.response) {
-      console.error("🔴 Safaricom/HTTP error:", error.response.data);
+      console.error("🔴 Safaricom response:", error.response.data);
     }
 
-    if (requestSentToSafaricom) {
-      return res.status(503).json({
-        success: false,
-        status: "unknown",
-        error:
-          "We could not confirm the STK Push response. Do not retry yet; the payment is being held for confirmation.",
-      });
-    }
-
-    return res.status(500).json({
+    return res.status(error.response ? 502 : 500).json({
       success: false,
-      error: error.message || "STK Push failed",
+      error:
+        error.response?.data?.errorMessage ||
+        error.response?.data?.ResponseDescription ||
+        error.message ||
+        "STK Push failed",
     });
   }
 }

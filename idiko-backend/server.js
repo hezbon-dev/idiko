@@ -1,3 +1,5 @@
+// server.js
+
 require("dotenv").config();
 
 const requiredEnvVars = [
@@ -188,12 +190,6 @@ app.post("/mpesa/callback", mpesaCallback);
 // 🔵 MPESA PAYMENT STATUS
 app.get("/mpesa/status/:checkoutRequestID", getPaymentStatus);
 
-// Admin-only, read-only report of unresolved payment attempts.
-app.get(
-  "/admin/mpesa/unresolved",
-  verifyAdminToken,
-  getUnresolvedPaymentAttempts
-);
 
 // 🔥 STATUS SYNC ROUTE
 let lastLoggedPaid = "";
@@ -295,19 +291,6 @@ const ALL_HISTORY_CLEANUP_INTERVAL =
   180 * 24 * 60 * 60 * 1000; // every 6 months
 
 let lastAllHistoryCleanupRun = 0;
-
-
-// =======================================
-// PAYMENT ATTEMPT CLEANUP SETTINGS
-// =======================================
-
-const PAYMENT_ATTEMPT_RETENTION_MS = 
-24 * 60 * 60 * 1000;
-
-const PAYMENT_ATTEMPT_CLEANUP_INTERVAL_MS =
- 60 * 60 * 1000;
- 
-let lastPaymentAttemptCleanupRun = 0;
 
 // =======================================
 // PHASE 4 — NEXT NOTIFICATION SCHEDULING
@@ -623,44 +606,6 @@ if (
         PAID_RECORD_RETENTION_DAYS
       ) {
 
-
-
- // Delete payment attempts older than 24 hours.
-// Run at most once per hour; delete in small batches.
-if (
-  Date.now() - lastPaymentAttemptCleanupRun >=
-  PAYMENT_ATTEMPT_CLEANUP_INTERVAL_MS
-) {
-  lastPaymentAttemptCleanupRun = Date.now();
-
-  try {
-    const cutoff = admin.firestore.Timestamp.fromDate(
-      new Date(Date.now() - PAYMENT_ATTEMPT_RETENTION_MS)
-    );
-
-    const oldAttempts = await db
-      .collection("paymentAttempts")
-      .where("createdAt", "<=", cutoff)
-      .limit(400)
-      .get();
-
-    if (!oldAttempts.empty) {
-      const batch = db.batch();
-
-      oldAttempts.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      await batch.commit();
-
-      console.log(
-        `🧹 Deleted ${oldAttempts.size} payment attempts older than 24 hours`
-      );
-    }
-  } catch (error) {
-    console.error("⚠️ Payment attempt cleanup failed:", error);
-  }
-}
 
         // =======================================
         // DELETE FROM records

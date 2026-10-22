@@ -1,4 +1,3 @@
-// src/pages/PayToClaim.tsx
 
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
@@ -7,35 +6,34 @@ import { useRecords } from "../context/RecordContext";
 
 interface PayToClaimProps {}
 
+interface PaymentPageState {
+  recordId?: string;
+  idNumber?: string;
+  fullName?: string;
+  idImages?: string[];
+  amount?: number;
+  accountReference?: string;
+  documentType?: string;
+}
+
 export default function PayToClaim({}: PayToClaimProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { markRecordPaidLocally } = useRecords();
 
-
-
-  const state = location.state as {
-    recordId: string;
-    idNumber: string;
-    fullName: string;
-    idImages: string[];
-    amount: number;
-    accountReference: string;
-  };
-
+  const state = location.state as PaymentPageState | null;
 
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [paymentUnresolved, setPaymentUnresolved] = useState(false);
-  
-const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-const isCheckingStatusRef = useRef(false);
 
-useEffect(() => {
-  return () => {
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const stopPolling = () => {
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
@@ -45,361 +43,316 @@ useEffect(() => {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-
-    if (navigationTimeoutRef.current) {
-      clearTimeout(navigationTimeoutRef.current);
-      navigationTimeoutRef.current = null;
-    }
   };
-}, []);
 
+  useEffect(() => {
+    return () => {
+      stopPolling();
+
+      if (redirectRef.current) {
+        clearTimeout(redirectRef.current);
+      }
+    };
+  }, []);
 
   if (!state) {
     return (
       <div style={{ padding: 20, color: "#fff" }}>
-        <h2>No ID info provided</h2>
+        <h2>No claim information provided</h2>
       </div>
     );
   }
 
+  // recordId is the Firestore document ID.
+  // accountReference remains as a fallback for older navigation callers.
+  const recordId = String(
+    state.recordId || state.accountReference || ""
+  ).trim();
 
-const handlePay = async () => {
-  if (paymentUnresolved) {
-    setMessage(
-      "Your previous payment is still being checked. Please do not start another payment."
-    );
-    return;
-  }
+  const amount = state.amount ?? 1;
+  const idImages = state.idImages ?? [];
 
-  if (!phone.trim() || !/^(254|0)\d{9}$/.test(phone.trim())) {
-    setMessage("Please enter a valid M-Pesa phone number.");
-    return;
-  }
+  const handlePay = async () => {
+    if (loading) {
+      return;
+    }
 
-  const formattedPhone = phone.trim().startsWith("0")
-    ? `254${phone.trim().substring(1)}`
-    : phone.trim();
-
-  const recordId = state.recordId;
-
-  if (!recordId) {
-    setMessage("The claim reference is missing. Please return and try again.");
-    return;
-  }
-
-  if (pollIntervalRef.current) {
-    clearInterval(pollIntervalRef.current);
-    pollIntervalRef.current = null;
-  }
-
-  if (timeoutRef.current) {
-    clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
-  }
-
-  setLoading(true);
-  setMessage("Sending payment request to your phone...");
-
-  let checkoutRequestID = "";
-
-  try {
-    const response = await axios.post(
-      "https://idiko.onrender.com/mpesa/stkpush",
-      {
-        phone: formattedPhone,
-        amount: state.amount,
-        accountReference: recordId,
-        description: "ID claim payment",
-      }
-    );
-
-    console.log(
-  "STK PUSH FRONTEND RESPONSE:",
-  JSON.stringify(response.data, null, 2)
-);
-console.log("STK PUSH RECORD ID:", recordId);
-
-    checkoutRequestID =
-      response.data?.data?.CheckoutRequestID ||
-      response.data?.CheckoutRequestID ||
-      "";
-
-    if (!checkoutRequestID) {
-      // The server response is not enough to prove that Safaricom
-      // did not receive the request. Keep retry blocked.
-      setPaymentUnresolved(true);
-      setLoading(false);
+    if (!recordId) {
       setMessage(
-        "We could not confirm the checkout reference. Do not pay again yet. Please contact support to check your payment."
+        "❌ Claim information is missing. Please return to the previous page and select the record again."
       );
       return;
     }
 
-    setPaymentUnresolved(true);
-    setMessage(
-      "Payment request sent. Please complete the M-Pesa prompt on your phone."
-    );
-
-const checkPaymentStatus = async (): Promise<boolean> => {
-  // Prevent overlapping status requests.
-  if (isCheckingStatusRef.current) {
-    return false;
-  }
-
-  isCheckingStatusRef.current = true;
-
-  try {
-    const statusResponse = await axios.get(
-      `https://idiko.onrender.com/mpesa/status/${encodeURIComponent(
-        checkoutRequestID
-      )}`
-    );
-
-    const status = String(
-      statusResponse.data?.status || "unknown"
-    ).toLowerCase();
-
-    if (status === "paid") {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-
-      setLoading(false);
-      setPaymentUnresolved(true);
-      setMessage("Payment confirmed. Opening your claim...");
-
-      markRecordPaidLocally(recordId);
-
-      navigationTimeoutRef.current = setTimeout(() => {
-        navigate(`/claimed/${recordId}`);
-      }, 1000);
-
-      return true;
+    if (!phone.trim()) {
+      setMessage("📌 Please enter your phone number");
+      return;
     }
 
-    if (status === "failed") {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
+    const cleanPhone = phone.replace(/[\s-]/g, "");
+    let formattedPhone = cleanPhone;
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-
-      setLoading(false);
-      setPaymentUnresolved(false);
-      setMessage(
-        "The payment was declined or cancelled. You can try again."
-      );
-
-      return true;
-    }
-
-    // Pending, unknown, or any non-terminal status:
-    // keep retry blocked and continue checking.
-    return false;
-  } catch (error) {
-    // A status-check network error is not proof of payment failure.
-    console.error("Payment status check failed:", error);
-    return false;
-  } finally {
-    isCheckingStatusRef.current = false;
-  }
-};
-
-// Check immediately before creating any timers.
-// If payment is already paid or failed, do not start polling.
-const isTerminal = await checkPaymentStatus();
-
-if (!isTerminal) {
-  pollIntervalRef.current = setInterval(() => {
-    void checkPaymentStatus();
-  }, 5000);
-
-  timeoutRef.current = setTimeout(() => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-
-    timeoutRef.current = null;
-    setLoading(false);
-
-    // Intentionally keep paymentUnresolved true.
-    // A frontend timeout is not a confirmed payment failure.
-    setMessage(
-      "Payment is taking longer than expected. Do not initiate another payment. Please contact support to check the existing payment before retrying."
-    );
-  }, 60000);
-}
-
-  } catch (error: any) {
-    console.error("Payment initiation error:", error);
-
-    setLoading(false);
-
-    if (checkoutRequestID) {
-      // The checkout exists; keep retry blocked until its status is definitive.
-      setPaymentUnresolved(true);
-      setMessage(
-        "We could not confirm the payment status. Please do not pay again while we check the existing request."
-      );
-    } else if (
-      error?.response?.status === 400 &&
-      error?.response?.data?.status === "error"
-    ) {
-      // Only show a validation message here. Other errors may be ambiguous.
-      setMessage(
-        error?.response?.data?.message ||
-          "The payment request could not be validated."
-      );
+    if (/^0[17]\d{8}$/.test(cleanPhone)) {
+      formattedPhone = `254${cleanPhone.slice(1)}`;
+    } else if (/^254[17]\d{8}$/.test(cleanPhone)) {
+      formattedPhone = cleanPhone;
+    } else if (/^\+254[17]\d{8}$/.test(cleanPhone)) {
+      formattedPhone = cleanPhone.slice(1);
     } else {
-      // A network error or server error could occur after Safaricom
-      // received the request, so do not assume it failed.
-      setPaymentUnresolved(true);
       setMessage(
-        "We could not confirm whether the payment request was received. Do not try again yet. Please check with support before making another payment."
+        "📌 Enter a valid Kenyan mobile number, for example 0712345678 or 254712345678."
+      );
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+    stopPolling();
+
+    try {
+      const response = await axios.post(
+        "https://idiko.onrender.com/mpesa/stkpush",
+        {
+          phone: formattedPhone,
+          amount,
+
+          // Keep the account reference for compatibility.
+          accountReference: state.accountReference || recordId,
+
+          // Identify the exact Firestore claim and document type.
+          recordId,
+          documentType: state.documentType,
+          fullName: state.fullName,
+
+          description: "ID Claim Payment",
+        }
+      );
+
+      console.log("MPESA payment response:", response.data);
+
+      const checkoutRequestID =
+        response.data?.data?.CheckoutRequestID ||
+        response.data?.CheckoutRequestID;
+
+      if (!response.data?.success || !checkoutRequestID) {
+        setLoading(false);
+        setMessage(
+          "❌ Payment request failed. Please check your phone number and try again."
+        );
+        return;
+      }
+
+      setMessage(
+        "✅ Payment request sent! Check your phone for the M-Pesa prompt."
+      );
+
+      let finished = false;
+      let checkingStatus = false;
+
+      const finishPolling = () => {
+        finished = true;
+        stopPolling();
+        setLoading(false);
+      };
+
+      const checkPaymentStatus = async () => {
+        if (finished || checkingStatus) {
+          return;
+        }
+
+        checkingStatus = true;
+
+        try {
+          const statusResponse = await axios.get(
+            `https://idiko.onrender.com/mpesa/status/${encodeURIComponent(
+              checkoutRequestID
+            )}`
+          );
+
+          const status = String(
+            statusResponse.data?.status || "pending"
+          ).toLowerCase();
+
+          console.log("📡 Payment status:", status);
+
+          if (status === "paid") {
+            finishPolling();
+
+            markRecordPaidLocally(recordId);
+            setMessage("✅ Payment successful! Redirecting...");
+
+            redirectRef.current = setTimeout(() => {
+              navigate(`/claimed/${encodeURIComponent(recordId)}`);
+            }, 1000);
+
+            return;
+          }
+
+          if (status === "failed") {
+            finishPolling();
+            setMessage("❌ Payment failed. Please try again.");
+          }
+        } catch (error) {
+          console.error("❌ Status polling failed", error);
+        } finally {
+          checkingStatus = false;
+        }
+      };
+
+      // Check immediately, then poll every 5 seconds.
+      await checkPaymentStatus();
+
+      if (!finished) {
+        pollIntervalRef.current = setInterval(() => {
+          void checkPaymentStatus();
+        }, 5000);
+
+        timeoutRef.current = setTimeout(() => {
+          finishPolling();
+          setMessage(
+            "❌ Payment timed out. Please check your M-Pesa messages before trying again."
+          );
+        }, 60000);
+      }
+    } catch (error: any) {
+      console.error("❌ STK Push request error:", error);
+
+      setLoading(false);
+      setMessage(
+        "❌ Payment request failed. Make sure your phone number is correct and try again."
       );
     }
-  }
-};
+  };
 
-
-return (
-  <div
-    style={{
-      padding: 20,
-      color: "#fff",
-      minHeight: "100vh",
-      display: "flex",
-      justifyContent: "center",
-    }}
-  >
-<div
-  style={{
-    width: "100%",
-    maxWidth: "700px",
-  }}
->
-
-      <h2 style={{ textAlign: "center", marginBottom: 20 }}>
-        Pay to Claim Your ID
-      </h2>
-
+  return (
+    <div
+      style={{
+        padding: 20,
+        color: "#fff",
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+      }}
+    >
       <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 20,
-  }}
->
-        {state.idImages.map((img, idx) => (
-          <img
-            key={idx}
-            src={img}
-            alt={`ID Pic ${idx + 1}`}
-            style={{ maxWidth: 300, borderRadius: 10, border: "2px solid #fff" }}
-          />
-        ))}
-      </div>
+        style={{
+          width: "100%",
+          maxWidth: "700px",
+        }}
+      >
+        <h2 style={{ textAlign: "center", marginBottom: 20 }}>
+          Pay to Claim Your ID
+        </h2>
 
-      <div
-  style={{
-    marginTop: 30,
-    maxWidth: 400,
-    width: "100%",
-    marginLeft: "auto",
-    marginRight: "auto",
-  }}
->
-        <div style={{ marginBottom: 15 }}>
-          <label>Amount (KES)</label>
-          <input
-            type="number"
-            value={state.amount}
-            readOnly
-            style={{
-              width: "100%",
-              padding: 10,
-              borderRadius: 6,
-              background: "#111",
-              color: "#fff",
-              border: "1px solid #333",
-            }}
-          />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 20,
+          }}
+        >
+          {idImages.map((img, idx) => (
+            <img
+              key={idx}
+              src={img}
+              alt={`ID Pic ${idx + 1}`}
+              style={{
+                maxWidth: 300,
+                borderRadius: 10,
+                border: "2px solid #fff",
+              }}
+            />
+          ))}
         </div>
 
-        <div style={{ marginBottom: 15 }}>
-          <label>Phone Number</label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="07"
+        <div
+          style={{
+            marginTop: 30,
+            maxWidth: 400,
+            width: "100%",
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          <div style={{ marginBottom: 15 }}>
+            <label>Amount (KES)</label>
+            <input
+              type="number"
+              value={amount}
+              readOnly
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 6,
+                background: "#111",
+                color: "#fff",
+                border: "1px solid #333",
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 15 }}>
+            <label>Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="07"
+              disabled={loading}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 6,
+                background: "#111",
+                color: "#fff",
+                border: "1px solid #333",
+              }}
+            />
+          </div>
+
+          {message && (
+            <div
+              style={{
+                marginBottom: 15,
+                color: message.startsWith("✅") ? "lime" : "red",
+              }}
+            >
+              {message}
+            </div>
+          )}
+
+          <button
+            onClick={handlePay}
+            disabled={loading}
             style={{
               width: "100%",
-              padding: 10,
-              borderRadius: 6,
-              background: "#111",
+              padding: 6,
+              background: "green",
               color: "#fff",
-              border: "1px solid #333",
-            }}
-          />
-        </div>
-
-        {message && (
-          <div
-            style={{
-              marginBottom: 15,
-              color: message.startsWith("✅") ? "lime" : "red",
+              fontWeight: "bold",
+              borderRadius: 20,
+              cursor: loading ? "not-allowed" : "pointer",
+              fontSize: 16,
+              opacity: loading ? 0.7 : 1,
             }}
           >
-            {message}
-          </div>
-        )}
+            {loading ? "Processing..." : "Pay"}
+          </button>
 
-        <button
-          onClick={handlePay}
-          disabled={loading || paymentUnresolved}
-          style={{
-            width: "100%",
-            padding: 6,
-            background: "green",
-            color: "#fff",
-            fontWeight: "bold",
-            borderRadius: 20,
-            cursor: "pointer",
-            fontSize: 16,
-          }}
-        >
-          {loading ? "Processing..." : "Pay"}
-        </button>
-
-        <Link
-          to="/"
-          style={{
-            display: "block",
-            textAlign: "center",
-            marginTop: 15,
-            color: "#fff",
-          }}
-        >
-          &lt; Home
-        </Link>
+          <Link
+            to="/"
+            style={{
+              display: "block",
+              textAlign: "center",
+              marginTop: 15,
+              color: "#fff",
+            }}
+          >
+            &lt; Home
+          </Link>
+        </div>
       </div>
-
     </div>
-
-  </div>
-
   );
 }

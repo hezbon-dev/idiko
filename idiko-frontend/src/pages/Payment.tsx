@@ -115,23 +115,45 @@ const [zoomImage, setZoomImage] = useState<string | null>(null);
   };
 
 // ✅ SECURE: Redirect to PayToClaim (no unlocking here)
-  const handlePayment = () => {
-    if (!record) return;
+const handlePayment = () => {
+  if (!record) return;
 
-navigate("/pay-to-claim", {
-  state: {
-    recordId: record.recordId,
-    idNumber: record.idNumber || "",
-    fullName: record.fullName,
-    idImages: [
-      record.frontImage,
-      record.backImage,
-    ].filter(Boolean),
-    amount: 1,
-    accountReference: record.recordId,
-  },
-});
-  };
+  const type = String(record.documentType || "national_id")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  const documentType =
+    type === "driving_license" || type === "driving_licence"
+      ? "driving_license"
+      : type === "birth_certificate" || type === "birth_cert"
+        ? "birth_certificate"
+        : "national_id";
+
+  const recordId = String(
+    record.id || record.recordId || ""
+  ).trim();
+
+  if (!recordId) {
+    alert("Could not identify this document. Please try again.");
+    return;
+  }
+
+  navigate("/pay-to-claim", {
+    state: {
+      recordId,
+      documentType,
+      idNumber: record.idNumber || "",
+      fullName: record.fullName,
+      idImages: [
+        record.frontImage,
+        record.backImage,
+      ].filter(Boolean),
+      amount: 1,
+      accountReference: recordId,
+    },
+  });
+};
 
 if (loading) {
 

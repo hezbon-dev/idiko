@@ -1,9 +1,13 @@
-
 /**
  * M-Pesa STK Push Callback Handler
  *
- * Firestore is authoritative for payment attempts and claim locks.
- * payments.json is retained only as a compatibility/status-polling copy.
+ * payments.json stores the checkout-to-claim mapping.
+
+ *
+ * Supported document types:
+ *   - national_id
+ *   - driving_license
+ *   - birth_certificate
  */
 
 const fs = require("fs");
@@ -12,10 +16,44 @@ const admin = require("firebase-admin");
 
 const db = admin.firestore();
 
+const FILE_PATH = path.join(__dirname, "payments.json");
+
 const FAILED_RETENTION_MS = 24 * 60 * 60 * 1000;
 const PAID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-const FILE_PATH = path.join(__dirname, "payments.json");
+function normalizeDocumentType(value) {
+  const type = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  if (
+    type === "driving_licence" ||
+    type === "driving_license" ||
+    type === "licence" ||
+    type === "license"
+  ) {
+    return "driving_license";
+  }
+
+  if (
+    type === "birth_certificate" ||
+    type === "birth_cert"
+  ) {
+    return "birth_certificate";
+  }
+
+  if (
+    type === "national_id" ||
+    type === "national" ||
+    type === "id"
+  ) {
+    return "national_id";
+  }
+
+  // Older records without documentType are treated as National IDs.
+  return type || "national_id";
+}
 
 function cleanupOldPayments(payments) {
   const now = Date.now();
@@ -31,13 +69,14 @@ function cleanupOldPayments(payments) {
       return age < PAID_RETENTION_MS;
     }
 
-    // Keep pending and unknown outcomes.
+    // Pending, processing and unknown outcomes are retained.
     return true;
   });
 }
 
 function readPaymentsFile() {
   if (!fs.existsSync(FILE_PATH)) {
+    fs.writeFileSync(FILE_PATH, "[]");
     return [];
   }
 
@@ -45,112 +84,60 @@ function readPaymentsFile() {
   const payments = contents.trim() ? JSON.parse(contents) : [];
 
   if (!Array.isArray(payments)) {
-    throw new Error("payments.json does not contain a valid array");
+    throw new Error("payments.json must contain a JSON array");
   }
 
   return payments;
 }
 
-function writeCompatibilityPayment(paymentRecord) {
-  try {
-    let payments = readPaymentsFile();
-    payments = cleanupOldPayments(payments);
-
-    const index = payments.findIndex(
-      (payment) =>
-        payment.checkoutRequestID === paymentRecord.checkoutRequestID
-    );
-
-    if (index >= 0) {
-      payments[index] = { ...payments[index], ...paymentRecord };
-    } else {
-      payments.push(paymentRecord);
-    }
-
-    fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
-  } catch (error) {
-    // Firestore remains authoritative; a local-file failure must not
-    // undo a confirmed payment or a Firestore lock transition.
-    console.error("⚠️ Could not update payments.json:", error.message);
-  }
+function writePaymentsFile(payments) {
+  fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
 }
 
+function updatePaymentInFile(checkoutRequestID, updates) {
+  let payments = cleanupOldPayments(readPaymentsFile());
 
-async function recordCallbackConflict({
-  checkoutRequestID,
-  attemptId,
-  recordId,
-  existingStatus,
-  incomingStatus,
-  resultCode = null,
-  resultDescription = null,
-  reason,
-}) {
-  const conflictRef = db
-    .collection("mpesaCallbackConflicts")
-    .doc(checkoutRequestID);
-
-  await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(conflictRef);
-    const now = admin.firestore.FieldValue.serverTimestamp();
-
-    const conflict = {
-      checkoutRequestID,
-      attemptId,
-      recordId,
-      existingStatus,
-      incomingStatus,
-      resultCode,
-      resultDescription,
-      reason,
-      updatedAt: now,
-    };
-
-    if (!snapshot.exists) {
-      transaction.set(conflictRef, {
-        ...conflict,
-        createdAt: now,
-        resolved: false,
-        occurrences: 1,
-      });
-    } else {
-      transaction.update(conflictRef, {
-        ...conflict,
-        resolved: false,
-        occurrences:
-          Number(snapshot.data()?.occurrences || 0) + 1,
-      });
-    }
-  });
-
-  console.error(
-    "🚨 M-Pesa callback conflict recorded:",
-    checkoutRequestID,
-    reason
+  const index = payments.findIndex(
+    (payment) =>
+      payment.checkoutRequestID === checkoutRequestID
   );
-}
 
-
-/**
- * Locate the attempt using the exact CheckoutRequestID.
- * Never infer a record ID from an unverified callback payload.
- */
-async function findPaymentAttempt(checkoutRequestID) {
-  if (!checkoutRequestID) {
-    return null;
+  if (index === -1) {
+    throw new Error(
+      `No payments.json entry found for ${checkoutRequestID}`
+    );
   }
 
-  const snapshot = await db
-    .collection("paymentAttempts")
-    .where("checkoutRequestID", "==", checkoutRequestID)
-    .limit(2)
-    .get();
+  const existing = payments[index];
 
-  // Multiple matches are ambiguous, so do not update anything.
-  if (snapshot.size !== 1) {
-    if (snapshot.size > 1) {
+  // Never let a later failure callback downgrade a confirmed payment.
+  if (
+    String(existing.status || "").toLowerCase() === "paid" &&
+    String(updates.status || "").toLowerCase() === "failed"
+  ) {
+    return existing;
+  }
+
+  payments[index] = {
+    ...existing,
+    ...updates,
+  };
+
+  writePaymentsFile(payments);
+
+  return payments[index];
+}
+
+function findPaymentByCheckoutId(payments, checkoutRequestID) {
+  const matches = payments.filter(
+    (payment) =>
+      payment.checkoutRequestID === checkoutRequestID
+  );
+
+  if (matches.length !== 1) {
+    if (matches.length > 1) {
       console.error(
-        "❌ Multiple payment attempts match CheckoutRequestID:",
+        "❌ Duplicate checkout IDs found in payments.json:",
         checkoutRequestID
       );
     }
@@ -158,12 +145,192 @@ async function findPaymentAttempt(checkoutRequestID) {
     return null;
   }
 
-  const doc = snapshot.docs[0];
+  return matches[0];
+}
+
+async function updateFirestoreClaimAsPaid(payment, paymentData) {
+  const recordId = String(payment.recordId || "").trim();
+
+  if (!recordId) {
+    throw new Error(
+      "Payment mapping has no recordId; refusing to guess the claim"
+    );
+  }
+
+  const documentType = normalizeDocumentType(
+    payment.documentType
+  );
+
+  const paidAt = new Date().toISOString();
+  const recordRef = db.collection("records").doc(recordId);
+  const historyRef = db
+    .collection("allHistoryRecords")
+    .doc(recordId);
+
+  const recordSnapshot = await recordRef.get();
+
+  if (!recordSnapshot.exists) {
+    throw new Error(
+      `Claim record not found in records: ${recordId}`
+    );
+  }
+
+  const record = recordSnapshot.data() || {};
+  const actualType = normalizeDocumentType(
+    record.documentType
+  );
+
+  // Check the stored payment mapping against the current record.
+  if (
+    payment.documentType &&
+    actualType !== documentType
+  ) {
+    throw new Error(
+      `Document type mismatch for record ${recordId}`
+    );
+  }
+
+  if (
+    payment.fullName &&
+    String(record.fullName || "").trim().toLowerCase() !==
+      String(payment.fullName).trim().toLowerCase()
+  ) {
+    throw new Error(
+      `Claim name mismatch for record ${recordId}`
+    );
+  }
+
+  // If the record is already paid, keep that status and do not downgrade it.
+  const alreadyPaid =
+    String(record.status || "").trim().toLowerCase() === "paid" ||
+    String(record.paymentStatus || "").trim().toLowerCase() === "paid";
+
+  if (!alreadyPaid) {
+    await recordRef.update({
+      status: "Paid",
+      paidAt,
+      mpesaReceipt: paymentData.MpesaReceiptNumber,
+    });
+  }
+
+  // The upload flow stores the same record key in allHistoryRecords.
+  try {
+    const historySnapshot = await historyRef.get();
+
+    if (historySnapshot.exists) {
+      const historyData = historySnapshot.data() || {};
+      const historyType = normalizeDocumentType(
+        historyData.documentType
+      );
+
+      if (
+        historyData.documentType &&
+        historyType !== documentType
+      ) {
+        console.warn(
+          "⚠️ History document type differs; leaving history unchanged:",
+          recordId
+        );
+      } else {
+        await historyRef.update({
+          status: "Paid",
+          paidAt,
+        });
+      }
+    } else {
+      console.log(
+        "ℹ️ No allHistoryRecords document found for:",
+        recordId
+      );
+    }
+  } catch (error) {
+    // Keep the main record paid even if the history update fails.
+    console.error("⚠️ History record update failed:", error.message);
+  }
+
+  // Preferred notification linkage: exact record ID.
+  try {
+    const updatedNotificationIds = new Set();
+
+    const linkedSnapshot = await db
+      .collection("notify_requests")
+      .where("matchedRecordId", "==", recordId)
+      .get();
+
+    for (const notificationDoc of linkedSnapshot.docs) {
+      await notificationDoc.ref.update({
+        status: "Paid",
+        paidAt,
+      });
+
+      updatedNotificationIds.add(notificationDoc.id);
+    }
+
+    // Compatibility for older notification requests that were linked
+    // by ID number instead of matchedRecordId.
+    //
+    // This fallback is only applicable when an ID number exists.
+    // Document type and name are checked before changing any request.
+    const idNumber = String(
+      payment.idNumber || record.idNumber || ""
+    ).trim();
+
+    if (idNumber) {
+      const legacySnapshot = await db
+        .collection("notify_requests")
+        .where("idNumber", "==", idNumber)
+        .get();
+
+      for (const notificationDoc of legacySnapshot.docs) {
+        if (updatedNotificationIds.has(notificationDoc.id)) {
+          continue;
+        }
+
+        const notification = notificationDoc.data() || {};
+
+        const notificationType = normalizeDocumentType(
+          notification.documentType
+        );
+
+        const typeMatches =
+          !notification.documentType ||
+          notificationType === documentType;
+
+        const nameMatches =
+          !notification.fullName ||
+          String(notification.fullName).trim().toLowerCase() ===
+            String(payment.fullName || record.fullName || "")
+              .trim()
+              .toLowerCase();
+
+        if (typeMatches && nameMatches) {
+          await notificationDoc.ref.update({
+            status: "Paid",
+            paidAt,
+          });
+        }
+      }
+    }
+  } catch (error) {
+    // A notification update failure must not undo the confirmed payment.
+    console.error(
+      "⚠️ Notification request update failed:",
+      error.message
+    );
+  }
+
+  console.log("✅ Firestore claim marked paid:", {
+    recordId,
+    documentType,
+    fullName: payment.fullName || record.fullName || "",
+  });
 
   return {
-    ref: doc.ref,
-    id: doc.id,
-    data: doc.data(),
+    recordId,
+    documentType,
+    fullName: payment.fullName || record.fullName || "",
+    paidAt,
+    alreadyPaid,
   };
 }
 
@@ -172,200 +339,50 @@ async function markPaymentFailed(
   resultCode,
   resultDescription
 ) {
-  const attempt = await findPaymentAttempt(checkoutRequestID);
-
-  if (!attempt) {
-    // The callback may arrive before stkPush.js saves the checkout ID.
-    // Return an error so this callback is not treated as safely processed.
-    throw new Error(
-      `No unique Firestore payment attempt found for ${checkoutRequestID}`
-    );
-  }
-
-  const recordId = String(attempt.data.recordId || "").trim();
-
-  if (!recordId) {
-    throw new Error(
-      `Payment attempt ${attempt.id} has no recordId`
-    );
-  }
-
-  const recordRef = db.collection("records").doc(recordId);
-  const now = new Date().toISOString();
-
-  const outcome = await db.runTransaction(async (transaction) => {
-    const attemptDoc = await transaction.get(attempt.ref);
-    const recordDoc = await transaction.get(recordRef);
-
-    if (!attemptDoc.exists) {
-      throw new Error("Payment attempt disappeared during callback");
-    }
-
-    if (!recordDoc.exists) {
-      throw new Error(`Claim record not found: ${recordId}`);
-    }
-
-    const currentAttempt = attemptDoc.data();
-    const record = recordDoc.data();
-
-
-
-const attemptStatus = String(
-  currentAttempt.status || "pending"
-).toLowerCase();
-
-const recordStatus = String(
-  record.status || ""
-).toLowerCase();
-
-const paymentStatus = String(
-  record.paymentStatus || ""
-).toLowerCase();
-
-const paymentLockStatus = String(
-  record.paymentLockStatus || ""
-).toLowerCase();
-
-const claimIsPaid =
-  attemptStatus === "paid" ||
-  recordStatus === "paid" ||
-  paymentStatus === "paid" ||
-  paymentLockStatus === "paid";
-
-if (claimIsPaid) {
-  return {
-    alreadyPaid: true,
-    released: false,
-    conflict: true,
-    existingStatus:
-      attemptStatus === "paid"
-        ? "paid"
-        : recordStatus === "paid"
-        ? "paid"
-        : paymentStatus === "paid"
-        ? "paid"
-        : paymentLockStatus,
-  };
-}
-
-
-if (attemptStatus === "failed") {
-  return {
-    alreadyFailed: true,
-    released: false,
-  };
-}
-
-
-    // Do not overwrite a different, terminal attempt.
-    if (
-      currentAttempt.checkoutRequestID !== checkoutRequestID
-    ) {
-      throw new Error("CheckoutRequestID does not match the attempt");
-    }
-
-    transaction.update(attempt.ref, {
-      status: "failed",
-      failureCode: resultCode,
-      failureReason: resultDescription || "Payment failed",
-      failedAt: now,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Release only if this exact attempt still owns the active lock.
-    const isActiveAttempt =
-      record.activePaymentAttemptId === attempt.id &&
-      record.activeCheckoutRequestID === checkoutRequestID;
-
-    if (
-      isActiveAttempt &&
-      record.paymentLockStatus !== "paid" &&
-      String(record.status || "").toLowerCase() !== "paid"
-    ) {
-      transaction.update(recordRef, {
-        paymentLockStatus: "failed",
-        activePaymentAttemptId: null,
-        activeCheckoutRequestID: null,
-        paymentLockUpdatedAt:
-          admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return { alreadyPaid: false, released: true };
-    }
-
-    return { alreadyPaid: false, released: false };
-  });
-
-if (outcome.alreadyPaid) {
-  await recordCallbackConflict({
-    checkoutRequestID,
-    attemptId: attempt.id,
-    recordId,
-    existingStatus: outcome.existingStatus || "paid",
-    incomingStatus: "failed",
-    resultCode,
-    resultDescription,
-    reason: "Failure callback received for an already-paid payment",
-  });
-
-  console.log(
-    "⚠️ Failure callback conflicts with an already-paid claim:",
+  const payments = cleanupOldPayments(readPaymentsFile());
+  const payment = findPaymentByCheckoutId(
+    payments,
     checkoutRequestID
   );
 
-  return {
-    alreadyPaid: true,
-    conflict: true,
-    reason: "failure_callback_after_payment",
-  };
-}
+  if (!payment) {
+    throw new Error(
+      `No unique payment mapping found for ${checkoutRequestID}`
+    );
+  }
 
-if (outcome.alreadyFailed) {
-  console.log(
-    "ℹ️ Duplicate failure callback ignored:",
-    checkoutRequestID
-  );
-  return { alreadyFailed: true };
-}
+  // Do not change an already-paid payment to failed.
+  if (String(payment.status || "").toLowerCase() === "paid") {
+    console.warn(
+      "ℹ️ Ignoring failure callback for an already-paid payment:",
+      checkoutRequestID
+    );
+    return;
+  }
 
-  writeCompatibilityPayment({
-    checkoutRequestID,
-    accountReference: recordId,
+  updatePaymentInFile(checkoutRequestID, {
     status: "failed",
-    failedAt: now,
+    failedAt: new Date().toISOString(),
     failureCode: resultCode,
     failureReason: resultDescription || "Payment failed",
   });
 
-  console.log(
-    outcome.released
-      ? "✅ Failed attempt recorded; its active lock was released:"
-      : "ℹ️ Failed attempt recorded; active lock was not changed:",
+  console.log("❌ Payment marked failed:", checkoutRequestID);
+}
+
+async function markPaymentSuccessful(
+  checkoutRequestID,
+  paymentData
+) {
+  const payments = cleanupOldPayments(readPaymentsFile());
+  const payment = findPaymentByCheckoutId(
+    payments,
     checkoutRequestID
   );
 
-  return {
-    alreadyPaid: false,
-    alreadyFailed: false,
-    conflict: false,
-    released: Boolean(outcome.released),
-  };
-}
-
-async function markPaymentSuccessful(checkoutRequestID, paymentData) {
-  const attempt = await findPaymentAttempt(checkoutRequestID);
-
-  if (!attempt) {
+  if (!payment) {
     throw new Error(
-      `No unique Firestore payment attempt found for ${checkoutRequestID}`
-    );
-  }
-
-  const recordId = String(attempt.data.recordId || "").trim();
-
-  if (!recordId || recordId === "unknown") {
-    throw new Error(
-      `Invalid recordId on payment attempt ${attempt.id}`
+      `No unique payment mapping found for ${checkoutRequestID}`
     );
   }
 
@@ -379,414 +396,48 @@ async function markPaymentSuccessful(checkoutRequestID, paymentData) {
     );
   }
 
-  const recordRef = db.collection("records").doc(recordId);
-  const paidAt = new Date().toISOString();
-
-  // Mark the payment attempt and main record together.
-  const outcome = await db.runTransaction(async (transaction) => {
-    const attemptDoc = await transaction.get(attempt.ref);
-    const recordDoc = await transaction.get(recordRef);
-
-    if (!attemptDoc.exists) {
-      throw new Error("Payment attempt disappeared during callback");
-    }
-
-    if (!recordDoc.exists) {
-      throw new Error(`No Firestore record found for ${recordId}`);
-    }
-
-    const currentAttempt = attemptDoc.data();
-    const record = recordDoc.data();
-
-    if (currentAttempt.checkoutRequestID !== checkoutRequestID) {
-      throw new Error("CheckoutRequestID does not match the attempt");
-    }
-
-    // Idempotency: a duplicate success callback must not redo the payment.
-  
-const attemptStatus = String(
-  currentAttempt.status || "pending"
-).toLowerCase();
-
-const recordStatus = String(record.status || "").toLowerCase();
-
-const recordPaymentStatus = String(
-  record.paymentStatus || ""
-).toLowerCase();
-
-const recordPaymentLockStatus = String(
-  record.paymentLockStatus || ""
-).toLowerCase();
-
-const callbackAmount = Number(paymentData.Amount);
-const expectedAmount = Number(currentAttempt.amount);
-
-if (
-  !Number.isFinite(callbackAmount) ||
-  !Number.isFinite(expectedAmount) ||
-  callbackAmount <= 0 ||
-  callbackAmount !== expectedAmount
-) {
-  // Do not mark an amount-mismatched payment as paid.
-  // Preserve a paid claim as paid; otherwise freeze this active attempt.
+  // Validate the callback amount against the amount saved when the
+  // STK Push was started.
   if (
-    recordStatus !== "paid" &&
-    record.activePaymentAttemptId === attempt.id
+    payment.amount !== undefined &&
+    Number(payment.amount) !== Number(paymentData.Amount)
   ) {
-    transaction.update(recordRef, {
-      paymentLockStatus: "unknown",
-      activeCheckoutRequestID: checkoutRequestID,
-      paymentLockUpdatedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-    });
+    throw new Error(
+      `Payment amount mismatch for ${checkoutRequestID}`
+    );
   }
 
-  return {
-    alreadyPaid: false,
-    conflict: true,
-    existingStatus:
-      attemptStatus === "paid" ? "paid" : recordStatus || attemptStatus,
-    reason: "callback_amount_mismatch",
-    expectedAmount,
-    callbackAmount,
-  };
-}
-
-if (
-  attemptStatus === "paid" &&
-  recordStatus === "paid"
-) {
-  return { alreadyPaid: true };
-}
-
-if (attemptStatus === "failed") {
-  // A late success conflicts with the recorded failure.
-  // Never overwrite a different active attempt's identifiers.
-  const activeAttemptId = record.activePaymentAttemptId || null;
-  const activeCheckoutId = record.activeCheckoutRequestID || null;
-
-  if (
-    recordStatus !== "paid" &&
-    (!activeAttemptId || activeAttemptId === attempt.id)
-  ) {
-    transaction.update(recordRef, {
-      paymentLockStatus: "unknown",
-      activePaymentAttemptId: attempt.id,
-      activeCheckoutRequestID: checkoutRequestID,
-      paymentLockUpdatedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-    });
-  } else if (
-    recordStatus !== "paid" &&
-    activeAttemptId === attempt.id &&
-    activeCheckoutId !== checkoutRequestID
-  ) {
-    // The same attempt's identifiers disagree. Freeze without guessing.
-    transaction.update(recordRef, {
-      paymentLockStatus: "unknown",
-      paymentLockUpdatedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-    });
+  // If the callback is a duplicate, keep the confirmed payment status.
+  if (String(payment.status || "").toLowerCase() === "paid") {
+    console.log(
+      "ℹ️ Duplicate success callback; payment is already paid:",
+      checkoutRequestID
+    );
+    return;
   }
 
-  return {
-    alreadyPaid: false,
-    conflict: true,
-    existingStatus: "failed",
-    reason: "success_callback_after_failed_attempt",
-  };
-}
-
-const claimAlreadyPaid =
-  recordStatus === "paid" ||
-  recordPaymentStatus === "paid" ||
-  recordPaymentLockStatus === "paid";
-
-if (claimAlreadyPaid && attemptStatus !== "paid") {
-  return {
-    alreadyPaid: false,
-    conflict: true,
-    existingStatus: "paid",
-    reason: "claim_already_paid_by_another_payment_state",
-  };
-}
-
-
-    transaction.update(attempt.ref, {
-      status: "paid",
-      amount: paymentData.Amount,
-      mpesaReceipt: paymentData.MpesaReceiptNumber,
-      phone: paymentData.PhoneNumber || null,
-      transactionDate: paymentData.TransactionDate || null,
-      paidAt,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // A confirmed successful payment closes the claim to further attempts.
-    transaction.update(recordRef, {
-      status: "Paid",
-      paidAt,
-      paymentLockStatus: "paid",
-      activePaymentAttemptId: attempt.id,
-      activeCheckoutRequestID: checkoutRequestID,
-      paymentLockUpdatedAt:
-        admin.firestore.FieldValue.serverTimestamp(),
-      mpesaReceipt: paymentData.MpesaReceiptNumber,
-    });
-
-    return { alreadyPaid: false };
-  });
-
-  
-if (outcome.conflict) {
-  await recordCallbackConflict({
-    checkoutRequestID,
-    attemptId: attempt.id,
-    recordId,
-    existingStatus: outcome.existingStatus,
-    incomingStatus: "paid",
-    resultCode: 0,
-    reason:
-      outcome.reason ||
-      "Success callback conflicts with an existing terminal payment state",
-  });
-
-  console.error(
-    "⚠️ Success callback needs investigation:",
-    checkoutRequestID,
-    outcome.reason || "terminal payment state conflict"
+  // Update Firestore using the exact saved recordId.
+  const result = await updateFirestoreClaimAsPaid(
+    payment,
+    paymentData
   );
 
-  return {
-    conflict: true,
-    reason: outcome.reason || "terminal_payment_state_conflict",
-  };
-}
-
-
-if (outcome.alreadyPaid) {
-  console.log(
-    "ℹ️ Duplicate success callback; payment already recorded:",
-    checkoutRequestID
-  );
-
-  return {
-    alreadyPaid: true,
-    conflict: false,
-    duplicate: true,
-  };
-}
-
-  // Keep the existing history-record behavior.
-  try {
-    const historyRef = db
-      .collection("allHistoryRecords")
-      .doc(recordId);
-    const historyDoc = await historyRef.get();
-
-    if (historyDoc.exists) {
-      await historyRef.update({
-        status: "Paid",
-        paidAt,
-      });
-      console.log("✅ History record marked Paid:", recordId);
-    } else {
-      console.log(
-        "ℹ️ No history document found for record ID:",
-        recordId
-      );
-    }
-  } catch (error) {
-    console.error("⚠️ History record update failed:", error);
-  }
-
-  // Keep the existing notification-request behavior.
-  try {
-    const notificationSnapshot = await db
-      .collection("notify_requests")
-      .where("matchedRecordId", "==", recordId)
-      .get();
-
-    for (const notificationDoc of notificationSnapshot.docs) {
-      await notificationDoc.ref.update({
-        status: "Paid",
-        paidAt,
-      });
-    }
-
-    if (notificationSnapshot.empty) {
-      console.log(
-        "ℹ️ No notification request linked to record:",
-        recordId
-      );
-    }
-  } catch (error) {
-    console.error("⚠️ Notification request update failed:", error);
-  }
-
-  writeCompatibilityPayment({
-    checkoutRequestID,
-    accountReference: recordId,
+  // Update payments.json after the Firestore claim has been updated.
+  updatePaymentInFile(checkoutRequestID, {
     status: "paid",
     amount: paymentData.Amount,
     mpesaReceipt: paymentData.MpesaReceiptNumber,
-    phone: paymentData.PhoneNumber || null,
+    phone: paymentData.PhoneNumber || payment.phone || null,
     transactionDate: paymentData.TransactionDate || null,
-    paidAt,
+    paidAt: result.paidAt,
   });
 
-  console.log(
-    "✅ Payment marked PAID in Firestore:",
+  console.log("✅ Payment marked paid:", {
     checkoutRequestID,
-    recordId
-  );
-}
-
-
-/**
- * Reconcile a callback that arrived before its payment attempt
- * had its CheckoutRequestID saved.
- *
- * The callback is marked processed only after the existing payment
- * handler finishes successfully.
- */
-async function reconcileSavedCallback(checkoutRequestID) {
-  const callbackRef = db
-    .collection("unmatchedMpesaCallbacks")
-    .doc(checkoutRequestID);
-
-  const savedSnapshot = await callbackRef.get();
-
-  if (!savedSnapshot.exists) {
-    return { reconciled: false, reason: "no_saved_callback" };
-  }
-
-  const saved = savedSnapshot.data() || {};
-
-  if (saved.processed === true) {
-    return { reconciled: true, alreadyProcessed: true };
-  }
-
-  const callback = saved.callback;
-
-  if (!callback || callback.CheckoutRequestID !== checkoutRequestID) {
-    throw new Error("Saved callback checkout ID does not match its document");
-  }
-
-  // Do not process until the exact attempt can be found.
-  const attempt = await findPaymentAttempt(checkoutRequestID);
-
-  if (!attempt) {
-    return { reconciled: false, reason: "attempt_not_found" };
-  }
-
-  const resultCode = Number(callback.ResultCode);
-
-  if (!Number.isFinite(resultCode)) {
-    throw new Error("Saved callback has an invalid ResultCode");
-  }
-
-let processingResult;
-
-if (resultCode !== 0) {
-  processingResult = await markPaymentFailed(
-    checkoutRequestID,
-    callback.ResultCode,
-    callback.ResultDesc
-  );
-} else {
-  const paymentData = {};
-  const items = callback.CallbackMetadata?.Item;
-
-  if (Array.isArray(items)) {
-    for (const item of items) {
-      if (item?.Name) {
-        paymentData[item.Name] =
-          item.Value !== undefined ? item.Value : null;
-      }
-    }
-  }
-
-  processingResult = await markPaymentSuccessful(
-    checkoutRequestID,
-    paymentData
-  );
-}
-
-if (processingResult?.conflict) {
-  console.error(
-    "⚠️ Saved callback remains unresolved due to a payment conflict:",
-    checkoutRequestID
-  );
-
-  return {
-    reconciled: false,
-    reason: processingResult.reason || "payment_conflict",
-  };
-}
-
-  // Mark the stored callback processed only after the handler succeeds.
-  // This update is idempotent, so duplicate reconciliation calls are safe.
-  await db.runTransaction(async (transaction) => {
-    const latestSnapshot = await transaction.get(callbackRef);
-
-    if (!latestSnapshot.exists) {
-      throw new Error("Saved callback disappeared during reconciliation");
-    }
-
-    const latest = latestSnapshot.data() || {};
-
-    if (latest.processed === true) {
-      return;
-    }
-
-    if (
-      latest.callback?.CheckoutRequestID !== checkoutRequestID
-    ) {
-      throw new Error("Saved callback changed during reconciliation");
-    }
-
-    transaction.update(callbackRef, {
-      processed: true,
-      processedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    recordId: result.recordId,
+    documentType: result.documentType,
   });
-
-  console.log(
-    "✅ Saved M-Pesa callback reconciled:",
-    checkoutRequestID
-  );
-
-  return { reconciled: true };
 }
-
-
-async function saveUnmatchedCallback(checkoutRequestID, callback) {
-  const callbackRef = db
-    .collection("unmatchedMpesaCallbacks")
-    .doc(checkoutRequestID);
-
-  await db.runTransaction(async (transaction) => {
-    const existing = await transaction.get(callbackRef);
-
-    // Preserve the first callback. Do not overwrite a previously
-    // stored callback with a potentially conflicting result.
-    if (!existing.exists) {
-      transaction.set(callbackRef, {
-        checkoutRequestID,
-        callback,
-        processed: false,
-        receivedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-  });
-
-  console.warn(
-    "⚠️ Callback saved for reconciliation; no matching attempt yet:",
-    checkoutRequestID
-  );
-}
-
 
 async function mpesaCallback(req, res) {
   console.log("🔥 MPESA CALLBACK RECEIVED");
@@ -806,46 +457,36 @@ async function mpesaCallback(req, res) {
       CallbackMetadata,
     } = callback;
 
-    if (!CheckoutRequestID || ResultCode === undefined) {
-      console.error("❌ Callback missing result code or checkout ID");
+    if (
+      !CheckoutRequestID ||
+      ResultCode === undefined ||
+      ResultCode === null
+    ) {
+      console.error(
+        "❌ Callback missing ResultCode or CheckoutRequestID"
+      );
+
       return res.status(400).json({ ResultCode: 1 });
     }
 
-    console.log("📌 Callback result:", ResultCode, ResultDesc);
+    console.log("📌 ResultCode:", ResultCode);
+    console.log("📌 ResultDesc:", ResultDesc);
     console.log("📌 CheckoutRequestID:", CheckoutRequestID);
 
+    if (Number(ResultCode) !== 0) {
+      await markPaymentFailed(
+        CheckoutRequestID,
+        ResultCode,
+        ResultDesc
+      );
 
-if (Number(ResultCode) !== 0) {
-  const attempt = await findPaymentAttempt(CheckoutRequestID);
-
-  if (!attempt) {
-    await saveUnmatchedCallback(CheckoutRequestID, callback);
-
-    // The callback is safely stored for reconciliation.
-    // Do not change the payment lock here.
-    return res.status(200).json({
-      ResultCode: 0,
-      ResultDesc: "Callback stored for reconciliation",
-    });
-  }
-
-const failureResult = await markPaymentFailed(
-  CheckoutRequestID,
-  ResultCode,
-  ResultDesc
-);
-
-return res.status(200).json({
-  ResultCode: 0,
-  ResultDesc: failureResult?.conflict
-    ? "Callback received; payment conflict requires reconciliation"
-    : "Failure callback processed",
-});
-}
-
+      return res.status(200).json({
+        ResultCode: 0,
+        ResultDesc: "Failure callback processed",
+      });
+    }
 
     const paymentData = {};
-
     const items = CallbackMetadata?.Item;
 
     if (Array.isArray(items)) {
@@ -855,47 +496,38 @@ return res.status(200).json({
       }
     }
 
-   
-const attempt = await findPaymentAttempt(CheckoutRequestID);
+    console.log("💰 PAYMENT DETAILS:", {
+      amount: paymentData.Amount,
+      receipt: paymentData.MpesaReceiptNumber,
+      phone: paymentData.PhoneNumber,
+      transactionDate: paymentData.TransactionDate,
+    });
 
-if (!attempt) {
-  await saveUnmatchedCallback(CheckoutRequestID, callback);
+    await markPaymentSuccessful(
+      CheckoutRequestID,
+      paymentData
+    );
 
-  // Do not guess the claim or mark it paid until reconciliation
-  // connects this callback to its exact payment attempt.
-  return res.status(200).json({
-    ResultCode: 0,
-    ResultDesc: "Callback stored for reconciliation",
-  });
-}
-
-const processingResult = await markPaymentSuccessful(
-  CheckoutRequestID,
-  paymentData
-);
-
-return res.status(200).json({
-  ResultCode: 0,
-  ResultDesc: processingResult?.conflict
-    ? "Callback received; payment conflict requires reconciliation"
-    : "Success",
-});
-
+    return res.status(200).json({
+      ResultCode: 0,
+      ResultDesc: "Success",
+    });
   } catch (error) {
     console.error("❌ CALLBACK PROCESSING ERROR:", error);
 
-    // Do not acknowledge an unprocessed callback as successful.
-    return res.status(500).json({ ResultCode: 1 });
+    // A mapping or Firestore failure must not be reported as processed.
+    return res.status(500).json({
+      ResultCode: 1,
+      ResultDesc: "Callback processing failed",
+    });
   }
 }
 
 /**
- * Compatibility polling endpoint.
- * The frontend should eventually poll a Firestore-backed status endpoint,
- * not rely on this local file as the authoritative status.
+ * Poll using the actual CheckoutRequestID returned by the STK Push.
+ * Example route: /mpesa/status/:checkoutRequestID
  */
-
-async function getPaymentStatus(req, res) {
+function getPaymentStatus(req, res) {
   const checkoutRequestID = String(
     req.params.checkoutRequestID || ""
   ).trim();
@@ -903,44 +535,30 @@ async function getPaymentStatus(req, res) {
   if (!checkoutRequestID) {
     return res.status(400).json({
       status: "error",
-      error: "CheckoutRequestID is required",
+      error: "checkoutRequestID is required",
     });
   }
 
   try {
-    const snapshot = await db
-      .collection("paymentAttempts")
-      .where("checkoutRequestID", "==", checkoutRequestID)
-      .limit(2)
-      .get();
+    const payments = cleanupOldPayments(readPaymentsFile());
+    const payment = findPaymentByCheckoutId(
+      payments,
+      checkoutRequestID
+    );
 
-    // Do not guess if the checkout ID is unknown or ambiguous.
-    if (snapshot.empty) {
-      return res.json({ status: "unknown" });
+    if (!payment) {
+      return res.json({ status: "pending" });
     }
-
-    if (snapshot.size !== 1) {
-      console.error(
-        "Multiple payment attempts found for checkout ID:",
-        checkoutRequestID
-      );
-
-      return res.status(409).json({
-        status: "error",
-        error: "Ambiguous payment attempt",
-      });
-    }
-
-    const attempt = snapshot.docs[0].data();
 
     return res.json({
-      status: attempt.status || "unknown",
+      status: payment.status || "pending",
+      checkoutRequestID: payment.checkoutRequestID,
+      recordId: payment.recordId || null,
+      documentType: payment.documentType || "national_id",
+      fullName: payment.fullName || null,
     });
   } catch (error) {
-    console.error(
-      "Failed to read payment status from Firestore:",
-      error
-    );
+    console.error("❌ Failed to check payment status:", error.message);
 
     return res.status(500).json({
       status: "error",
@@ -949,58 +567,7 @@ async function getPaymentStatus(req, res) {
   }
 }
 
-
-/**
- * Admin-only recovery report.
- * Read-only: this function never changes attempts or claim locks.
- * Protect its route with verifyAdminToken in server.js.
- */
-async function getUnresolvedPaymentAttempts(req, res) {
-  try {
-    const snapshot = await db
-      .collection("paymentAttempts")
-      .where("status", "in", ["pending", "unknown"])
-      .limit(100)
-      .get();
-
-    const attempts = snapshot.docs.map((doc) => {
-      const data = doc.data();
-
-      return {
-        attemptId: doc.id,
-        recordId: data.recordId || null,
-        checkoutRequestID: data.checkoutRequestID || null,
-        status: data.status || "unknown",
-        amount: data.amount ?? null,
-        createdAt: data.createdAt ?? null,
-        updatedAt: data.updatedAt ?? null,
-      };
-    });
-
-    return res.json({
-      success: true,
-      count: attempts.length,
-      attempts,
-      limit: 100,
-    });
-  } catch (error) {
-    console.error(
-      "Failed to read unresolved M-Pesa attempts:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      error: "Unable to retrieve unresolved payment attempts",
-    });
-  }
-}
-
 module.exports = {
   mpesaCallback,
   getPaymentStatus,
-  reconcileSavedCallback,
-  getUnresolvedPaymentAttempts,
 };
-
-
