@@ -263,6 +263,7 @@ const documentTypeLabel =
     >
       <h1 style={{ marginBottom: "20px" }}>{documentTypeLabel} Details</h1>
 
+
       {/* Images */}
       <div
         style={{
@@ -274,46 +275,61 @@ const documentTypeLabel =
           maxWidth: "400px",
         }}
       >
-        <div
-          style={{
-            border: "2px dashed gray",
-            borderRadius: "10px",
-            height: "150px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            overflow: "hidden",
-            cursor: "pointer",
-          }}
-        >
-          <img
-            src={record.frontImage}
-            alt="Front ID"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            onClick={() => setZoomImage(record.frontImage)}
-          />
-        </div>
+        {record.frontImage && (
+          <div
+            style={{
+              border: "2px dashed gray",
+              borderRadius: "10px",
+              height: "150px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              overflow: "hidden",
+              cursor: "pointer",
+            }}
+          >
+            <img
+              src={record.frontImage}
+              alt={`Front of ${documentTypeLabel}`}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+              onClick={() => setZoomImage(record.frontImage)}
+            />
+          </div>
+        )}
 
-        <div
-          style={{
-            border: "2px dashed gray",
-            borderRadius: "10px",
-            height: "150px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            overflow: "hidden",
-            cursor: "pointer",
-          }}
-        >
-          <img
-            src={record.backImage}
-            alt="Back ID"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            onClick={() => setZoomImage(record.backImage)}
-          />
-        </div>
+        {record.documentType !== "birthCertificate" &&
+          record.backImage && (
+            <div
+              style={{
+                border: "2px dashed gray",
+                borderRadius: "10px",
+                height: "150px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                overflow: "hidden",
+                cursor: "pointer",
+              }}
+            >
+              <img
+                src={record.backImage}
+                alt={`Back of ${documentTypeLabel}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+                onClick={() => setZoomImage(record.backImage)}
+              />
+            </div>
+          )}
       </div>
+
+
 
       {/* DETAILS */}
       <div
@@ -325,132 +341,151 @@ const documentTypeLabel =
           gap: "15px",
         }}
       >
-
-<label>
-  Document Type:
-  <input
-    type="text"
-    value={documentTypeLabel}
-    readOnly
-    style={inputStyle}
-  />
-</label>
         <label>
-          Full Names:
+          Document Type:
           <input
             type="text"
-            value={record.fullName}
+            value={documentTypeLabel}
             readOnly
             style={inputStyle}
           />
         </label>
 
-        <label>
-          ID Number:
-          <input
-            type="text"
-            value={record.idNumber}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {record.fullName && (
+          <label>
+            Full Names:
+            <input
+              type="text"
+              value={record.fullName}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
 
-        <label>
-          Date of Birth:
-          <input
-            type="text"
-            value={record.dob}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {record.documentType !== "birthCertificate" &&
+          record.idNumber && (
+            <label>
+              ID Number:
+              <input
+                type="text"
+                value={record.idNumber}
+                readOnly
+                style={inputStyle}
+              />
+            </label>
+          )}
 
-        <label>
-          Sex:
-          <input
-            type="text"
-            value={record.sex}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {record.dob && (
+          <label>
+            Date of Birth:
+            <input
+              type="text"
+              value={record.dob}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
 
-        <label>
-          District of Birth:
-          <input
-            type="text"
-            value={record.district}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {record.sex && (
+          <label>
+            Sex:
+            <input
+              type="text"
+              value={record.sex}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
 
-        <label>
-          Pickup Station:
-          <input
-            type="text"
-            value={record.pickupStation || ""}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {record.documentType !== "drivingLicence" &&
+          record.district && (
+            <label>
+              District of Birth:
+              <input
+                type="text"
+                value={record.district}
+                readOnly
+                style={inputStyle}
+              />
+            </label>
+          )}
 
-        <label>
-          Location:
-          <input
-            type="text"
-            value={station?.location || ""}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {record.pickupStation && (
+          <label>
+            Pickup Station:
+            <input
+              type="text"
+              value={record.pickupStation}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
 
-        <label>
-          Pickup Station Cell:
-          <input
-            type="text"
-            value={station?.phone1 || ""}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {station?.location && (
+          <label>
+            Location:
+            <input
+              type="text"
+              value={station.location}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
 
-        <label>
-          Pickup Station Cell:
-          <input
-            type="text"
-            value={station?.phone2 || ""}
-            readOnly
-            style={inputStyle}
-          />
-        </label>
+        {station?.phone1 && (
+          <label>
+            Pickup Station Cell:
+            <input
+              type="text"
+              value={station.phone1}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
 
-        <label>
-          Station GPS:
-          <a
-            href={
-              station?.gps
-                ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    station.gps
-                  )}`
-                : "#"
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "block",
-              padding: "10px",
-              background: "#222",
-              borderRadius: "6px",
-              color: station?.gps ? "lightblue" : "gray",
-              textDecoration: station?.gps ? "underline" : "none",
-              cursor: station?.gps ? "pointer" : "default",
-            }}
-          >
-            {station?.gps || "No GPS available"}
-          </a>
-        </label>
+        {station?.phone2 && (
+          <label>
+            Pickup Station Cell:
+            <input
+              type="text"
+              value={station.phone2}
+              readOnly
+              style={inputStyle}
+            />
+          </label>
+        )}
+
+        {station?.gps && (
+          <label>
+            Station GPS:
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                station.gps
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block",
+                padding: "10px",
+                background: "#222",
+                borderRadius: "6px",
+                color: "lightblue",
+                textDecoration: "underline",
+                cursor: "pointer",
+              }}
+            >
+              {station.gps}
+            </a>
+          </label>
+        )}
       </div>
+
 
       <div style={{ textAlign: "center", marginTop: "30px" }}>
         <Link to="/" style={{ color: "white", textDecoration: "none" }}>

@@ -113,6 +113,12 @@ const handlePay = async () => {
       }
     );
 
+    console.log(
+  "STK PUSH FRONTEND RESPONSE:",
+  JSON.stringify(response.data, null, 2)
+);
+console.log("STK PUSH RECORD ID:", recordId);
+
     checkoutRequestID =
       response.data?.data?.CheckoutRequestID ||
       response.data?.CheckoutRequestID ||
