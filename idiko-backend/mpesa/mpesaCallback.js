@@ -1,14 +1,4 @@
-/**
- * M-Pesa STK Push Callback Handler
- *
- * payments.json stores the checkout-to-claim mapping.
-
- *
- * Supported document types:
- *   - national_id
- *   - driving_license
- *   - birth_certificate
- */
+// mpesa/mpesaCallback.js
 
 const fs = require("fs");
 const path = require("path");
@@ -18,8 +8,11 @@ const db = admin.firestore();
 
 const FILE_PATH = path.join(__dirname, "payments.json");
 
+const UNRESOLVED_PAYMENT_TIMEOUT_MS = 90 * 1000;
+
 const FAILED_RETENTION_MS = 24 * 60 * 60 * 1000;
 const PAID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const EXPIRED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function normalizeDocumentType(value) {
   const type = String(value || "")
@@ -55,23 +48,79 @@ function normalizeDocumentType(value) {
   return type || "national_id";
 }
 
+/**
+ * Expire unresolved attempts that have exceeded the allowed waiting period.
+ *
+ * Their checkout mappings are kept so that a delayed Safaricom callback
+ * can still be matched to the correct claim.
+ *
+ * Old unresolved entries with no valid createdAt are expired as a
+ * compatibility measure so they cannot block retries forever.
+ */
 function cleanupOldPayments(payments) {
   const now = Date.now();
+  let changed = false;
 
-  return payments.filter((payment) => {
-    if (payment.status === "failed" && payment.failedAt) {
+  const cleanedPayments = payments.map((payment) => {
+    const status = String(payment.status || "").toLowerCase();
+
+    if (
+      ["pending", "unknown", "processing"].includes(status)
+    ) {
+      const createdAt = new Date(payment.createdAt).getTime();
+
+      const isStale =
+        !Number.isFinite(createdAt) ||
+        now - createdAt >= UNRESOLVED_PAYMENT_TIMEOUT_MS;
+
+      if (isStale) {
+        changed = true;
+
+        return {
+          ...payment,
+          status: "expired",
+          expiredAt: payment.expiredAt || new Date(now).toISOString(),
+          expiryReason:
+            payment.expiryReason ||
+            "No confirmed payment result within the allowed waiting period",
+        };
+      }
+    }
+
+    return payment;
+  });
+
+  const retainedPayments = cleanedPayments.filter((payment) => {
+    const status = String(payment.status || "").toLowerCase();
+
+    if (status === "failed" && payment.failedAt) {
       const age = now - new Date(payment.failedAt).getTime();
       return age < FAILED_RETENTION_MS;
     }
 
-    if (payment.status === "paid" && payment.paidAt) {
+    if (status === "paid" && payment.paidAt) {
       const age = now - new Date(payment.paidAt).getTime();
       return age < PAID_RETENTION_MS;
     }
 
-    // Pending, processing and unknown outcomes are retained.
+    if (status === "expired" && payment.expiredAt) {
+      const age = now - new Date(payment.expiredAt).getTime();
+      return age < EXPIRED_RETENTION_MS;
+    }
+
+    // Keep unresolved attempts that are still within their waiting period.
+    // Also preserve entries whose terminal timestamp is missing.
     return true;
   });
+
+  if (retainedPayments.length !== payments.length) {
+    changed = true;
+  }
+
+  return {
+    payments: retainedPayments,
+    changed,
+  };
 }
 
 function readPaymentsFile() {
@@ -94,8 +143,23 @@ function writePaymentsFile(payments) {
   fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
 }
 
+/**
+ * Read payments and apply expiration/retention cleanup.
+ * Persist changes so expired attempts do not remain pending in the file.
+ */
+function readCleanPaymentsFile() {
+  const originalPayments = readPaymentsFile();
+  const cleanupResult = cleanupOldPayments(originalPayments);
+
+  if (cleanupResult.changed) {
+    writePaymentsFile(cleanupResult.payments);
+  }
+
+  return cleanupResult.payments;
+}
+
 function updatePaymentInFile(checkoutRequestID, updates) {
-  let payments = cleanupOldPayments(readPaymentsFile());
+  let payments = readCleanPaymentsFile();
 
   const index = payments.findIndex(
     (payment) =>
@@ -339,7 +403,8 @@ async function markPaymentFailed(
   resultCode,
   resultDescription
 ) {
-  const payments = cleanupOldPayments(readPaymentsFile());
+  const payments = readCleanPaymentsFile();
+
   const payment = findPaymentByCheckoutId(
     payments,
     checkoutRequestID
@@ -374,7 +439,8 @@ async function markPaymentSuccessful(
   checkoutRequestID,
   paymentData
 ) {
-  const payments = cleanupOldPayments(readPaymentsFile());
+  const payments = readCleanPaymentsFile();
+
   const payment = findPaymentByCheckoutId(
     payments,
     checkoutRequestID
@@ -415,6 +481,10 @@ async function markPaymentSuccessful(
     );
     return;
   }
+
+  // A payment with status "expired" is still allowed to succeed here.
+  // Expiration only stops it blocking another attempt; it does not
+  // invalidate a later confirmed Safaricom success callback.
 
   // Update Firestore using the exact saved recordId.
   const result = await updateFirestoreClaimAsPaid(
@@ -540,7 +610,8 @@ function getPaymentStatus(req, res) {
   }
 
   try {
-    const payments = cleanupOldPayments(readPaymentsFile());
+    const payments = readCleanPaymentsFile();
+
     const payment = findPaymentByCheckoutId(
       payments,
       checkoutRequestID

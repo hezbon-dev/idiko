@@ -33,10 +33,14 @@ export const ENABLE_BACKGROUND_MUSIC = false;
 
 export const WEBSITE_PLAYLIST = [
 
-  "/audio/Tems Playlist  Healing.mp3",
- "/audio/ALTON ELLIS - 25th Silver Jubilee [1984 - Sky Note - Full Album].mp3",
- 
-  
+"/audio/Nibebe - Nyota Ndogo ft Nonini.mp3",
+"/audio/na wewe tu.mp3",
+"/audio/Just A Band - Probably For Lovers.mp3",
+"/audio/Just A Band - Huff  Puff.mp3",
+"/audio/Just A Band - Hey! (from the Boxing Day Special).mp3",
+"/audio/Be Your Fool - The Villagers Band.mp3",
+
+
 ];
 
 // =========================
@@ -51,4 +55,4 @@ export type PlaylistMode =
   | "shuffle";
 
 export const PLAYLIST_MODE: PlaylistMode =
-  "sequential";
+  "shuffle";

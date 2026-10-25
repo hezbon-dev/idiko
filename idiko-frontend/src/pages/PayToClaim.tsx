@@ -332,7 +332,7 @@ export default function PayToClaim({}: PayToClaimProps) {
               color: "#fff",
               fontWeight: "bold",
               borderRadius: 20,
-              cursor: loading ? "not-allowed" : "pointer",
+              cursor:"pointer",
               fontSize: 16,
               opacity: loading ? 0.7 : 1,
             }}

@@ -1,3 +1,5 @@
+// mpesa/stkPush.js
+
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
@@ -12,6 +14,14 @@ const ALLOWED_DOCUMENT_TYPES = [
   "driving_license",
   "birth_certificate",
 ];
+
+// Allow a little longer than the frontend's 60-second polling window.
+// This expires the blocking state; it does not prove that payment failed.
+const UNRESOLVED_PAYMENT_TIMEOUT_MS = 90 * 1000;
+
+const FAILED_RETENTION_MS = 24 * 60 * 60 * 1000;
+const PAID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+const EXPIRED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function normalizeDocumentType(value) {
   const type = String(value || "")
@@ -66,25 +76,79 @@ function writePaymentsFile(payments) {
   fs.writeFileSync(FILE_PATH, JSON.stringify(payments, null, 2));
 }
 
+/**
+ * Expire unresolved attempts that have exceeded the allowed waiting period.
+ *
+ * Keep their checkout mappings so that a delayed Safaricom callback can
+ * still be matched to the correct claim.
+ *
+ * Old unresolved entries with no valid createdAt are expired as a
+ * compatibility measure so they cannot block retries forever.
+ */
 function cleanupOldPayments(payments) {
   const now = Date.now();
-  const FAILED_RETENTION_MS = 24 * 60 * 60 * 1000;
-  const PAID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  let changed = false;
 
-  return payments.filter((payment) => {
-    if (payment.status === "failed" && payment.failedAt) {
+  const cleanedPayments = payments.map((payment) => {
+    const status = String(payment.status || "").toLowerCase();
+
+    if (
+      ["pending", "unknown", "processing"].includes(status)
+    ) {
+      const createdAt = new Date(payment.createdAt).getTime();
+
+      const isStale =
+        !Number.isFinite(createdAt) ||
+        now - createdAt >= UNRESOLVED_PAYMENT_TIMEOUT_MS;
+
+      if (isStale) {
+        changed = true;
+
+        return {
+          ...payment,
+          status: "expired",
+          expiredAt: payment.expiredAt || new Date(now).toISOString(),
+          expiryReason:
+            payment.expiryReason ||
+            "No confirmed payment result within the allowed waiting period",
+        };
+      }
+    }
+
+    return payment;
+  });
+
+  const retainedPayments = cleanedPayments.filter((payment) => {
+    const status = String(payment.status || "").toLowerCase();
+
+    if (status === "failed" && payment.failedAt) {
       const age = now - new Date(payment.failedAt).getTime();
       return age < FAILED_RETENTION_MS;
     }
 
-    if (payment.status === "paid" && payment.paidAt) {
+    if (status === "paid" && payment.paidAt) {
       const age = now - new Date(payment.paidAt).getTime();
       return age < PAID_RETENTION_MS;
     }
 
-    // Keep pending and uncertain payments.
+    if (status === "expired" && payment.expiredAt) {
+      const age = now - new Date(payment.expiredAt).getTime();
+      return age < EXPIRED_RETENTION_MS;
+    }
+
+    // Keep unresolved attempts that are still within their waiting period.
+    // Also preserve entries whose terminal timestamp is missing.
     return true;
   });
+
+  if (retainedPayments.length !== payments.length) {
+    changed = true;
+  }
+
+  return {
+    payments: retainedPayments,
+    changed,
+  };
 }
 
 /**
@@ -308,7 +372,16 @@ async function stkPush(req, res) {
   let payments;
 
   try {
-    payments = cleanupOldPayments(readPaymentsFile());
+    const existingPayments = readPaymentsFile();
+    const cleanupResult = cleanupOldPayments(existingPayments);
+
+    payments = cleanupResult.payments;
+
+    // Persist expired attempts and retention cleanup before checking
+    // whether a previous attempt is blocking this claim.
+    if (cleanupResult.changed) {
+      writePaymentsFile(payments);
+    }
   } catch (error) {
     console.error("❌ Could not read payments.json:", error.message);
 
@@ -318,8 +391,8 @@ async function stkPush(req, res) {
     });
   }
 
-  // Do not start a second payment for this same claim while a previous
-  // checkout is still pending or its outcome is unknown.
+  // Block only while a previous attempt is still within its
+  // unresolved waiting period.
   const unresolvedPayment = payments.find(
     (payment) =>
       payment.recordId === claim.recordId &&

@@ -65,7 +65,7 @@ export default function Home() {
       {/* ID Status Inquiry */}
       <div style={inquiryStyle}>
         <div style={{ fontWeight: "bold" }}>
-          For ID status inquiry
+          For Document status inquiry
         </div>
 
         <div>
