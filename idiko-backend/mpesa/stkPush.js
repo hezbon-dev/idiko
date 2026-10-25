@@ -17,7 +17,7 @@ const ALLOWED_DOCUMENT_TYPES = [
 
 // Allow a little longer than the frontend's 60-second polling window.
 // This expires the blocking state; it does not prove that payment failed.
-const UNRESOLVED_PAYMENT_TIMEOUT_MS = 90 * 1000;
+const UNRESOLVED_PAYMENT_TIMEOUT_MS = 60 * 1000;
 
 const FAILED_RETENTION_MS = 24 * 60 * 60 * 1000;
 const PAID_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
